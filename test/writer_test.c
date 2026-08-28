@@ -45,6 +45,12 @@ const char* test_writer_bytes(){
 		return "Buffer is exhausted after second rotation";
 	}
 
+	writer_buffer last_buffer = writer_delete(writer);
+	if(last_buffer.length != 0){
+		return "Last buffer is expected to be zero-length";
+	}
+	free(last_buffer.buffer);
+
 	return NULL;
 }
 
@@ -101,6 +107,18 @@ const char* test_writer_bits(){
 		return "Wrong data in the second buffer";
 	}
 	free(result_buffer);
+
+	_write_byte_as_bits(writer, 0b11111111);
+	writer_write_bit(writer, 0);
+	writer_write_bit(writer, 1);
+	writer_buffer last_buffer = writer_delete(writer);
+	if(last_buffer.length != 2){
+		return "Wrong length of the last buffer";
+	}
+	if(last_buffer.buffer[0] != 0b11111111 || last_buffer.buffer[1] != 0b00000010){
+		return "Wrong data in the last buffer";
+	}
+	free(last_buffer.buffer);
 
 	return NULL;
 }
