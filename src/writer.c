@@ -44,19 +44,24 @@ writer* writer_new(size_t size, byte* current_buffer, byte* next_buffer){
 }
 
 typedef struct {
-	byte* buffer;
+	byte* current_buffer;
+	/** Amount of bytes in current_buffer that contain data written.
+	If you didn't rotate the buffers before calling delete - this value may be larger than the buffer size */
 	size_t length;
-} writer_buffer;
+	/** This buffer should be clean if you rotated the buffers before deleting the writer */
+	byte* next_buffer;
+} writer_deletion_result;
 
 /** Deletes the stream. Buffers are not deleted. Last partially-full buffer is returned. */
-writer_buffer writer_delete(writer* writer){
+writer_deletion_result writer_delete(writer* writer){
 	size_t bytes_written = (writer->bit_pointer >> 3);
 	if(writer->bit_pointer & 7){
 		bytes_written++;
 	}
 
-	writer_buffer result;
-	result.buffer = writer->current_buffer;
+	writer_deletion_result result;
+	result.current_buffer = writer->current_buffer;
+	result.next_buffer = writer->next_buffer;
 	result.length = bytes_written;
 	
 	free(writer);

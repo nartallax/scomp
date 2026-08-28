@@ -29,9 +29,10 @@ const char* test_writer_bytes(){
 
 	TEST_ASSERT(!writer_is_current_buffer_exhausted(writer), "Buffer should not be exhausted after second rotation");
 	
-	writer_buffer last_buffer = writer_delete(writer);
+	writer_deletion_result last_buffer = writer_delete(writer);
 	TEST_ASSERT(last_buffer.length == 0, "Last buffer is expected to be zero-length");
-	free(last_buffer.buffer);
+	free(last_buffer.current_buffer);
+	free(last_buffer.next_buffer);
 
 	return NULL;
 }
@@ -77,10 +78,11 @@ const char* test_writer_bits(){
 	_write_byte_as_bits(writer, 0b11111111);
 	writer_write_bit(writer, 0);
 	writer_write_bit(writer, 1);
-	writer_buffer last_buffer = writer_delete(writer);
+	writer_deletion_result last_buffer = writer_delete(writer);
 	TEST_ASSERT(last_buffer.length == 2, "Last buffer should have length of 2");
-	TEST_ASSERT(last_buffer.buffer[0] == 0b11111111 && last_buffer.buffer[1] == 0b00000010, "Last buffer should have expected data");
-	free(last_buffer.buffer);
+	TEST_ASSERT(last_buffer.current_buffer[0] == 0b11111111 && last_buffer.current_buffer[1] == 0b00000010, "Last buffer should have expected data");
+	free(last_buffer.current_buffer);
+	free(last_buffer.next_buffer);
 
 	return NULL;
 }
