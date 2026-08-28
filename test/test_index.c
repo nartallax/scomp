@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include "./writer_test.c"
+#include "./math_test.c"
 
 typedef const char *(*tester)(void);
 
@@ -8,7 +9,9 @@ typedef const char *(*tester)(void);
 int main(){
 	tester testers[] = {
 		test_writer_bytes,
-		test_writer_bits
+		test_writer_bits,
+		test_writer_wrong_init,
+		test_is_power_of_two
 		// tests go here
 	};
 
