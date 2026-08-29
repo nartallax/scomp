@@ -10,23 +10,23 @@ clear:
 .PHONY: build_test
 build_test:
 	@make clear
-	@$(CC) -O2 -g -o ./build/test test/test_index.c
+	@$(CC) -O3 -g -o ./build/test test/test_index.c
 
-.PHONY: build_test_profiled
-build_test_profiled:
+.PHONY: build_test_for_coverage
+build_test_for_coverage:
 	@make clear
 	@# -DNDEBUG here because I don't want to calculate code coverage on asserts
-	@$(CC) -DNDEBUG -O2 -fprofile-instr-generate -fcoverage-mapping -g -o ./build/test test/test_index.c
+	@$(CC) -DNDEBUG -O3 -fprofile-instr-generate -fcoverage-mapping -fsanitize=address,undefined -fno-omit-frame-pointer -g -o ./build/test test/test_index.c
 
-.PHONY: run_test_profiled
-run_test_profiled: 
-	@make build_test_profiled
+.PHONY: run_test_for_coverage
+run_test_for_coverage: 
+	@make build_test_for_coverage
 	@LLVM_PROFILE_FILE="./build/llvm_profile.profraw" ./build/test
 
 .PHONY: build
 build:
 	@make clear
-	@$(CC) -DNDEBUG -O2 -o ./build/output arithmetic_compression/index.c
+	@$(CC) -DNDEBUG -O3 -o ./build/output arithmetic_compression/index.c
 
 .PHONY: run_test
 run_test:
@@ -35,7 +35,7 @@ run_test:
 
 .PHONY: coverage
 coverage:
-	@make run_test_profiled
+	@make run_test_for_coverage
 	@llvm-profdata merge -sparse ./build/llvm_profile.profraw -o ./build/llvm_profile.profdata
 	@llvm-cov report ./build/test -instr-profile=./build/llvm_profile.profdata ./src/
 	@llvm-cov show ./build/test -instr-profile=./build/llvm_profile.profdata -format=html -show-line-counts-or-regions -show-branches=count -show-expansions -output-dir=./build/coverage ./src/
