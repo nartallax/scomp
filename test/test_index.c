@@ -1,4 +1,5 @@
 #include "./fenwick_tree_test.c"
+#include "./frequency_table_test.c"
 #include "./math_test.c"
 #include "./writer_test.c"
 #include <stdio.h>
@@ -7,7 +8,8 @@ typedef const char *(*tester)(void);
 
 int main() {
   tester testers[] = {
-      test_writer_bytes, test_writer_bits, test_writer_wrong_init, test_is_power_of_two, test_fenwick_tree_simple, test_fenwick_tree_max_range, test_fenwick_tree_range_sum_cornercase
+      test_writer_bytes,  test_writer_bits,     test_writer_wrong_init, test_is_power_of_two, test_fenwick_tree_simple,    test_fenwick_tree_max_range, test_fenwick_tree_range_sum_cornercase,
+      test_ftable_simple, test_ftable_with_eof, test_ftable_init_one,   test_ftable_halving,  test_ftable_from_frequencies
       // tests go here
   };
 
