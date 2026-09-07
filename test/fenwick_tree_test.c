@@ -13,7 +13,7 @@ const char *test_fenwick_tree_simple() {
   ftree_add(tree, 15, 1);
   ftree_add(tree, 0, 1);
 
-  symbol_frequency *source_array = ftree_to_source_array(tree);
+  uint64_t *source_array = ftree_to_source_array(tree);
   ftree tree_from_source = ftree_from_values(256 + 1, source_array, 0);
 
   int expected_cumulatives[][2] = {{0, 1}, {15, 3}, {21, 4}, {37, 5}, {64, 6}, {256, 7}};
@@ -21,8 +21,8 @@ const char *test_fenwick_tree_simple() {
   for (size_t i = 0; i < expected_cumulatives_count; i++) {
     int *pair = expected_cumulatives[i];
     size_t index = (size_t)pair[0];
-    symbol_frequency expected_sum = (symbol_frequency)pair[1];
-    symbol_frequency sum = ftree_sum(tree, index);
+    uint64_t expected_sum = (uint64_t)pair[1];
+    uint64_t sum = ftree_sum(tree, index);
     TEST_ASSERT(sum == expected_sum, "Cumulative sum should be equal to expected");
     TEST_ASSERT(ftree_sum(tree_from_source, index) == expected_sum, "Cumulative sum from reparsed tree should be equal to expected");
   }
@@ -32,8 +32,8 @@ const char *test_fenwick_tree_simple() {
   for (size_t i = 0; i < expected_src_count; i++) {
     int *pair = expected_src[i];
     size_t index = (size_t)pair[0];
-    symbol_frequency expected_src_value = (symbol_frequency)pair[1];
-    symbol_frequency src = source_array[index];
+    uint64_t expected_src_value = (uint64_t)pair[1];
+    uint64_t src = source_array[index];
     TEST_ASSERT(src == expected_src_value, "Source value should be equal to expected");
     TEST_ASSERT(ftree_get(tree, index) == expected_src_value, "ftree_get should be equal to expected");
     TEST_ASSERT(ftree_get(tree_from_source, index) == expected_src_value, "ftree_get from reparsed tree should be equal to expected");
@@ -52,7 +52,7 @@ const char *test_fenwick_tree_max_range() {
     TEST_ASSERT(ftree_length(tree) == size, "ftree_length must be equal to passed size");
     ftree_add(tree, 0, 1);
     ftree_add(tree, size - 1, 1);
-    symbol_frequency sum = ftree_sum(tree, size - 1);
+    uint64_t sum = ftree_sum(tree, size - 1);
     TEST_ASSERT(sum == 2, "Sum of just two increments must be 2");
     ftree_delete(tree);
   }

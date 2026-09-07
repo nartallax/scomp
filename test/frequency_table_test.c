@@ -109,8 +109,14 @@ const char *test_ftable_from_frequencies() {
   TEST_ASSERT(ftable_get_frequency(table, eof) == 1, "EOF frequency is 1");
   TEST_ASSERT(ftable_get_low(table, eof) == 10, "EOF low is 10");
   TEST_ASSERT(ftable_get_high(table, eof) == 11, "EOF high is 11");
-
   ftable_delete(table);
+
+  table = ftable_from_frequencies(5, freqs, FTABLE_EXCLUDE_EOF);
+  TEST_ASSERT(ftable_get_frequency(table, 3) == 3, "Frequencies are preserved");
+  TEST_ASSERT(ftable_get_low(table, 3) == 7, "Lows are calculated");
+  TEST_ASSERT(ftable_get_high(table, 3) == 10, "Highs are calculated");
+  ftable_delete(table);
+
   free(freqs);
   return NULL;
 }
