@@ -1,3 +1,4 @@
+#pragma once
 #include "../src/frequency_table.c"
 #include "./test_utils.c"
 #include <stdio.h>

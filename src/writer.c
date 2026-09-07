@@ -14,7 +14,8 @@ You are supposed to call write_something functions `while(!writer_is_current_buf
 after which you are supposed to provide fresh buffer via `writer_rotate_buffers()` and do something with full buffer returned.
 At the end of the life you are supposed to call `writer_delete()`, which will return the last buffer.
 
-Note that buffers you provide are assumed to be zero-initialized on caller's side.*/
+Note that buffers you provide are assumed to be zero-initialized on caller's side.
+Output is big-endian - least significant bits get value first. */
 typedef struct {
   /** Byte size of one of the buffers. */
   size_t size;

@@ -47,7 +47,7 @@ const char *test_fenwick_tree_simple() {
 }
 
 const char *test_fenwick_tree_max_range() {
-  for (size_t size = 1; size < 1024; size++) {
+  for (int64_t size = 1; size < 1024; size++) {
     ftree tree = ftree_new(size);
     TEST_ASSERT(ftree_length(tree) == size, "ftree_length must be equal to passed size");
     ftree_add(tree, 0, 1);

@@ -16,7 +16,7 @@ build_test:
 build_test_for_coverage:
 	@make clear
 	@# -DNDEBUG here because I don't want to calculate code coverage on asserts
-	@$(CC) -DNDEBUG -O3 -fprofile-instr-generate -fcoverage-mapping -fsanitize=address,undefined -fno-omit-frame-pointer -g -o ./build/test test/test_index.c
+	@$(CC) -DNDEBUG -O3 -fprofile-instr-generate -fcoverage-mapping -fsanitize=address,undefined,signed-integer-overflow,unsigned-integer-overflow -fno-omit-frame-pointer -g -o ./build/test test/test_index.c
 
 .PHONY: run_test_for_coverage
 run_test_for_coverage: 

@@ -1,3 +1,4 @@
+#pragma once
 #include "./fenwick_tree.c"
 #include "commons.c"
 #include <stdbool.h>
