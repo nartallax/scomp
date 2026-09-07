@@ -137,6 +137,10 @@ symbol_frequency ftable_get_frequency(ftable *table, symbol symbol) {
 
 /** Returns the sum of the frequencies of all the symbols strictly below the specified symbol value. */
 symbol_frequency ftable_get_low(ftable *table, symbol symbol) {
+  if (symbol == 0) {
+    // frequency range always starts at 0, and this avoids overflow
+    return 0;
+  }
   return ftree_sum(table->frequencies, symbol - 1);
 }
 

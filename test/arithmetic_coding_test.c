@@ -65,7 +65,6 @@ const char *_test_acod(size_t length, byte *data) {
     size_t current_byte_index = bit_index >> 3;
     byte current_byte = current_byte_index >= result_length ? 0 : encoded_bytes[bit_index >> 3];
     byte current_bit = (current_byte & (1 << (bit_index & 7))) ? 1 : 0;
-    // printf("Byte at %zu is %hhu; bit index is %zu\n", current_byte_index, current_byte, bit_index);
     bit_index++;
     acod_decoder_update(decoder, current_bit);
 
@@ -76,7 +75,6 @@ const char *_test_acod(size_t length, byte *data) {
       }
       // TODO: increment your tables
       // ftable_increment(decoding_frequencies, last_symbol);
-      printf("%zu, %hhu\n", last_symbol, data[symbol_index]);
       TEST_ASSERT(last_symbol == data[symbol_index], "Decoded symbol must be equal to source symbol");
       TEST_ASSERT(symbol_index < length, "Decoder must read exactly as much symbols as was written");
       symbol_index++;
@@ -94,11 +92,11 @@ const char *test_acod_simple() {
   srand(0xdeadbeef);
   const char *result;
 
-  // byte one_byte[] = {53};
-  // result = _test_acod(1, one_byte);
-  // if (result) {
-  //   return result;
-  // }
+  byte one_byte[] = {53};
+  result = _test_acod(1, one_byte);
+  if (result) {
+    return result;
+  }
 
   byte two_bytes[] = {50, 22};
   result = _test_acod(2, two_bytes);
@@ -106,14 +104,14 @@ const char *test_acod_simple() {
     return result;
   }
 
-  // for (int i = 0; i < 10; i++) {
-  //   size_t length = 1000 + (rand() / (INT_MAX / 1000));
-  //   byte *input = get_random_bytes(length);
-  //   const char *result = _test_acod(length, input);
-  //   if (result) {
-  //     return result;
-  //   }
-  //   free(input);
-  // }
+  for (int i = 0; i < 10; i++) {
+    size_t length = 1000 + (rand() / (INT_MAX / 1000));
+    byte *input = get_random_bytes(length);
+    const char *result = _test_acod(length, input);
+    if (result) {
+      return result;
+    }
+    free(input);
+  }
   return NULL;
 }

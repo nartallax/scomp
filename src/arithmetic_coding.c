@@ -5,7 +5,6 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <stdlib.h>
 
 // size of arithmetic coding state, [2, 62]
@@ -52,12 +51,14 @@ bool _acod_is_underflowable(acod_state *state) {
 }
 
 void _acod_perform_update_start(acod_state *state, ftable *frequencies, symbol symbol) {
+  assert(state->stage == ACOD_STAGE_READY);
+
   symbol_frequency value_range = state->high - state->low + 1;
   symbol_frequency total = frequencies->total;
   symbol_frequency symbol_low = ftable_get_low(frequencies, symbol);
   symbol_frequency symbol_high = ftable_get_high(frequencies, symbol);
-  printf("low: %zu, high: %zu, range: %zu\n", symbol_low, symbol_high, value_range);
 
+  // TODO: do we actually need uint128 here?
   __uint128_t new_low_numerator = ((__uint128_t)symbol_low) * ((__uint128_t)value_range);
   symbol_frequency new_low = state->low + (symbol_frequency)(new_low_numerator / ((__uint128_t)(total)));
   // symbol_frequency new_low = state->low + ((symbol_low * value_range) / total);
@@ -68,6 +69,7 @@ void _acod_perform_update_start(acod_state *state, ftable *frequencies, symbol s
 
   state->low = new_low;
   state->high = new_high;
+  assert(state->low < state->high);
 
   if (_acod_is_shiftable(state)) {
     state->stage = ACOD_STAGE_SHIFT;
@@ -77,24 +79,42 @@ void _acod_perform_update_start(acod_state *state, ftable *frequencies, symbol s
 }
 
 void _acod_perform_shift(acod_state *state) {
+  assert(_acod_is_shiftable(state));
   // While low and high have the same top bit value, shift them out
   state->low = ((state->low << 1) & ACOD_STATE_MASK);
   state->high = ((state->high << 1) & ACOD_STATE_MASK) | 1;
-  if (!_acod_is_shiftable(state)) {
+  assert(state->low < state->high);
+  if (_acod_is_shiftable(state)) {
+    return;
+  }
+  if (_acod_is_underflowable(state)) {
     // Now low's top bit must be 0 and high's top bit must be 1
     // and we can progress to next stage
     state->stage = ACOD_STAGE_UNDERFLOW;
+  } else {
+    // no underflow required
+    state->stage = ACOD_STAGE_READY;
   }
 }
 
 void _acod_perform_underflow(acod_state *state) {
+  assert(_acod_is_underflowable(state));
   // While low's top two bits are 01 and high's are 10, delete the second highest bit of both
   state->low = (state->low << 1) ^ ACOD_HALF_RANGE;
   state->high = ((state->high ^ ACOD_HALF_RANGE) << 1) | ACOD_HALF_RANGE | 1;
+  assert(state->low < state->high);
   if (!_acod_is_underflowable(state)) {
     state->stage = ACOD_STAGE_READY;
   }
 }
+
+// void _acod_try_progress_stage(acod_state *state){
+//   while(true){
+//     state->stage = state->stage == ACOD_STAGE_READY? ACOD_STAGE_SHIFT: state->stage == ACOD_STAGE_SHIFT? ACOD_STAGE_UNDERFLOW: ACOD_STAGE_READY;
+//     if(state->stage == ACOD_STAGE_SHIFT && !_acod_is_underflowable(acod_state *state)){
+//     }
+//   }
+// }
 
 typedef struct {
   acod_state state;
@@ -118,11 +138,9 @@ void _acod_encoder_finalize(acod_encoder *encoder) {
 
   byte final_bit = encoder->state.low < ACOD_QUARTER_RANGE ? 0 : 1;
   writer_write_bit(encoder->writer, final_bit);
-  // printf("write bit %hhu\n", final_bit);
 
   while (encoder->underflows > 0) {
     writer_write_bit(encoder->writer, final_bit ^ 1);
-    // printf("write bit %hhu\n", final_bit ^ 1);
     encoder->underflows--;
   }
 }
@@ -139,20 +157,16 @@ void acod_encoder_write(acod_encoder *encoder, ftable *frequencies, symbol symbo
   // encoder/decoder never modify frequency tables, and therefore should never trigger halvings
   // and also we need a test for this halving behavior
   ftable_halve_until_total_below_limit(frequencies, ACOD_MAX_TOTAL);
-  printf("Before writing %zu, low is %zu and high is %zu, total = %zu\n", symbol, encoder->state.low, encoder->state.high, frequencies->total);
   _acod_perform_update_start(&encoder->state, frequencies, symbol);
-  printf("After writing %zu, low is %zu and high is %zu\n", symbol, encoder->state.low, encoder->state.high);
 
   while (encoder->state.stage == ACOD_STAGE_SHIFT) {
     // TODO: do we need & 1 here?
     byte bit = (encoder->state.low >> (ACOD_STATE_SIZE_BITS - 1)) & 1;
     writer_write_bit(encoder->writer, bit);
-    // printf("write bit %hhu\n", bit);
 
     // Write out the saved underflow bits
     while (encoder->underflows > 0) {
       writer_write_bit(encoder->writer, bit ^ 1);
-      // printf("write bit %hhu\n", bit ^ 1);
       encoder->underflows--;
     }
 
@@ -191,7 +205,6 @@ void acod_decoder_update(acod_decoder *decoder, byte bit) {
   assert((bit == 0 || bit == 1) && "Bit must be 0 or 1");
 
   if (decoder->state.stage == ACOD_STAGE_PREPARATION) {
-    // printf("Got initial bit: %hhu\n", bit);
     decoder->code = (decoder->code << 1) | bit;
     decoder->base_bits_received++;
     if (decoder->base_bits_received >= ACOD_STATE_SIZE_BITS) {
@@ -203,15 +216,12 @@ void acod_decoder_update(acod_decoder *decoder, byte bit) {
   assert(decoder->state.stage != ACOD_STAGE_READY && "Decoder state was not properly drained by reads");
 
   if (decoder->state.stage == ACOD_STAGE_SHIFT) {
-    // printf("Shifting: %hhu\n", bit);
     decoder->code = ((decoder->code << 1) & ACOD_STATE_MASK) | bit;
     _acod_perform_shift(&decoder->state);
   } else { // underflow
-    // printf("Underflowing: %hhu\n", bit);
     decoder->code = (decoder->code & ACOD_HALF_RANGE) | ((decoder->code << 1) & (ACOD_STATE_MASK >> 1)) | bit;
     _acod_perform_underflow(&decoder->state);
   }
-  // printf("Stage: %i\n", decoder->state.stage);
 }
 
 bool acod_decoder_has_symbol(acod_decoder *decoder) {
@@ -224,7 +234,6 @@ symbol acod_decoder_read(acod_decoder *decoder, ftable *frequencies) {
   // TODO: as in encoder - move it out
   ftable_halve_until_total_below_limit(frequencies, ACOD_MAX_TOTAL);
 
-  printf("%zu, %zu\n", decoder->state.low, decoder->code);
   assert(decoder->state.low <= decoder->code);
   assert(decoder->code <= decoder->state.high);
 
@@ -237,7 +246,6 @@ symbol acod_decoder_read(acod_decoder *decoder, ftable *frequencies) {
   symbol_frequency value = (symbol_frequency)(numerator / value_range);
   // symbol_frequency value = (((offset + 1) * total) - 1) / value_range;
 
-  // printf("offset: %zu, low: %zu, code: %zu, value: %zu, range: %zu\n", offset, decoder->state.low, decoder->code, value, value_range);
   // A kind of binary search. Find highest symbol such that freqs.getLow(symbol) <= value.
   symbol start = 0;
   symbol end = _ftable_get_symbol_limit(frequencies);
@@ -249,9 +257,8 @@ symbol acod_decoder_read(acod_decoder *decoder, ftable *frequencies) {
       start = middle;
     }
   }
+
   symbol symbol = start;
-  printf("Before reading, low is %zu and high is %zu, total = %zu\n", decoder->state.low, decoder->state.high, frequencies->total);
   _acod_perform_update_start(&decoder->state, frequencies, symbol);
-  printf("After reading %zu, low is %zu and high is %zu\n", symbol, decoder->state.low, decoder->state.high);
   return symbol;
 }
