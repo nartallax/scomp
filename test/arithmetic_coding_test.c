@@ -5,7 +5,7 @@
 #include <limits.h>
 #include <stdlib.h>
 
-const size_t writer_buffer_size = 1024 * 1024;
+const size_t writer_buffer_size = 1024;
 
 byte *get_random_bytes(size_t length) {
   byte *result = malloc(sizeof(byte) * length);
@@ -34,7 +34,7 @@ byte *encode_bytes(size_t length, byte *data, size_t *result_length) {
   for (size_t i = 0; i < length; i++) {
     symbol symbol = data[i];
     acod_encoder_write(encoder, encoding_frequencies, symbol);
-    // ftable_increment(encoding_frequencies, symbol);
+    ftable_increment(encoding_frequencies, symbol);
     maybe_rotate_buffers(writer, &result, result_length);
   }
   acod_encoder_write(encoder, encoding_frequencies, ftable_get_eof_symbol(encoding_frequencies));
@@ -73,8 +73,8 @@ const char *_test_acod(size_t length, byte *data) {
       if (last_symbol == eof) {
         break;
       }
-      // TODO: increment your tables
-      // ftable_increment(decoding_frequencies, last_symbol);
+
+      ftable_increment(decoding_frequencies, last_symbol);
       TEST_ASSERT(last_symbol == data[symbol_index], "Decoded symbol must be equal to source symbol");
       TEST_ASSERT(symbol_index < length, "Decoder must read exactly as much symbols as was written");
       symbol_index++;
@@ -88,9 +88,61 @@ const char *_test_acod(size_t length, byte *data) {
   return NULL;
 }
 
+byte *get_nonuniform_random_bytes(size_t length) {
+  symbol symbol_count = (rand() & 0xff) + 1;
+
+  // create distribution
+  symbol_frequency *freqs = calloc(symbol_count, sizeof(symbol_frequency));
+  symbol_frequency sum = 0;
+  for (symbol i = 0; i < symbol_count; i++) {
+    freqs[i] = (rand() & 0xffff) + 1;
+    sum += freqs[i];
+  }
+  symbol_frequency total = sum;
+
+  // Rescale frequencies
+  sum = 0;
+  symbol index = 0;
+  for (symbol i = 0; i < symbol_count; i++) {
+    sum += freqs[i];
+    symbol new_index = (length - symbol_count) * sum / total + i + 1;
+    freqs[i] = new_index - index;
+    index = new_index;
+  }
+  assert(length == index && "Failed to properly rescale frequencies");
+
+  // create message
+  byte *message = malloc(sizeof(byte) * length);
+  size_t j = 0;
+  for (symbol i = 0; i < symbol_count; i++) {
+    for (symbol_frequency freq = 0; freq < freqs[i]; freq++) {
+      message[j] = (byte)i;
+      j++;
+    }
+  }
+
+  for (size_t i = 0; i < length; i++) {
+    size_t k = (rand() % (length - i)) + i;
+    byte tmp = message[i];
+    message[i] = message[k];
+    message[k] = tmp;
+  }
+
+  free(freqs);
+
+  return message;
+}
+
 const char *test_acod_simple() {
   srand(0xdeadbeef);
   const char *result;
+
+  byte *zero_bytes = malloc(0);
+  result = _test_acod(0, zero_bytes);
+  if (result) {
+    return result;
+  }
+  free(zero_bytes);
 
   byte one_byte[] = {53};
   result = _test_acod(1, one_byte);
@@ -104,8 +156,27 @@ const char *test_acod_simple() {
     return result;
   }
 
+  // underflow
+  byte underflow_bytes[] = {0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2};
+  result = _test_acod(sizeof(underflow_bytes), underflow_bytes);
+  if (result) {
+    return result;
+  }
+
+  // every byte
+  byte *every_byte = malloc(sizeof(byte) * 256);
+  for (size_t i = 0; i < 256; i++) {
+    every_byte[i] = (byte)i;
+  }
+  result = _test_acod(sizeof(underflow_bytes), underflow_bytes);
+  if (result) {
+    return result;
+  }
+  free(every_byte);
+
+  // uniform random
   for (int i = 0; i < 10; i++) {
-    size_t length = 1000 + (rand() / (INT_MAX / 1000));
+    size_t length = 10000 + (rand() / (INT_MAX / 10000));
     byte *input = get_random_bytes(length);
     const char *result = _test_acod(length, input);
     if (result) {
@@ -113,5 +184,17 @@ const char *test_acod_simple() {
     }
     free(input);
   }
+
+  // non-uniform random
+  for (int i = 0; i < 10; i++) {
+    size_t length = 10000 + (rand() / (INT_MAX / 10000));
+    byte *input = get_nonuniform_random_bytes(length);
+    const char *result = _test_acod(length, input);
+    if (result) {
+      return result;
+    }
+    free(input);
+  }
+
   return NULL;
 }
