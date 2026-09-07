@@ -50,6 +50,25 @@ bool _acod_is_underflowable(acod_state *state) {
   return (state->low & (~state->high) & ACOD_QUARTER_RANGE) != 0;
 }
 
+void _acod_try_progress_stage(acod_state *state) {
+  while (true) {
+    if (state->stage == ACOD_STAGE_READY) {
+      state->stage = ACOD_STAGE_SHIFT;
+    } else if (state->stage == ACOD_STAGE_SHIFT) {
+      if (_acod_is_shiftable(state)) {
+        return;
+      }
+      state->stage = ACOD_STAGE_UNDERFLOW;
+    } else { // underflow
+      if (_acod_is_underflowable(state)) {
+        return;
+      }
+      state->stage = ACOD_STAGE_READY;
+      return;
+    }
+  }
+}
+
 void _acod_perform_update_start(acod_state *state, ftable *frequencies, symbol symbol) {
   assert(state->stage == ACOD_STAGE_READY);
 
@@ -71,11 +90,7 @@ void _acod_perform_update_start(acod_state *state, ftable *frequencies, symbol s
   state->high = new_high;
   assert(state->low < state->high);
 
-  if (_acod_is_shiftable(state)) {
-    state->stage = ACOD_STAGE_SHIFT;
-  } else if (_acod_is_underflowable(state)) {
-    state->stage = ACOD_STAGE_UNDERFLOW;
-  }
+  _acod_try_progress_stage(state);
 }
 
 void _acod_perform_shift(acod_state *state) {
@@ -84,17 +99,7 @@ void _acod_perform_shift(acod_state *state) {
   state->low = ((state->low << 1) & ACOD_STATE_MASK);
   state->high = ((state->high << 1) & ACOD_STATE_MASK) | 1;
   assert(state->low < state->high);
-  if (_acod_is_shiftable(state)) {
-    return;
-  }
-  if (_acod_is_underflowable(state)) {
-    // Now low's top bit must be 0 and high's top bit must be 1
-    // and we can progress to next stage
-    state->stage = ACOD_STAGE_UNDERFLOW;
-  } else {
-    // no underflow required
-    state->stage = ACOD_STAGE_READY;
-  }
+  _acod_try_progress_stage(state);
 }
 
 void _acod_perform_underflow(acod_state *state) {
@@ -103,18 +108,8 @@ void _acod_perform_underflow(acod_state *state) {
   state->low = (state->low << 1) ^ ACOD_HALF_RANGE;
   state->high = ((state->high ^ ACOD_HALF_RANGE) << 1) | ACOD_HALF_RANGE | 1;
   assert(state->low < state->high);
-  if (!_acod_is_underflowable(state)) {
-    state->stage = ACOD_STAGE_READY;
-  }
+  _acod_try_progress_stage(state);
 }
-
-// void _acod_try_progress_stage(acod_state *state){
-//   while(true){
-//     state->stage = state->stage == ACOD_STAGE_READY? ACOD_STAGE_SHIFT: state->stage == ACOD_STAGE_SHIFT? ACOD_STAGE_UNDERFLOW: ACOD_STAGE_READY;
-//     if(state->stage == ACOD_STAGE_SHIFT && !_acod_is_underflowable(acod_state *state)){
-//     }
-//   }
-// }
 
 typedef struct {
   acod_state state;
