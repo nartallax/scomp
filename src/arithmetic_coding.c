@@ -77,14 +77,13 @@ void _acod_perform_update_start(acod_state *state, ftable *frequencies, symbol s
   symbol_frequency symbol_low = ftable_get_low(frequencies, symbol);
   symbol_frequency symbol_high = ftable_get_high(frequencies, symbol);
 
-  // TODO: do we actually need uint128 here?
-  __uint128_t new_low_numerator = ((__uint128_t)symbol_low) * ((__uint128_t)value_range);
-  symbol_frequency new_low = state->low + (symbol_frequency)(new_low_numerator / ((__uint128_t)(total)));
-  // symbol_frequency new_low = state->low + ((symbol_low * value_range) / total);
+  // __uint128_t new_low_numerator = ((__uint128_t)symbol_low) * ((__uint128_t)value_range);
+  // symbol_frequency new_low = state->low + (symbol_frequency)(new_low_numerator / ((__uint128_t)(total)));
+  symbol_frequency new_low = state->low + ((symbol_low * value_range) / total);
 
-  __uint128_t new_high_numerator = ((__uint128_t)symbol_high) * ((__uint128_t)value_range);
-  symbol_frequency new_high = state->low + (symbol_frequency)(new_high_numerator / ((__uint128_t)(total))) - 1;
-  // symbol_frequency new_high = state->low + ((symbol_high * value_range) / total) - 1;
+  // __uint128_t new_high_numerator = ((__uint128_t)symbol_high) * ((__uint128_t)value_range);
+  // symbol_frequency new_high = state->low + (symbol_frequency)(new_high_numerator / ((__uint128_t)(total))) - 1;
+  symbol_frequency new_high = state->low + ((symbol_high * value_range) / total) - 1;
 
   state->low = new_low;
   state->high = new_high;
@@ -155,8 +154,7 @@ void acod_encoder_write(acod_encoder *encoder, ftable *frequencies, symbol symbo
   _acod_perform_update_start(&encoder->state, frequencies, symbol);
 
   while (encoder->state.stage == ACOD_STAGE_SHIFT) {
-    // TODO: do we need & 1 here?
-    byte bit = (encoder->state.low >> (ACOD_STATE_SIZE_BITS - 1)) & 1;
+    byte bit = encoder->state.low >> (ACOD_STATE_SIZE_BITS - 1);
     writer_write_bit(encoder->writer, bit);
 
     // Write out the saved underflow bits
@@ -237,9 +235,9 @@ symbol acod_decoder_read(acod_decoder *decoder, ftable *frequencies) {
   symbol_frequency offset = decoder->code - decoder->state.low;
 
   // this avoids overflow
-  __uint128_t numerator = ((__uint128_t)offset + 1) * total - 1;
-  symbol_frequency value = (symbol_frequency)(numerator / value_range);
-  // symbol_frequency value = (((offset + 1) * total) - 1) / value_range;
+  // __uint128_t numerator = ((__uint128_t)offset + 1) * total - 1;
+  // symbol_frequency value = (symbol_frequency)(numerator / value_range);
+  symbol_frequency value = (((offset + 1) * total) - 1) / value_range;
 
   // A kind of binary search. Find highest symbol such that freqs.getLow(symbol) <= value.
   symbol start = 0;
