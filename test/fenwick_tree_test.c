@@ -1,8 +1,10 @@
 #pragma once
+#include "../src/error.c"
 #include "../src/fenwick_tree.c"
 #include "./test_utils.c"
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 
 const char *test_fenwick_tree_simple() {
   ftree tree = ftree_new(256 + 1);
@@ -67,5 +69,19 @@ const char *test_fenwick_tree_range_sum_cornercase() {
   ftree_add(tree, 1, 1);
   TEST_ASSERT(ftree_range_sum(tree, 2, 1) == 0, "Range sums with negative range lengths must be zero");
   ftree_delete(tree);
+  return NULL;
+}
+
+const char *test_fenwick_tree_allocation_failure() {
+  set_malloc_to_fail_after(0);
+  TEST_ASSERT(error_is_present() == false, "Error must not be set at the test start");
+
+  ftree_new(5);
+  TEST_ASSERT(error_is_present() == true, "Error must be present when allocation fails");
+  error *last_error = error_get_last();
+  TEST_ASSERT(strncmp(last_error->message, "Failed to allocate memory: calloc(6, 8)", last_error->message_length) == 0, "Error message must be the one we expect");
+  error_clear_last();
+  TEST_ASSERT(error_is_present() == false, "Error must not be set after it was cleared");
+
   return NULL;
 }

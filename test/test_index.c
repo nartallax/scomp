@@ -12,16 +12,20 @@ int main() {
       test_writer_bytes,
       test_writer_bits,
       test_writer_wrong_init,
+      test_writer_allocation_failure,
       test_is_power_of_two,
       test_fenwick_tree_simple,
       test_fenwick_tree_max_range,
       test_fenwick_tree_range_sum_cornercase,
+      test_fenwick_tree_allocation_failure,
       test_ftable_simple,
       test_ftable_with_eof,
       test_ftable_init_one,
       test_ftable_halving,
       test_ftable_from_frequencies,
-      test_acod_simple
+      test_ftable_allocation_failures,
+      test_acod_simple,
+      test_acod_allocation_failures
       // tests go here
   };
 

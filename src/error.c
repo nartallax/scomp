@@ -19,8 +19,8 @@ bool error_is_present() {
   return error_last.is_present;
 }
 
-error error_get_last() {
-  return error_last;
+error *error_get_last() {
+  return &error_last;
 }
 
 void error_clear_last() {

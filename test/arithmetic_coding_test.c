@@ -198,3 +198,21 @@ const char *test_acod_simple() {
 
   return NULL;
 }
+
+const char *test_acod_allocation_failures() {
+  TEST_ASSERT(error_is_present() == false, "Error must not be set at the test start");
+
+  set_malloc_to_fail_after(0);
+  acod_encoder *encoder = acod_encoder_new(NULL);
+  TEST_ASSERT(error_is_present() == true, "Error must be set after allocation fails");
+  TEST_ASSERT(encoder == NULL, "Encoder must be null after allocation fails");
+  error_clear_last();
+
+  set_malloc_to_fail_after(0);
+  acod_decoder *decoder = acod_decoder_new();
+  TEST_ASSERT(error_is_present() == true, "Error must be set after allocation fails");
+  TEST_ASSERT(decoder == NULL, "Decoder must be null after allocation fails");
+  error_clear_last();
+
+  return NULL;
+}

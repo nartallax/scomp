@@ -124,3 +124,36 @@ const char *test_ftable_from_frequencies() {
   free(freqs);
   return NULL;
 }
+
+const char *test_ftable_allocation_failures() {
+  ftable *table;
+  TEST_ASSERT(error_is_present() == false, "Error must not be set at the test start");
+
+  set_malloc_to_fail_after(0);
+  table = ftable_new(5, FTABLE_INCLUDE_EOF);
+  TEST_ASSERT(error_is_present() == true, "Error must be present when allocation fails");
+  TEST_ASSERT(table == NULL, "Table must be null when allocation fails");
+  error_clear_last();
+
+  set_malloc_to_fail_after(1);
+  table = ftable_new(5, FTABLE_INCLUDE_EOF);
+  TEST_ASSERT(error_is_present() == true, "Error must be present when allocation fails");
+  TEST_ASSERT(table == NULL, "Table must be null when allocation fails");
+  error_clear_last();
+
+  set_malloc_to_fail_after(2);
+  table = ftable_new(5, FTABLE_INCLUDE_EOF);
+  TEST_ASSERT(error_is_present() == true, "Error must be present when allocation fails");
+  TEST_ASSERT(table == NULL, "Table must be null when allocation fails");
+  error_clear_last();
+
+  set_malloc_to_fail_after(3);
+  table = ftable_new(5, FTABLE_INCLUDE_EOF);
+  TEST_ASSERT(error_is_present() == false, "Error must not be present after set number of allocations");
+  TEST_ASSERT(table != NULL, "Table must not be null when allocation doesn't fail");
+  error_clear_last();
+  reset_malloc_calloc();
+  ftable_delete(table);
+
+  return NULL;
+}

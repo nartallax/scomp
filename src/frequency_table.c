@@ -78,6 +78,7 @@ ftable *ftable_new(symbol length, int init_flags) {
     return NULL;
   }
 
+  table->compaction_buffer = NULL; // just to zero-init
   table->frequencies = ftree_new(length + eof_padding);
   if (error_is_present()) {
     ftable_delete(table);

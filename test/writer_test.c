@@ -96,3 +96,17 @@ const char *test_writer_wrong_init() {
 
   return NULL;
 }
+
+const char *test_writer_allocation_failure() {
+  writer *writer;
+  byte buffer[2];
+  TEST_ASSERT(error_is_present() == false, "Error must not be set at the test start");
+
+  set_malloc_to_fail_after(0);
+  writer = writer_new(2, buffer, buffer);
+  TEST_ASSERT(error_is_present() == true, "Error must be present when allocation fails");
+  TEST_ASSERT(writer == NULL, "writer must be null when allocation fails");
+  error_clear_last();
+
+  return NULL;
+}
