@@ -1,6 +1,7 @@
 #pragma once
 #include "../src/fenwick_tree.c"
 #include "./test_utils.c"
+#include <stdint.h>
 #include <stdio.h>
 
 const char *test_fenwick_tree_simple() {
@@ -13,8 +14,10 @@ const char *test_fenwick_tree_simple() {
   ftree_add(tree, 15, 1);
   ftree_add(tree, 0, 1);
 
-  uint64_t *source_array = ftree_to_source_array(tree);
-  ftree tree_from_source = ftree_from_values(256 + 1, source_array, 0);
+  uint64_t *source_array = malloc(sizeof(uint64_t) * (256 + 1));
+  ftree_to_source_array(tree, source_array);
+  ftree tree_from_source = ftree_new(256 + 1);
+  ftree_fill_from_source_frequencies(tree_from_source, source_array, 0);
 
   int expected_cumulatives[][2] = {{0, 1}, {15, 3}, {21, 4}, {37, 5}, {64, 6}, {256, 7}};
   size_t expected_cumulatives_count = sizeof expected_cumulatives / sizeof expected_cumulatives[0];

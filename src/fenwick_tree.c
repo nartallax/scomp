@@ -1,4 +1,6 @@
 #pragma once
+#include "./allocators.c"
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -14,9 +16,9 @@ typedef struct {
 
 ftree ftree_new(int64_t size) {
   ftree tree;
-  // +1 because fenwick trees' indices are innately 1-based
+  // +1 because fenwick trees' indices are inherently 1-based
   tree.size = size + 1;
-  tree.data = calloc(tree.size, sizeof(uint64_t));
+  tree.data = allocate_zero_init(tree.size, sizeof(uint64_t));
   return tree;
 }
 
@@ -41,22 +43,23 @@ uint64_t ftree_sum(ftree tree, int64_t symbol) {
   return result;
 }
 
-ftree ftree_from_values(int64_t size, uint64_t *values, int64_t end_offset) {
-  ftree tree = ftree_new(size + end_offset);
-  for (int64_t i = 0; i < size; i++) {
+/** Sets frequencies of the symbols in the tree from source values. Existing values are overwritten. */
+void ftree_fill_from_source_frequencies(ftree tree, uint64_t *values, int64_t end_offset) {
+  for (int64_t i = 0; i < tree.size; i++) {
+    tree.data[i] = 0;
+  }
+
+  for (int64_t i = 0; i < tree.size - 1 - end_offset; i++) {
     ftree_add(tree, i, values[i]);
   }
-  return tree;
 }
 
-/** Returns an array of length `ftree_length(tree)` which holds source non-cumulative frequencies of symbols.
-Reverse operation for this one is `ftree_from_values()` */
-uint64_t *ftree_to_source_array(ftree tree) {
-  uint64_t *result = malloc(sizeof(uint64_t) * (tree.size - 1));
+/** Expects an array of `ftree_length(tree)` and fills it with source non-cumulative frequencies of symbols.
+Reverse operation for this one is `ftree_fill_from_source_frequencies()` */
+void ftree_to_source_array(ftree tree, uint64_t *buffer) {
   for (int64_t i = 0; i < tree.size - 1; i++) {
-    result[i] = ftree_sum(tree, i) - ftree_sum(tree, i - 1);
+    buffer[i] = ftree_sum(tree, i) - ftree_sum(tree, i - 1);
   }
-  return result;
 }
 
 uint64_t ftree_range_sum(ftree tree, int64_t from_index, int64_t to_index) {

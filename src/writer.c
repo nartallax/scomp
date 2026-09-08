@@ -1,5 +1,6 @@
 #pragma once
 
+#include "allocators.c"
 #include "commons.c"
 #include "math.c"
 #include <assert.h>
@@ -34,7 +35,10 @@ writer *writer_new(size_t size, byte *current_buffer, byte *next_buffer) {
     return NULL;
   }
 
-  writer *stream = malloc(sizeof(writer));
+  writer *stream = allocate(1, sizeof(writer));
+  if (!stream) {
+    return NULL;
+  }
   stream->size = size;
   stream->size_mask = (size << 3) - 1;
   stream->current_buffer = current_buffer;

@@ -119,7 +119,10 @@ typedef struct {
 } acod_encoder;
 
 acod_encoder *acod_encoder_new(writer *writer) {
-  acod_encoder *encoder = malloc(sizeof(acod_encoder));
+  acod_encoder *encoder = allocate(1, sizeof(acod_encoder));
+  if (!encoder) {
+    return NULL;
+  }
   encoder->state = _acod_state_new();
   encoder->underflows = 0;
   encoder->writer = writer;
@@ -180,7 +183,10 @@ typedef struct {
 } acod_decoder;
 
 acod_decoder *acod_decoder_new() {
-  acod_decoder *decoder = malloc(sizeof(acod_decoder));
+  acod_decoder *decoder = allocate(1, sizeof(acod_decoder));
+  if (!decoder) {
+    return NULL;
+  }
   decoder->state = _acod_state_new();
   decoder->state.stage = ACOD_STAGE_PREPARATION;
   decoder->code = 0;

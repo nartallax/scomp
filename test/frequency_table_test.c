@@ -1,7 +1,6 @@
 #pragma once
 #include "../src/frequency_table.c"
 #include "./test_utils.c"
-#include <stdio.h>
 #include <stdlib.h>
 
 const char *test_ftable_simple() {
@@ -101,7 +100,10 @@ const char *test_ftable_from_frequencies() {
   freqs[1] = 5;
   freqs[3] = 3;
 
-  ftable *table = ftable_from_frequencies(5, freqs, FTABLE_INCLUDE_EOF);
+  ftable *table;
+
+  table = ftable_new(5, FTABLE_INCLUDE_EOF);
+  ftable_fill_from_frequencies(table, freqs);
   symbol eof = ftable_get_eof_symbol(table);
   TEST_ASSERT(ftable_get_frequency(table, 3) == 3, "Frequencies are preserved");
   TEST_ASSERT(ftable_get_low(table, 3) == 7, "Lows are calculated");
@@ -112,7 +114,8 @@ const char *test_ftable_from_frequencies() {
   TEST_ASSERT(ftable_get_high(table, eof) == 11, "EOF high is 11");
   ftable_delete(table);
 
-  table = ftable_from_frequencies(5, freqs, FTABLE_EXCLUDE_EOF);
+  table = ftable_new(5, FTABLE_EXCLUDE_EOF);
+  ftable_fill_from_frequencies(table, freqs);
   TEST_ASSERT(ftable_get_frequency(table, 3) == 3, "Frequencies are preserved");
   TEST_ASSERT(ftable_get_low(table, 3) == 7, "Lows are calculated");
   TEST_ASSERT(ftable_get_high(table, 3) == 10, "Highs are calculated");

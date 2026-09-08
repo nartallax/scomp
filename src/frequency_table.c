@@ -18,6 +18,8 @@ typedef struct {
   // sum of all frequencies
   symbol_frequency total;
   bool is_eof_included;
+  // this exists to avoid reallocation on each compaction
+  symbol_frequency *compaction_buffer;
 } ftable;
 
 symbol_frequency _ftable_get_init_value(int init_flags) {
@@ -31,25 +33,21 @@ symbol _ftable_get_eof_length_padding(int init_flags) {
 // Divides all frequencies by half, rounding up.
 // This allows to avoid overflows on long sequences, at cost of losing some precision
 void _ftable_divide_by_half(ftable *table) {
-  // this is not very performant
-  // but this method will be called once per millions of symbols (with the right settings)
-  // so, whatever.
   symbol length = ftree_length(table->frequencies);
-  symbol_frequency *source_freqs = ftree_to_source_array(table->frequencies);
+  ftree_to_source_array(table->frequencies, table->compaction_buffer);
+
   symbol_frequency new_total = 0;
   for (symbol i = 0; i < length; i++) {
-    symbol_frequency freq = source_freqs[i];
+    symbol_frequency freq = table->compaction_buffer[i];
     if (freq & 1) {
       freq++;
     }
     freq /= 2;
-    source_freqs[i] = freq;
+    table->compaction_buffer[i] = freq;
     new_total += freq;
   }
 
-  ftree_delete(table->frequencies);
-  table->frequencies = ftree_from_values(length, source_freqs, 0);
-  free(source_freqs);
+  ftree_fill_from_source_frequencies(table->frequencies, table->compaction_buffer, 0);
   table->total = new_total;
 }
 
@@ -61,15 +59,37 @@ void ftable_halve_until_total_below_limit(ftable *table, symbol limit) {
 
 void ftable_increment(ftable *table, symbol symbol) {
   ftable_halve_until_total_below_limit(table, UINT64_MAX - 1);
+
   table->total += 1;
   ftree_add(table->frequencies, symbol, 1);
+}
+
+void ftable_delete(ftable *table) {
+  ftree_delete(table->frequencies);
+  free(table->compaction_buffer);
+  free(table);
 }
 
 ftable *ftable_new(symbol length, int init_flags) {
   symbol eof_padding = _ftable_get_eof_length_padding(init_flags);
 
-  ftable *table = malloc(sizeof(ftable));
+  ftable *table = allocate(1, sizeof(ftable));
+  if (!table) {
+    return NULL;
+  }
+
   table->frequencies = ftree_new(length + eof_padding);
+  if (error_is_present()) {
+    ftable_delete(table);
+    return NULL;
+  }
+
+  table->compaction_buffer = allocate(ftree_length(table->frequencies), sizeof(symbol_frequency));
+  if (!table->compaction_buffer) {
+    ftable_delete(table);
+    return NULL;
+  }
+
   table->total = 0;
   table->is_eof_included = eof_padding > 0;
 
@@ -77,38 +97,13 @@ ftable *ftable_new(symbol length, int init_flags) {
     ftable_increment(table, length);
   }
 
-  if (_ftable_get_init_value(init_flags)) {
+  if (_ftable_get_init_value(init_flags) == 1) {
     for (symbol i = 0; i < length; i++) {
       ftable_increment(table, i);
     }
   }
 
   return table;
-}
-
-// Constructs a frequency table from the specified array of symbol frequencies.
-ftable *ftable_from_frequencies(symbol length, symbol_frequency *frequencies, int init_flags) {
-  symbol_frequency total = 0;
-  for (symbol i = 0; i < length; i++) {
-    total += frequencies[i];
-  }
-
-  symbol eof_padding = _ftable_get_eof_length_padding(init_flags);
-  ftable *table = malloc(sizeof(ftable));
-  table->frequencies = ftree_from_values(length, frequencies, eof_padding);
-  table->total = total;
-  table->is_eof_included = eof_padding > 0;
-
-  if (table->is_eof_included) {
-    ftable_increment(table, length);
-  }
-
-  return table;
-}
-
-void ftable_delete(ftable *table) {
-  ftree_delete(table->frequencies);
-  free(table);
 }
 
 /** Returns the number of symbols in this frequency table. Includes EOF marker, if present. */
@@ -123,6 +118,22 @@ symbol ftable_get_symbol_count(ftable *table) {
     return _ftable_get_symbol_limit(table);
   }
   return _ftable_get_symbol_limit(table) - 1;
+}
+
+/** Fills frequency table with provided array of frequencies.
+Frequencies are expected to be array of values excluding EOF, even if the EOF flag is passed */
+void ftable_fill_from_frequencies(ftable *table, symbol_frequency *frequencies) {
+  symbol length = ftable_get_symbol_count(table);
+  ftree_fill_from_source_frequencies(table->frequencies, frequencies, table->is_eof_included ? 1 : 0);
+  symbol_frequency total = 0;
+  for (symbol i = 0; i < length; i++) {
+    total += frequencies[i];
+  }
+  table->total = total;
+
+  if (table->is_eof_included) {
+    ftable_increment(table, length);
+  }
 }
 
 /** For the tables that include eof marker, returns eof symbol.
