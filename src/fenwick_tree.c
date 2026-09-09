@@ -1,9 +1,8 @@
 #pragma once
-#include "./allocators.c"
+#include "./context.c"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdlib.h>
 
 /** Fenwick tree */
 typedef struct {
@@ -14,12 +13,16 @@ typedef struct {
   uint64_t *data;
 } ftree;
 
-ftree ftree_new(int64_t size) {
+ftree ftree_new(context *context, int64_t size) {
   ftree tree;
   // +1 because fenwick trees' indices are inherently 1-based
   tree.size = size + 1;
-  tree.data = allocate_zero_init(tree.size, sizeof(uint64_t));
+  tree.data = context_allocate_zero_init(context, tree.size, sizeof(uint64_t));
   return tree;
+}
+
+bool ftree_is_invalid(ftree tree) {
+  return !tree.data; // allocation failed
 }
 
 void ftree_delete(ftree tree) {

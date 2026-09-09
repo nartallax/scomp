@@ -24,9 +24,9 @@ void maybe_rotate_buffers(writer *writer, byte **result, size_t *result_length) 
 }
 
 byte *encode_bytes(size_t length, byte *data, size_t *result_length) {
-  writer *writer = writer_new(writer_buffer_size, calloc(writer_buffer_size, sizeof(byte)), calloc(writer_buffer_size, sizeof(byte)));
-  acod_encoder *encoder = acod_encoder_new(writer);
-  ftable *encoding_frequencies = ftable_new(256, FTABLE_INCLUDE_EOF | FTABLE_INIT_ONE);
+  writer *writer = writer_new(test_context, writer_buffer_size, calloc(writer_buffer_size, sizeof(byte)), calloc(writer_buffer_size, sizeof(byte)));
+  acod_encoder *encoder = acod_encoder_new(test_context, writer);
+  ftable *encoding_frequencies = ftable_new(test_context, 256, FTABLE_INCLUDE_EOF | FTABLE_INIT_ONE);
 
   *result_length = 0;
   byte *result = malloc(sizeof(byte) * 0);
@@ -54,8 +54,8 @@ const char *_test_acod(size_t length, byte *data) {
   size_t result_length = 0;
   byte *encoded_bytes = encode_bytes(length, data, &result_length);
 
-  ftable *decoding_frequencies = ftable_new(256, FTABLE_INCLUDE_EOF | FTABLE_INIT_ONE);
-  acod_decoder *decoder = acod_decoder_new();
+  ftable *decoding_frequencies = ftable_new(test_context, 256, FTABLE_INCLUDE_EOF | FTABLE_INIT_ONE);
+  acod_decoder *decoder = acod_decoder_new(test_context);
 
   size_t symbol_index = 0;
   symbol last_symbol = 0;
@@ -200,19 +200,17 @@ const char *test_acod_simple() {
 }
 
 const char *test_acod_allocation_failures() {
-  TEST_ASSERT(error_is_present() == false, "Error must not be set at the test start");
+  TEST_ASSERT(context_is_errored(test_context) == false, "Error must not be set at the test start");
 
-  set_malloc_to_fail_after(0);
-  acod_encoder *encoder = acod_encoder_new(NULL);
-  TEST_ASSERT(error_is_present() == true, "Error must be set after allocation fails");
+  setup_test_context(0);
+  acod_encoder *encoder = acod_encoder_new(test_context, NULL);
+  TEST_ASSERT(context_is_errored(test_context) == true, "Error must be set after allocation fails");
   TEST_ASSERT(encoder == NULL, "Encoder must be null after allocation fails");
-  error_clear_last();
 
-  set_malloc_to_fail_after(0);
-  acod_decoder *decoder = acod_decoder_new();
-  TEST_ASSERT(error_is_present() == true, "Error must be set after allocation fails");
+  setup_test_context(0);
+  acod_decoder *decoder = acod_decoder_new(test_context);
+  TEST_ASSERT(context_is_errored(test_context) == true, "Error must be set after allocation fails");
   TEST_ASSERT(decoder == NULL, "Decoder must be null after allocation fails");
-  error_clear_last();
 
   return NULL;
 }

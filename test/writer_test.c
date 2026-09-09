@@ -4,7 +4,7 @@
 #include "./test_utils.c"
 
 const char *test_writer_bytes() {
-  writer *writer = writer_new(2, calloc(2, sizeof(byte)), calloc(2, sizeof(byte)));
+  writer *writer = writer_new(test_context, 2, calloc(2, sizeof(byte)), calloc(2, sizeof(byte)));
   TEST_ASSERT(!writer_is_current_buffer_exhausted(writer), "Buffer should not be exhausted at zero");
 
   writer_write_byte(writer, 0b11001010);
@@ -45,7 +45,7 @@ void _write_byte_as_bits(writer *writer, byte value) {
 }
 
 const char *test_writer_bits() {
-  writer *writer = writer_new(2, calloc(2, sizeof(byte)), calloc(2, sizeof(byte)));
+  writer *writer = writer_new(test_context, 2, calloc(2, sizeof(byte)), calloc(2, sizeof(byte)));
   writer_write_bit(writer, 1);
   writer_write_bit(writer, 0);
   TEST_ASSERT(!writer_is_current_buffer_exhausted(writer), "Buffer should not be exhausted after 2 bits");
@@ -88,10 +88,10 @@ const char *test_writer_bits() {
 }
 
 const char *test_writer_wrong_init() {
-  writer *writer = writer_new(0, NULL, NULL);
+  writer *writer = writer_new(test_context, 0, NULL, NULL);
   TEST_ASSERT(writer == NULL, "Writer must not accept zero size");
 
-  writer = writer_new(5, NULL, NULL);
+  writer = writer_new(test_context, 5, NULL, NULL);
   TEST_ASSERT(writer == NULL, "Writer must not accept non-power-of-two size");
 
   return NULL;
@@ -100,13 +100,12 @@ const char *test_writer_wrong_init() {
 const char *test_writer_allocation_failure() {
   writer *writer;
   byte buffer[2];
-  TEST_ASSERT(error_is_present() == false, "Error must not be set at the test start");
+  TEST_ASSERT(context_is_errored(test_context) == false, "Error must not be set at the test start");
 
-  set_malloc_to_fail_after(0);
-  writer = writer_new(2, buffer, buffer);
-  TEST_ASSERT(error_is_present() == true, "Error must be present when allocation fails");
+  setup_test_context(0);
+  writer = writer_new(test_context, 2, buffer, buffer);
+  TEST_ASSERT(context_is_errored(test_context) == true, "Error must be present when allocation fails");
   TEST_ASSERT(writer == NULL, "writer must be null when allocation fails");
-  error_clear_last();
 
   return NULL;
 }

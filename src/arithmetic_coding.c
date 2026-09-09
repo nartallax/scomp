@@ -5,7 +5,6 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdlib.h>
 
 // size of arithmetic coding state, [2, 62]
 // this is tweakable, but in my experiments it didn't ever improve the outcome
@@ -118,8 +117,8 @@ typedef struct {
   writer *writer;
 } acod_encoder;
 
-acod_encoder *acod_encoder_new(writer *writer) {
-  acod_encoder *encoder = allocate(1, sizeof(acod_encoder));
+acod_encoder *acod_encoder_new(context *context, writer *writer) {
+  acod_encoder *encoder = context_allocate(context, 1, sizeof(acod_encoder));
   if (!encoder) {
     return NULL;
   }
@@ -182,8 +181,8 @@ typedef struct {
   int base_bits_received;
 } acod_decoder;
 
-acod_decoder *acod_decoder_new() {
-  acod_decoder *decoder = allocate(1, sizeof(acod_decoder));
+acod_decoder *acod_decoder_new(context *context) {
+  acod_decoder *decoder = context_allocate(context, 1, sizeof(acod_decoder));
   if (!decoder) {
     return NULL;
   }

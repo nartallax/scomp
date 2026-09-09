@@ -1,13 +1,12 @@
 #pragma once
 
-#include "allocators.c"
 #include "commons.c"
+#include "context.c"
 #include "math.c"
 #include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
-#include <stdlib.h>
 
 /** Writer is two buffers in a trenchcoat.
 
@@ -30,12 +29,12 @@ typedef struct {
   size_t bit_pointer;
 } writer;
 
-writer *writer_new(size_t size, byte *current_buffer, byte *next_buffer) {
+writer *writer_new(context *context, size_t size, byte *current_buffer, byte *next_buffer) {
   if (size < 1 || !is_power_of_two(size)) {
     return NULL;
   }
 
-  writer *stream = allocate(1, sizeof(writer));
+  writer *stream = context_allocate(context, 1, sizeof(writer));
   if (!stream) {
     return NULL;
   }

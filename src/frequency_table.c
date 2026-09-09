@@ -1,9 +1,9 @@
 #pragma once
+#include "./context.c"
 #include "./fenwick_tree.c"
 #include "commons.c"
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdlib.h>
 
 #define FTABLE_INCLUDE_EOF (1 << 0)
 #define FTABLE_EXCLUDE_EOF (1 << 1)
@@ -70,22 +70,22 @@ void ftable_delete(ftable *table) {
   free(table);
 }
 
-ftable *ftable_new(symbol length, int init_flags) {
+ftable *ftable_new(context *context, symbol length, int init_flags) {
   symbol eof_padding = _ftable_get_eof_length_padding(init_flags);
 
-  ftable *table = allocate(1, sizeof(ftable));
+  ftable *table = context_allocate(context, 1, sizeof(ftable));
   if (!table) {
     return NULL;
   }
 
   table->compaction_buffer = NULL; // just to zero-init
-  table->frequencies = ftree_new(length + eof_padding);
-  if (error_is_present()) {
+  table->frequencies = ftree_new(context, length + eof_padding);
+  if (ftree_is_invalid(table->frequencies)) {
     ftable_delete(table);
     return NULL;
   }
 
-  table->compaction_buffer = allocate(ftree_length(table->frequencies), sizeof(symbol_frequency));
+  table->compaction_buffer = context_allocate(context, ftree_length(table->frequencies), sizeof(symbol_frequency));
   if (!table->compaction_buffer) {
     ftable_delete(table);
     return NULL;

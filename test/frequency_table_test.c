@@ -4,7 +4,7 @@
 #include <stdlib.h>
 
 const char *test_ftable_simple() {
-  ftable *table = ftable_new(5, FTABLE_INIT_ZERO | FTABLE_EXCLUDE_EOF);
+  ftable *table = ftable_new(test_context, 5, FTABLE_INIT_ZERO | FTABLE_EXCLUDE_EOF);
   TEST_ASSERT(ftable_get_frequency(table, 4) == 0, "By default frequencies must be zero");
   TEST_ASSERT(ftable_get_symbol_count(table) == 5, "Symbol count must be equal to the length passed");
 
@@ -23,7 +23,7 @@ const char *test_ftable_simple() {
 }
 
 const char *test_ftable_with_eof() {
-  ftable *table = ftable_new(5, FTABLE_INIT_ZERO | FTABLE_INCLUDE_EOF);
+  ftable *table = ftable_new(test_context, 5, FTABLE_INIT_ZERO | FTABLE_INCLUDE_EOF);
   symbol eof = ftable_get_eof_symbol(table);
   TEST_ASSERT(eof == 5, "EOF symbol must be equal to length");
   TEST_ASSERT(ftable_get_frequency(table, eof) == 1, "EOF frequency must always be 1");
@@ -40,7 +40,7 @@ const char *test_ftable_with_eof() {
 }
 
 const char *test_ftable_init_one() {
-  ftable *table = ftable_new(5, FTABLE_INIT_ONE | FTABLE_EXCLUDE_EOF);
+  ftable *table = ftable_new(test_context, 5, FTABLE_INIT_ONE | FTABLE_EXCLUDE_EOF);
   TEST_ASSERT(ftable_get_frequency(table, 3) == 1, "Frequencies are 1 before any increments");
   TEST_ASSERT(ftable_get_low(table, 3) == 3, "Low for 3 is 3 before any increments");
   TEST_ASSERT(ftable_get_high(table, 3) == 4, "High for 3 is 4 before any increments");
@@ -53,7 +53,7 @@ const char *test_ftable_init_one() {
   TEST_ASSERT(ftable_get_high(table, 3) == 8, "High is incremented");
   ftable_delete(table);
 
-  table = ftable_new(5, FTABLE_INIT_ONE | FTABLE_INCLUDE_EOF);
+  table = ftable_new(test_context, 5, FTABLE_INIT_ONE | FTABLE_INCLUDE_EOF);
   symbol eof = ftable_get_eof_symbol(table);
   TEST_ASSERT(ftable_get_frequency(table, eof) == 1, "EOF symbol is 1 even when 1-initing");
   TEST_ASSERT(ftable_get_low(table, eof) == 5, "Low for eof is 5 before any increments");
@@ -64,7 +64,7 @@ const char *test_ftable_init_one() {
 }
 
 const char *test_ftable_halving() {
-  ftable *table = ftable_new(5, FTABLE_INIT_ONE | FTABLE_EXCLUDE_EOF);
+  ftable *table = ftable_new(test_context, 5, FTABLE_INIT_ONE | FTABLE_EXCLUDE_EOF);
 
   ftable_increment(table, 3);
   ftable_increment(table, 3);
@@ -102,7 +102,7 @@ const char *test_ftable_from_frequencies() {
 
   ftable *table;
 
-  table = ftable_new(5, FTABLE_INCLUDE_EOF);
+  table = ftable_new(test_context, 5, FTABLE_INCLUDE_EOF);
   ftable_fill_from_frequencies(table, freqs);
   symbol eof = ftable_get_eof_symbol(table);
   TEST_ASSERT(ftable_get_frequency(table, 3) == 3, "Frequencies are preserved");
@@ -114,7 +114,7 @@ const char *test_ftable_from_frequencies() {
   TEST_ASSERT(ftable_get_high(table, eof) == 11, "EOF high is 11");
   ftable_delete(table);
 
-  table = ftable_new(5, FTABLE_EXCLUDE_EOF);
+  table = ftable_new(test_context, 5, FTABLE_EXCLUDE_EOF);
   ftable_fill_from_frequencies(table, freqs);
   TEST_ASSERT(ftable_get_frequency(table, 3) == 3, "Frequencies are preserved");
   TEST_ASSERT(ftable_get_low(table, 3) == 7, "Lows are calculated");
@@ -127,32 +127,27 @@ const char *test_ftable_from_frequencies() {
 
 const char *test_ftable_allocation_failures() {
   ftable *table;
-  TEST_ASSERT(error_is_present() == false, "Error must not be set at the test start");
+  TEST_ASSERT(context_is_errored(test_context) == false, "Error must not be set at the test start");
 
-  set_malloc_to_fail_after(0);
-  table = ftable_new(5, FTABLE_INCLUDE_EOF);
-  TEST_ASSERT(error_is_present() == true, "Error must be present when allocation fails");
+  setup_test_context(0);
+  table = ftable_new(test_context, 5, FTABLE_INCLUDE_EOF);
+  TEST_ASSERT(context_is_errored(test_context) == true, "Error must be present when allocation fails");
   TEST_ASSERT(table == NULL, "Table must be null when allocation fails");
-  error_clear_last();
 
-  set_malloc_to_fail_after(1);
-  table = ftable_new(5, FTABLE_INCLUDE_EOF);
-  TEST_ASSERT(error_is_present() == true, "Error must be present when allocation fails");
+  setup_test_context(1);
+  table = ftable_new(test_context, 5, FTABLE_INCLUDE_EOF);
+  TEST_ASSERT(context_is_errored(test_context) == true, "Error must be present when allocation fails");
   TEST_ASSERT(table == NULL, "Table must be null when allocation fails");
-  error_clear_last();
 
-  set_malloc_to_fail_after(2);
-  table = ftable_new(5, FTABLE_INCLUDE_EOF);
-  TEST_ASSERT(error_is_present() == true, "Error must be present when allocation fails");
+  setup_test_context(2);
+  table = ftable_new(test_context, 5, FTABLE_INCLUDE_EOF);
+  TEST_ASSERT(context_is_errored(test_context) == true, "Error must be present when allocation fails");
   TEST_ASSERT(table == NULL, "Table must be null when allocation fails");
-  error_clear_last();
 
-  set_malloc_to_fail_after(3);
-  table = ftable_new(5, FTABLE_INCLUDE_EOF);
-  TEST_ASSERT(error_is_present() == false, "Error must not be present after set number of allocations");
+  setup_test_context(3);
+  table = ftable_new(test_context, 5, FTABLE_INCLUDE_EOF);
+  TEST_ASSERT(context_is_errored(test_context) == false, "Error must not be present after set number of allocations");
   TEST_ASSERT(table != NULL, "Table must not be null when allocation doesn't fail");
-  error_clear_last();
-  reset_malloc_calloc();
   ftable_delete(table);
 
   return NULL;

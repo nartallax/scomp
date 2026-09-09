@@ -1,6 +1,6 @@
 #pragma once
-#include "../src/allocators.c"
 #include "../src/commons.c"
+#include "../src/context.c"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -23,10 +23,11 @@ void merge_byte_arrays(byte **receiver, size_t *receiver_length, byte *b, size_t
 }
 
 int test_allocations_before_failure = 0;
+context *test_context = NULL;
 
 void *test_malloc_with_counter(size_t size) {
   if (test_allocations_before_failure < 1) {
-    reset_malloc_calloc();
+    context_reset_allocators(test_context);
     return NULL;
   }
   test_allocations_before_failure--;
@@ -35,14 +36,35 @@ void *test_malloc_with_counter(size_t size) {
 
 void *test_calloc_with_counter(size_t count, size_t size) {
   if (test_allocations_before_failure < 1) {
-    reset_malloc_calloc();
+    context_reset_allocators(test_context);
     return NULL;
   }
   test_allocations_before_failure--;
   return calloc(count, size);
 }
 
-void set_malloc_to_fail_after(int allocations_count) {
-  test_allocations_before_failure = allocations_count;
-  set_malloc_calloc(test_malloc_with_counter, test_calloc_with_counter);
+void free_test_context() {
+  if (test_context) {
+    context_delete(test_context);
+    test_context = NULL;
+  }
+}
+
+void setup_test_context(int allocations_before_failure_count) {
+  free_test_context();
+  malloc_fn mlc = malloc;
+  calloc_fn clc = calloc;
+
+  if (allocations_before_failure_count >= 0) {
+    mlc = test_malloc_with_counter;
+    clc = test_calloc_with_counter;
+    // +1 for the context allocation itself
+    test_allocations_before_failure = allocations_before_failure_count + 1;
+  }
+
+  test_context = context_new(mlc, clc);
+}
+
+void setup_test_context_default() {
+  setup_test_context(-1);
 }
