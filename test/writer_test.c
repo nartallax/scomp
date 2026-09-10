@@ -4,35 +4,53 @@
 #include "./test_utils.c"
 
 const char *test_writer_bytes() {
-  writer *writer = writer_new(test_context, 2, calloc(2, sizeof(byte)), calloc(2, sizeof(byte)));
-  TEST_ASSERT(!writer_is_current_buffer_exhausted(writer), "Buffer should not be exhausted at zero");
+  writer *writer = writer_new(test_context, 2);
+  TEST_ASSERT(writer_get_bytes_stored(writer) == 0, "No bytes stored right after creation");
+  TEST_ASSERT(writer_consume_full_buffer(writer).length == 0, "Consume on empty writer returns empty buffer");
+  TEST_ASSERT(writer_consume_nonempty_buffer(writer).length == 0, "Consume nonempty on empty writer returns empty buffer");
 
-  writer_write_byte(writer, 0b11001010);
-  TEST_ASSERT(!writer_is_current_buffer_exhausted(writer), "Buffer should not be exhausted after one write");
-  writer_write_byte(writer, 0b00110101);
-  TEST_ASSERT(writer_is_current_buffer_exhausted(writer), "Buffer should be exhausted after two writes");
+  writer_write_byte(writer, 5);
+  writer_write_byte(writer, 4);
+  TEST_ASSERT(writer_get_bytes_stored(writer) == 2, "Some bytes should be stored");
+  buffer b = writer_consume_full_buffer(writer);
+  TEST_ASSERT(writer_get_bytes_stored(writer) == 0, "No bytes should be stored after consumption");
+  TEST_ASSERT(b.length == 2, "Full buffer should have length of the writer");
+  TEST_ASSERT(b.data[0] == 5 && b.data[1] == 4, "Buffer should store expected bytes");
+  free(b.data);
 
-  writer_write_byte(writer, 0b11110000);
-  TEST_ASSERT(writer_is_current_buffer_exhausted(writer), "Buffer should stay exhausted after three writes");
+  writer_write_byte(writer, 3);
+  TEST_ASSERT(writer_get_bytes_stored(writer) == 1, "Some bytes should be stored");
+  TEST_ASSERT(writer_consume_full_buffer(writer).length == 0, "Consume on non-full writer returns empty buffer");
+  b = writer_consume_nonempty_buffer(writer);
+  TEST_ASSERT(writer_get_bytes_stored(writer) == 0, "No bytes should be stored after consumption");
+  TEST_ASSERT(b.length == 1, "Nonempty buffer should have length of 1");
+  TEST_ASSERT(b.data[0] == 3, "Nonempty buffer should store expected bytes");
+  free(b.data);
 
-  byte *result_buffer = writer_rotate_buffers(writer, calloc(2, sizeof(byte)));
-  TEST_ASSERT(result_buffer[0] == 0b11001010 && result_buffer[1] == 0b00110101, "First buffer should have expected data");
-  TEST_ASSERT(!writer_is_current_buffer_exhausted(writer), "Buffer should not be exhausted after rotation");
-  free(result_buffer);
+  writer_write_byte(writer, 2);
+  TEST_ASSERT(writer_get_bytes_stored(writer) == 1, "Some bytes should be stored");
+  TEST_ASSERT(writer_consume_full_buffer(writer).length == 0, "Consume on non-full writer returns empty buffer");
 
-  writer_write_byte(writer, 0b00001111);
-  TEST_ASSERT(writer_is_current_buffer_exhausted(writer), "Buffer should be exhausted after four writes");
+  writer_write_byte(writer, 6);
+  writer_write_byte(writer, 7);
+  writer_write_byte(writer, 8);
+  writer_write_byte(writer, 9);
+  writer_write_byte(writer, 10);
+  TEST_ASSERT(writer_get_bytes_stored(writer) == 6, "Some bytes should be stored");
+  // this is supposed to check if nonempty_consume can also return full buffer, not just the tail one
+  b = writer_consume_nonempty_buffer(writer);
+  TEST_ASSERT(writer_get_bytes_stored(writer) == 4, "Reduced number of bytes should be stored after consumption");
+  TEST_ASSERT(b.length == 2, "Full buffer should have length of the writer");
+  TEST_ASSERT(b.data[0] == 2 && b.data[1] == 6, "Buffer should store expected bytes");
+  free(b.data);
 
-  result_buffer = writer_rotate_buffers(writer, calloc(2, sizeof(byte)));
-  TEST_ASSERT(result_buffer[0] == 0b11110000 && result_buffer[1] == 0b00001111, "Second buffer should have expected data");
-  free(result_buffer);
+  b = writer_consume_all_buffers(writer);
+  TEST_ASSERT(writer_get_bytes_stored(writer) == 0, "No bytes should be stored after consumption");
+  TEST_ASSERT(b.length == 4, "Full buffer should have the remaining bytes");
+  TEST_ASSERT(b.data[0] == 7 && b.data[1] == 8 && b.data[2] == 9 && b.data[3] == 10, "Buffer should store expected bytes");
+  free(b.data);
 
-  TEST_ASSERT(!writer_is_current_buffer_exhausted(writer), "Buffer should not be exhausted after second rotation");
-
-  writer_deletion_result last_buffer = writer_delete(writer);
-  TEST_ASSERT(last_buffer.length == 0, "Last buffer is expected to be zero-length");
-  free(last_buffer.current_buffer);
-  free(last_buffer.next_buffer);
+  writer_delete(writer);
 
   return NULL;
 }
@@ -45,67 +63,107 @@ void _write_byte_as_bits(writer *writer, byte value) {
 }
 
 const char *test_writer_bits() {
-  writer *writer = writer_new(test_context, 2, calloc(2, sizeof(byte)), calloc(2, sizeof(byte)));
+  writer *writer = writer_new(test_context, 2);
+  buffer b;
+  TEST_ASSERT(writer_get_bytes_stored(writer) == 0, "No bytes stored right after creation");
+
+  writer_write_bit(writer, 1);
+  TEST_ASSERT(writer_get_bytes_stored(writer) == 1, "One bit stored counts as one byte");
+
   writer_write_bit(writer, 1);
   writer_write_bit(writer, 0);
-  TEST_ASSERT(!writer_is_current_buffer_exhausted(writer), "Buffer should not be exhausted after 2 bits");
-
-  _write_byte_as_bits(writer, 0b10101100);
-  TEST_ASSERT(!writer_is_current_buffer_exhausted(writer), "Buffer should not be exhausted after 10 bits");
-
-  _write_byte_as_bits(writer, 0b01010011);
-  TEST_ASSERT(writer_is_current_buffer_exhausted(writer), "Buffer should be exhausted after 18 bits");
-
-  byte *result_buffer = writer_rotate_buffers(writer, calloc(2, sizeof(byte)));
-  TEST_ASSERT(result_buffer[0] == 0b10110001 && result_buffer[1] == 0b01001110, "First buffer should have expected data");
-  free(result_buffer);
-  TEST_ASSERT(!writer_is_current_buffer_exhausted(writer), "Buffer should not be exhausted after first rotation");
-
-  _write_byte_as_bits(writer, 0b11111111);
-  writer_write_bit(writer, 0);
-  writer_write_bit(writer, 0);
-  writer_write_bit(writer, 0);
-  writer_write_bit(writer, 0);
-  writer_write_bit(writer, 0);
-  TEST_ASSERT(!writer_is_current_buffer_exhausted(writer), "Buffer should not be exhausted after 31 bits");
-  writer_write_bit(writer, 0);
-  TEST_ASSERT(writer_is_current_buffer_exhausted(writer), "Buffer should be exhausted after 32 bits");
-
-  result_buffer = writer_rotate_buffers(writer, calloc(2, sizeof(byte)));
-  TEST_ASSERT(result_buffer[0] == 0b11111101 && result_buffer[1] == 0b00000011, "Second buffer should have expected data");
-  free(result_buffer);
-
-  _write_byte_as_bits(writer, 0b11111111);
   writer_write_bit(writer, 0);
   writer_write_bit(writer, 1);
-  writer_deletion_result last_buffer = writer_delete(writer);
-  TEST_ASSERT(last_buffer.length == 2, "Last buffer should have length of 2");
-  TEST_ASSERT(last_buffer.current_buffer[0] == 0b11111111 && last_buffer.current_buffer[1] == 0b00000010, "Last buffer should have expected data");
-  free(last_buffer.current_buffer);
-  free(last_buffer.next_buffer);
+  writer_write_bit(writer, 0);
+  writer_write_bit(writer, 1);
+  TEST_ASSERT(writer_get_bytes_stored(writer) == 1, "Seven bits stored counts as one byte");
+
+  writer_write_bit(writer, 0);
+  TEST_ASSERT(writer_get_bytes_stored(writer) == 1, "Eight bits stored counts as one byte");
+
+  writer_write_bit(writer, 1);
+  TEST_ASSERT(writer_get_bytes_stored(writer) == 2, "Nine bits stored counts as two bytes");
+
+  TEST_ASSERT(writer_consume_full_buffer(writer).length == 0, "Consume on non-full writer returns empty buffer");
+  b = writer_consume_nonempty_buffer(writer);
+  TEST_ASSERT(writer_get_bytes_stored(writer) == 0, "No bytes stored after consumption");
+  TEST_ASSERT(b.length == 2, "Consume of 9-bits full writer returns buffer of 2");
+  TEST_ASSERT(b.data[0] == 0b01010011 && b.data[1] == 0b00000001, "9-bits buffer should have expected content");
+  free(b.data);
+
+  _write_byte_as_bits(writer, 0b00110101);
+  _write_byte_as_bits(writer, 0b11001010);
+  writer_write_bit(writer, 1);
+  writer_write_bit(writer, 0);
+  writer_write_bit(writer, 1);
+  TEST_ASSERT(writer_get_bytes_stored(writer) == 3, "19 bits stored counts as three bytes");
+  b = writer_consume_all_buffers(writer);
+  TEST_ASSERT(writer_get_bytes_stored(writer) == 0, "No bytes stored after consumption");
+  TEST_ASSERT(b.length == 3, "Buffer has expected length");
+  TEST_ASSERT(b.data[0] == 0b00110101 && b.data[1] == 0b11001010 && b.data[2] == 0b00000101, "Buffer has expected content");
+  free(b.data);
+
+  writer_delete(writer);
+  return NULL;
+}
+
+const char *test_writer_early_close() {
+  writer *writer = writer_new(test_context, 2);
+  TEST_ASSERT(context_is_errored(test_context) == false, "No errors initially");
+  writer_write_byte(writer, 1);
+  writer_write_byte(writer, 2);
+  writer_write_byte(writer, 3);
+  TEST_ASSERT(context_is_errored(test_context) == false, "No errors after writes");
+  writer_delete(writer);
+  TEST_ASSERT(context_is_errored(test_context) == true, "Some errors after early close");
 
   return NULL;
 }
 
-const char *test_writer_wrong_init() {
-  writer *writer = writer_new(test_context, 0, NULL, NULL);
-  TEST_ASSERT(writer == NULL, "Writer must not accept zero size");
+const char *test_writer_buffer_reuse() {
+  writer *writer = writer_new(test_context, 2);
+  buffer b;
 
-  writer = writer_new(test_context, 5, NULL, NULL);
-  TEST_ASSERT(writer == NULL, "Writer must not accept non-power-of-two size");
+  writer_write_byte(writer, 2);
+  writer_write_byte(writer, 3);
+  writer_write_byte(writer, 4);
+  b = writer_consume_full_buffer(writer);
+  TEST_ASSERT(b.data[0] == 2 && b.data[1] == 3, "Buffer has expected content");
+  byte *reused_array = b.data;
+
+  writer_supply_dirty_buffer(writer, b.data);
+  writer_write_byte(writer, 5);
+  writer_write_byte(writer, 6);
+  _write_byte_as_bits(writer, 0b10000000);
+  b = writer_consume_full_buffer(writer);
+  TEST_ASSERT(b.data[0] == 4 && b.data[1] == 5, "Buffer has expected content");
+  free(b.data);
+  b = writer_consume_full_buffer(writer);
+  TEST_ASSERT(b.data[0] == 6 && b.data[1] == 0b10000000, "Buffer has expected content");
+  TEST_ASSERT(b.data == reused_array, "Buffer is actually reused");
+  free(reused_array);
+
+  // this checks that all unused free buffers are deleted too
+  byte *other_array = malloc(sizeof(byte) * 2);
+  writer_supply_zeroinit_buffer(writer, other_array);
+
+  writer_delete(writer);
 
   return NULL;
 }
 
 const char *test_writer_allocation_failure() {
-  writer *writer;
-  byte buffer[2];
-  TEST_ASSERT(context_is_errored(test_context) == false, "Error must not be set at the test start");
+  for (int i = 0; i < 6; i++) {
+    setup_test_context(i);
+    TEST_ASSERT(writer_new(test_context, 2) == NULL, "Writer should be null on allocation fail");
+  }
 
-  setup_test_context(0);
-  writer = writer_new(test_context, 2, buffer, buffer);
-  TEST_ASSERT(context_is_errored(test_context) == true, "Error must be present when allocation fails");
-  TEST_ASSERT(writer == NULL, "writer must be null when allocation fails");
+  setup_test_context(6);
+  writer *writer = writer_new(test_context, 2);
+  writer_write_byte(writer, 1);
+  buffer b = writer_consume_all_buffers(writer);
+  TEST_ASSERT(b.length == 0, "All-buffer allocation fail should return empty buffer");
+  writer_delete(writer);
 
   return NULL;
 }

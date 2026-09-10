@@ -16,6 +16,7 @@ const char *test_queue_simple() {
   TEST_ASSERT(queue_get_count(q) == 4, "Queue length should have expected value");
   TEST_ASSERT(strcmp(queue_peek(q), "first") == 0, "Peek should return expected value");
   TEST_ASSERT(strcmp(queue_peek(q), "first") == 0, "Peek should not remove values");
+  TEST_ASSERT(strcmp(queue_peek_tail(q), "forth") == 0, "Peek tail should return last value");
   TEST_ASSERT(strcmp(queue_pop(q), "first") == 0, "Pop should return expected value");
   TEST_ASSERT(strcmp(queue_pop(q), "second") == 0, "Pop should return expected value");
   TEST_ASSERT(queue_get_count(q) == 2, "Queue length should have expected value after pops");
@@ -101,6 +102,10 @@ const char *test_queue_underflow() {
 
   TEST_ASSERT(queue_peek(q) == NULL, "Peek on empty queue should return null");
   TEST_ASSERT(context_is_errored(test_context) == true, "Queue underflow on peek should error");
+  context_clear_error(test_context);
+
+  TEST_ASSERT(queue_peek_tail(q) == NULL, "Peek tail on empty queue should return null");
+  TEST_ASSERT(context_is_errored(test_context) == true, "Queue underflow on peek tail should error");
 
   queue_delete(q);
   return NULL;

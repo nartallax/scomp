@@ -20,7 +20,8 @@ int main() {
   test tests[] = {
       MAKE_TEST(test_writer_bytes),
       MAKE_TEST(test_writer_bits),
-      MAKE_TEST(test_writer_wrong_init),
+      MAKE_TEST(test_writer_early_close),
+      MAKE_TEST(test_writer_buffer_reuse),
       MAKE_TEST(test_writer_allocation_failure),
       MAKE_TEST(test_is_power_of_two),
       MAKE_TEST(test_fenwick_tree_simple),

@@ -12,6 +12,7 @@
     }                                                                                                                                                                                                  \
   } while (0)
 
+// TODO: rm?
 void merge_byte_arrays(byte **receiver, size_t *receiver_length, byte *b, size_t b_len) {
   byte *old_receiver = *receiver;
   byte *result = malloc(sizeof(byte) * (*receiver_length + b_len));
@@ -25,9 +26,13 @@ void merge_byte_arrays(byte **receiver, size_t *receiver_length, byte *b, size_t
 int test_allocations_before_failure = 0;
 context *test_context = NULL;
 
+void _test_reset_allocators() {
+  context_set_allocators(test_context, malloc, calloc, free);
+}
+
 void *test_malloc_with_counter(size_t size) {
   if (test_allocations_before_failure < 1) {
-    context_reset_allocators(test_context);
+    _test_reset_allocators();
     return NULL;
   }
   test_allocations_before_failure--;
@@ -36,7 +41,7 @@ void *test_malloc_with_counter(size_t size) {
 
 void *test_calloc_with_counter(size_t count, size_t size) {
   if (test_allocations_before_failure < 1) {
-    context_reset_allocators(test_context);
+    _test_reset_allocators();
     return NULL;
   }
   test_allocations_before_failure--;

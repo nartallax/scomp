@@ -15,44 +15,28 @@ byte *get_random_bytes(size_t length) {
   return result;
 }
 
-void maybe_rotate_buffers(writer *writer, byte **result, size_t *result_length) {
-  if (writer_is_current_buffer_exhausted(writer)) {
-    byte *full_buffer = writer_rotate_buffers(writer, calloc(sizeof(byte), writer_buffer_size));
-    merge_byte_arrays(result, result_length, full_buffer, writer_buffer_size);
-    free(full_buffer);
-  }
-}
-
-byte *encode_bytes(size_t length, byte *data, size_t *result_length) {
-  writer *writer = writer_new(test_context, writer_buffer_size, calloc(writer_buffer_size, sizeof(byte)), calloc(writer_buffer_size, sizeof(byte)));
+buffer encode_bytes(size_t length, byte *data) {
+  writer *writer = writer_new(test_context, writer_buffer_size);
   acod_encoder *encoder = acod_encoder_new(test_context, writer);
   ftable *encoding_frequencies = ftable_new(test_context, 256, FTABLE_INCLUDE_EOF | FTABLE_INIT_ONE);
-
-  *result_length = 0;
-  byte *result = malloc(sizeof(byte) * 0);
 
   for (size_t i = 0; i < length; i++) {
     symbol symbol = data[i];
     acod_encoder_write(encoder, encoding_frequencies, symbol);
     ftable_increment(encoding_frequencies, symbol);
-    maybe_rotate_buffers(writer, &result, result_length);
   }
   acod_encoder_write(encoder, encoding_frequencies, ftable_get_eof_symbol(encoding_frequencies));
-  maybe_rotate_buffers(writer, &result, result_length);
 
   acod_encoder_delete(encoder);
-  writer_deletion_result last_buffer = writer_delete(writer);
-  merge_byte_arrays(&result, result_length, last_buffer.current_buffer, last_buffer.length);
-  free(last_buffer.current_buffer);
-  free(last_buffer.next_buffer);
+  buffer result = writer_consume_all_buffers(writer);
+  writer_delete(writer);
   ftable_delete(encoding_frequencies);
 
   return result;
 }
 
 const char *_test_acod(size_t length, byte *data) {
-  size_t result_length = 0;
-  byte *encoded_bytes = encode_bytes(length, data, &result_length);
+  buffer encoded_bytes = encode_bytes(length, data);
 
   ftable *decoding_frequencies = ftable_new(test_context, 256, FTABLE_INCLUDE_EOF | FTABLE_INIT_ONE);
   acod_decoder *decoder = acod_decoder_new(test_context);
@@ -63,7 +47,7 @@ const char *_test_acod(size_t length, byte *data) {
   size_t bit_index = 0;
   while (last_symbol != eof) {
     size_t current_byte_index = bit_index >> 3;
-    byte current_byte = current_byte_index >= result_length ? 0 : encoded_bytes[bit_index >> 3];
+    byte current_byte = current_byte_index >= encoded_bytes.length ? 0 : encoded_bytes.data[bit_index >> 3];
     byte current_bit = (current_byte & (1 << (bit_index & 7))) ? 1 : 0;
     bit_index++;
     acod_decoder_update(decoder, current_bit);
@@ -83,7 +67,7 @@ const char *_test_acod(size_t length, byte *data) {
 
   acod_decoder_delete(decoder);
   ftable_delete(decoding_frequencies);
-  free(encoded_bytes);
+  free(encoded_bytes.data);
 
   return NULL;
 }

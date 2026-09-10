@@ -27,6 +27,8 @@ typedef struct {
   error error;
 } context;
 
+// TODO: potentially this library can live without linking to anything at all in runtime
+// I need to test it with ldd, and if it does link to something - figure out what and why, and if I could help it
 context *context_new(malloc_fn custom_malloc, calloc_fn custom_calloc, free_fn custom_free) {
   context *result = custom_malloc(sizeof(context));
   result->malloc = custom_malloc;
@@ -59,7 +61,10 @@ void context_clear_error(context *context) {
 }
 
 void context_set_error(context *context, const char *format, ...) {
-  context_clear_error(context);
+  if (context_is_errored(context)) {
+    // don't overwrite the first error, it's usually the most meaningful
+    return;
+  }
 
   va_list args;
   va_start(args, format);
@@ -74,11 +79,6 @@ void context_set_allocators(context *context, malloc_fn mlc, calloc_fn clc, free
   context->malloc = mlc;
   context->calloc = clc;
   context->free = fre;
-}
-
-/** Use default implementations of malloc and calloc. */
-void context_reset_allocators(context *context) {
-  context_set_allocators(context, malloc, calloc, free);
 }
 
 void *context_allocate(context *context, size_t element_count, size_t single_element_size) {

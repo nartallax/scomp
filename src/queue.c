@@ -9,7 +9,9 @@ typedef struct {
   void **values;
   // length of the `values` array. is always power-of-two.
   size_t length;
+  // head is the last occupied spot in values array
   size_t head;
+  // tail is first free spot in values array
   size_t tail;
 } queue;
 
@@ -94,4 +96,13 @@ void *queue_peek(queue *queue) {
   }
 
   return queue->values[queue->head];
+}
+
+void *queue_peek_tail(queue *queue) {
+  if (queue_get_count(queue) < 1) {
+    context_set_error(queue->context, "Queue underflow on tail peek");
+    return NULL;
+  }
+
+  return queue->values[queue->tail - 1];
 }
