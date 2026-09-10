@@ -17,6 +17,7 @@ At the end of the life you are supposed to call `writer_delete()`, which will re
 Note that buffers you provide are assumed to be zero-initialized on caller's side.
 Output is big-endian - least significant bits get value first. */
 typedef struct {
+  context *context;
   /** Byte size of one of the buffers. */
   size_t size;
   size_t size_mask;
@@ -43,11 +44,13 @@ writer *writer_new(context *context, size_t size, byte *current_buffer, byte *ne
   stream->current_buffer = current_buffer;
   stream->next_buffer = next_buffer;
   stream->bit_pointer = 0;
+  stream->context = context;
 
   return stream;
 }
 
 typedef struct {
+  context *context;
   byte *current_buffer;
   /** Amount of bytes in current_buffer that contain data written.
   If you didn't rotate the buffers before calling delete - this value may be larger than the buffer size */
@@ -68,7 +71,7 @@ writer_deletion_result writer_delete(writer *writer) {
   result.next_buffer = writer->next_buffer;
   result.length = bytes_written;
 
-  free(writer);
+  context_free(writer->context, writer);
   return result;
 }
 

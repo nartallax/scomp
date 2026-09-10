@@ -25,8 +25,8 @@ bool ftree_is_invalid(ftree tree) {
   return !tree.data; // allocation failed
 }
 
-void ftree_delete(ftree tree) {
-  free(tree.data);
+void ftree_delete(context *context, ftree tree) {
+  context_free(context, tree.data);
 }
 
 void ftree_add(ftree tree, int64_t symbol, uint64_t delta) {

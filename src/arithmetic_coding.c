@@ -110,6 +110,7 @@ void _acod_perform_underflow(acod_state *state) {
 }
 
 typedef struct {
+  context *context;
   acod_state state;
   // Number of saved underflow bits. This value can grow without bound, so a truly correct implementation would use a BigInteger.
   // (of course, it's very unlikely and can potentially happen only to very, very long sequences of input symbols)
@@ -125,6 +126,7 @@ acod_encoder *acod_encoder_new(context *context, writer *writer) {
   encoder->state = _acod_state_new();
   encoder->underflows = 0;
   encoder->writer = writer;
+  encoder->context = context;
   return encoder;
 }
 
@@ -145,7 +147,7 @@ void _acod_encoder_finalize(acod_encoder *encoder) {
 Must be called before deleting underlying writer. */
 void acod_encoder_delete(acod_encoder *encoder) {
   _acod_encoder_finalize(encoder);
-  free(encoder);
+  context_free(encoder->context, encoder);
 }
 
 void acod_encoder_write(acod_encoder *encoder, ftable *frequencies, symbol symbol) {
@@ -175,6 +177,7 @@ void acod_encoder_write(acod_encoder *encoder, ftable *frequencies, symbol symbo
 }
 
 typedef struct {
+  context *context;
   acod_state state;
   // The current raw code bits being buffered, which is always in the range [low, high].
   symbol_frequency code;
@@ -190,11 +193,12 @@ acod_decoder *acod_decoder_new(context *context) {
   decoder->state.stage = ACOD_STAGE_PREPARATION;
   decoder->code = 0;
   decoder->base_bits_received = 0;
+  decoder->context = context;
   return decoder;
 }
 
 void acod_decoder_delete(acod_decoder *decoder) {
-  free(decoder);
+  context_free(decoder->context, decoder);
 }
 
 /** When a bit is known (received from some reader) - update internal state of the decoder with that bit.

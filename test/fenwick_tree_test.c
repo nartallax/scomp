@@ -44,8 +44,8 @@ const char *test_fenwick_tree_simple() {
   }
 
   free(source_array);
-  ftree_delete(tree);
-  ftree_delete(tree_from_source);
+  ftree_delete(test_context, tree);
+  ftree_delete(test_context, tree_from_source);
 
   return NULL;
 }
@@ -58,7 +58,7 @@ const char *test_fenwick_tree_max_range() {
     ftree_add(tree, size - 1, 1);
     uint64_t sum = ftree_sum(tree, size - 1);
     TEST_ASSERT(sum == 2, "Sum of just two increments must be 2");
-    ftree_delete(tree);
+    ftree_delete(test_context, tree);
   }
   return NULL;
 }
@@ -67,7 +67,7 @@ const char *test_fenwick_tree_range_sum_cornercase() {
   ftree tree = ftree_new(test_context, 5);
   ftree_add(tree, 1, 1);
   TEST_ASSERT(ftree_range_sum(tree, 2, 1) == 0, "Range sums with negative range lengths must be zero");
-  ftree_delete(tree);
+  ftree_delete(test_context, tree);
   return NULL;
 }
 

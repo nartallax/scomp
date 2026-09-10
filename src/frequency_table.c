@@ -14,6 +14,7 @@
 Each symbol has a frequency, which is a non-negative integer.
 Frequency table objects are primarily used for getting cumulative symbol frequencies. */
 typedef struct {
+  context *context;
   ftree frequencies;
   // sum of all frequencies
   symbol_frequency total;
@@ -65,9 +66,9 @@ void ftable_increment(ftable *table, symbol symbol) {
 }
 
 void ftable_delete(ftable *table) {
-  ftree_delete(table->frequencies);
-  free(table->compaction_buffer);
-  free(table);
+  ftree_delete(table->context, table->frequencies);
+  context_free(table->context, table->compaction_buffer);
+  context_free(table->context, table);
 }
 
 ftable *ftable_new(context *context, symbol length, int init_flags) {
@@ -80,6 +81,7 @@ ftable *ftable_new(context *context, symbol length, int init_flags) {
 
   table->compaction_buffer = NULL; // just to zero-init
   table->frequencies = ftree_new(context, length + eof_padding);
+  table->context = context;
   if (ftree_is_invalid(table->frequencies)) {
     ftable_delete(table);
     return NULL;

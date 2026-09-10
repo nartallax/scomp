@@ -5,12 +5,12 @@
 const size_t QUEUE_DEFAULT_SIZE = 16;
 
 typedef struct {
+  context *context;
   void **values;
   // length of the `values` array. is always power-of-two.
   size_t length;
   size_t head;
   size_t tail;
-  context *context;
 } queue;
 
 queue *queue_new(context *context) {
@@ -25,7 +25,7 @@ queue *queue_new(context *context) {
   result->context = context;
   result->values = context_allocate(context, result->length, sizeof(void *));
   if (!result->values) {
-    free(result);
+    context_free(context, result);
     return NULL;
   }
 
@@ -33,8 +33,8 @@ queue *queue_new(context *context) {
 }
 
 void queue_delete(queue *queue) {
-  free(queue->values);
-  free(queue);
+  context_free(queue->context, queue->values);
+  context_free(queue->context, queue);
 }
 
 /** Returns amount of items in queue. */
@@ -62,7 +62,7 @@ void _queue_maybe_grow(queue *queue) {
     new_values[i] = queue->values[pointer];
     i++;
   }
-  free(queue->values);
+  context_free(queue->context, queue->values);
 
   queue->length = new_length;
   queue->values = new_values;

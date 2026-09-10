@@ -62,7 +62,7 @@ void setup_test_context(int allocations_before_failure_count) {
     test_allocations_before_failure = allocations_before_failure_count + 1;
   }
 
-  test_context = context_new(mlc, clc);
+  test_context = context_new(mlc, clc, free);
 }
 
 void setup_test_context_default() {
