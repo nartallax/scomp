@@ -2,6 +2,7 @@
 #include "./fenwick_tree_test.c"
 #include "./frequency_table_test.c"
 #include "./math_test.c"
+#include "./queue_test.c"
 #include "./test_utils.c"
 #include "./writer_test.c"
 #include <stdio.h>
@@ -33,7 +34,12 @@ int main() {
       MAKE_TEST(test_ftable_from_frequencies),
       MAKE_TEST(test_ftable_allocation_failures),
       MAKE_TEST(test_acod_simple),
-      MAKE_TEST(test_acod_allocation_failures)
+      MAKE_TEST(test_acod_allocation_failures),
+      MAKE_TEST(test_queue_simple),
+      MAKE_TEST(test_queue_overflow_while_wrapping),
+      MAKE_TEST(test_queue_overflow_while_not_wrapping),
+      MAKE_TEST(test_queue_underflow),
+      MAKE_TEST(test_queue_allocation_failures),
       // tests go here
   };
 

@@ -22,6 +22,7 @@ True global values are not great because of multithreading. */
 typedef struct {
   malloc_fn malloc;
   calloc_fn calloc;
+  // TODO: free() here too
   error error;
 } context;
 
