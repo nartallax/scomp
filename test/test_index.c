@@ -18,11 +18,6 @@ typedef struct {
 
 int main() {
   test tests[] = {
-      MAKE_TEST(test_writer_bytes),
-      MAKE_TEST(test_writer_bits),
-      MAKE_TEST(test_writer_early_close),
-      MAKE_TEST(test_writer_buffer_reuse),
-      MAKE_TEST(test_writer_allocation_failure),
       MAKE_TEST(test_is_power_of_two),
       MAKE_TEST(test_fenwick_tree_simple),
       MAKE_TEST(test_fenwick_tree_max_range),
@@ -34,13 +29,19 @@ int main() {
       MAKE_TEST(test_ftable_halving),
       MAKE_TEST(test_ftable_from_frequencies),
       MAKE_TEST(test_ftable_allocation_failures),
-      MAKE_TEST(test_acod_simple),
-      MAKE_TEST(test_acod_allocation_failures),
       MAKE_TEST(test_queue_simple),
       MAKE_TEST(test_queue_overflow_while_wrapping),
       MAKE_TEST(test_queue_overflow_while_not_wrapping),
       MAKE_TEST(test_queue_underflow),
+      MAKE_TEST(test_queue_non_pointer_values),
       MAKE_TEST(test_queue_allocation_failures),
+      MAKE_TEST(test_writer_bytes),
+      MAKE_TEST(test_writer_bits),
+      MAKE_TEST(test_writer_early_close),
+      MAKE_TEST(test_writer_buffer_reuse),
+      MAKE_TEST(test_writer_allocation_failure),
+      MAKE_TEST(test_acod_simple),
+      MAKE_TEST(test_acod_allocation_failures),
       // tests go here
   };
 
