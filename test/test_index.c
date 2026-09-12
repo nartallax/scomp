@@ -1,3 +1,4 @@
+#include "./arena_test.c"
 #include "./arithmetic_coding_test.c"
 #include "./fenwick_tree_test.c"
 #include "./frequency_table_test.c"
@@ -22,12 +23,6 @@ int main() {
       MAKE_TEST(test_fenwick_tree_max_range),
       MAKE_TEST(test_fenwick_tree_range_sum_cornercase),
       MAKE_TEST(test_fenwick_tree_allocation_failure),
-      MAKE_TEST(test_ftable_simple),
-      MAKE_TEST(test_ftable_with_eof),
-      MAKE_TEST(test_ftable_init_one),
-      MAKE_TEST(test_ftable_halving),
-      MAKE_TEST(test_ftable_from_frequencies),
-      MAKE_TEST(test_ftable_allocation_failures),
       MAKE_TEST(test_stack_simple),
       MAKE_TEST(test_stack_non_pointer),
       MAKE_TEST(test_stack_allocation_failures),
@@ -36,11 +31,20 @@ int main() {
       MAKE_TEST(test_queue_overflow_while_not_wrapping),
       MAKE_TEST(test_queue_non_pointer_values),
       MAKE_TEST(test_queue_allocation_failures),
+      MAKE_TEST(test_arena_simple),
+      MAKE_TEST(test_arena_one_big_allocation),
+      MAKE_TEST(test_arena_allocation_failures),
       MAKE_TEST(test_writer_bytes),
       MAKE_TEST(test_writer_bits),
       MAKE_TEST(test_writer_early_close),
       MAKE_TEST(test_writer_buffer_reuse),
       MAKE_TEST(test_writer_allocation_failure),
+      MAKE_TEST(test_ftable_simple),
+      MAKE_TEST(test_ftable_with_eof),
+      MAKE_TEST(test_ftable_init_one),
+      MAKE_TEST(test_ftable_halving),
+      MAKE_TEST(test_ftable_from_frequencies),
+      MAKE_TEST(test_ftable_allocation_failures),
       MAKE_TEST(test_acod_simple),
       MAKE_TEST(test_acod_allocation_failures),
       // tests go here
