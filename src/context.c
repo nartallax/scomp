@@ -85,6 +85,7 @@ void context_set_allocators(context *context, malloc_fn mlc, calloc_fn clc, real
   context->free = fre;
 }
 
+// TODO: never allocate if error is present
 void *context_allocate(context *context, size_t element_count, size_t single_element_size) {
   size_t byte_size = element_count * single_element_size;
   void *result = context->malloc(byte_size);
