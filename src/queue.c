@@ -26,30 +26,23 @@ typedef struct {
   size_t tail;
 } queue;
 
-queue *queue_new(context *context, size_t value_size) {
-  queue *result = context_allocate(context, 1, sizeof(queue));
-  if (result == NULL) {
-    return result;
+bool queue_init(queue *queue, context *context, size_t value_size) {
+  queue->length = QUEUE_DEFAULT_SIZE;
+  queue->head = 0;
+  queue->tail = 0;
+  queue->context = context;
+  queue->value_size = value_size;
+  queue->values = context_allocate(context, queue->length, value_size);
+  if (!queue->values) {
+    return false;
   }
 
-  result->length = QUEUE_DEFAULT_SIZE;
-  result->head = 0;
-  result->tail = 0;
-  result->context = context;
-  result->value_size = value_size;
-  result->values = context_allocate(context, result->length, value_size);
-  if (!result->values) {
-    context_free(context, result);
-    return NULL;
-  }
-
-  return result;
+  return true;
 }
 
 /** If the items in the queue are heap-allocated, delete them manually first */
-void queue_delete(queue *queue) {
+void queue_deinit(queue *queue) {
   context_free(queue->context, queue->values);
-  context_free(queue->context, queue);
 }
 
 /** Returns amount of items in queue. */

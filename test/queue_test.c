@@ -16,7 +16,8 @@ const char *_str(const char **slot) {
 }
 
 const char *test_queue_simple() {
-  queue *q = queue_new(test_context, sizeof(const char *));
+  queue *q = malloc(sizeof(queue));
+  queue_init(q, test_context, sizeof(const char *));
   TEST_ASSERT(queue_get_count(q) == 0, "Empty queue should have length of zero");
 
   _test_queue_push(q, "first");
@@ -36,13 +37,15 @@ const char *test_queue_simple() {
   TEST_ASSERT(strcmp(_str(queue_pop(q)), "forth") == 0, "Pop should return expected value");
   TEST_ASSERT(queue_get_count(q) == 0, "Empty queue should have length of zero");
 
-  queue_delete(q);
+  queue_deinit(q);
+  free(q);
 
   return NULL;
 }
 
 const char *test_queue_overflow_while_wrapping() {
-  queue *q = queue_new(test_context, sizeof(const char *));
+  queue *q = malloc(sizeof(queue));
+  queue_init(q, test_context, sizeof(const char *));
 
   for (size_t i = 0; i < QUEUE_DEFAULT_SIZE - 1; i++) {
     _test_queue_push(q, "a");
@@ -80,12 +83,14 @@ const char *test_queue_overflow_while_wrapping() {
     TEST_ASSERT(strcmp(_str(queue_pop(q)), "c") == 0, "This pop should return 'c'");
   }
 
-  queue_delete(q);
+  queue_deinit(q);
+  free(q);
   return NULL;
 }
 
 const char *test_queue_overflow_while_not_wrapping() {
-  queue *q = queue_new(test_context, sizeof(const char *));
+  queue *q = malloc(sizeof(queue));
+  queue_init(q, test_context, sizeof(const char *));
 
   TEST_ASSERT(q->length == QUEUE_DEFAULT_SIZE, "Length should not have grown yet");
   for (size_t i = 0; i < QUEUE_DEFAULT_SIZE * 2 + 5; i++) {
@@ -98,7 +103,8 @@ const char *test_queue_overflow_while_not_wrapping() {
     TEST_ASSERT(strcmp(_str(queue_pop(q)), "a") == 0, "This pop should return 'a'");
   }
 
-  queue_delete(q);
+  queue_deinit(q);
+  free(q);
   return NULL;
 }
 
@@ -109,7 +115,8 @@ typedef struct {
 } test_xyz;
 
 const char *test_queue_non_pointer_values() {
-  queue *q = queue_new(test_context, sizeof(test_xyz));
+  queue *q = malloc(sizeof(queue));
+  queue_init(q, test_context, sizeof(test_xyz));
 
   test_xyz *slot1 = queue_push(q);
   slot1->x = 1;
@@ -140,32 +147,28 @@ const char *test_queue_non_pointer_values() {
     TEST_ASSERT(slot->x == i && slot->y == i + 1 && slot->z == i + 2, "Popped xyz in cycle should have expected values");
   }
 
-  queue_delete(q);
+  queue_deinit(q);
+  free(q);
   return NULL;
 }
 
 const char *test_queue_allocation_failures() {
   setup_test_context(0);
-  queue *q;
+  queue q;
 
-  q = queue_new(test_context, sizeof(const char *));
-  TEST_ASSERT(q == NULL, "Queue should be null on first allocation fail");
+  TEST_ASSERT(!queue_init(&q, test_context, sizeof(const char *)), "Queue should be null on first allocation fail");
 
   setup_test_context(1);
-  q = queue_new(test_context, sizeof(const char *));
-  TEST_ASSERT(q == NULL, "Queue should be null on second allocation fail");
-
-  setup_test_context(2);
-  q = queue_new(test_context, sizeof(const char *));
+  queue_init(&q, test_context, sizeof(const char *));
   TEST_ASSERT(context_is_errored(test_context) == false, "There should be no error just yet");
   for (size_t i = 0; i < QUEUE_DEFAULT_SIZE - 1; i++) {
-    _test_queue_push(q, "a");
+    _test_queue_push(&q, "a");
   }
   TEST_ASSERT(context_is_errored(test_context) == false, "There should be no error just yet");
-  TEST_ASSERT(queue_push(q) == NULL, "Push on allocation fail produces NULL");
+  TEST_ASSERT(queue_push(&q) == NULL, "Push on allocation fail produces NULL");
   TEST_ASSERT(context_is_errored(test_context) == true, "There should be an error on queue overflow allocation fail");
 
-  queue_delete(q);
+  queue_deinit(&q);
 
   return NULL;
 }

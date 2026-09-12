@@ -15,10 +15,10 @@ Bits are written first in lowest-value bit of a byte.
 Buffers can be reused via `writer_supply_...()` methods. */
 typedef struct {
   context *context;
-  queue *buffers;
+  queue buffers;
   size_t current_bit_index;
   size_t size;
-  queue *free_buffers;
+  queue free_buffers;
 } writer;
 
 typedef struct {
@@ -30,8 +30,8 @@ const buffer EMPTY_BUFFER = (buffer){.data = NULL, .length = 0};
 
 bool _writer_allocate_next_buffer(writer *writer) {
   byte *buffer;
-  if (queue_get_count(writer->free_buffers) > 0) {
-    byte **existing_buffer_slot = queue_pop(writer->free_buffers);
+  if (queue_get_count(&writer->free_buffers) > 0) {
+    byte **existing_buffer_slot = queue_pop(&writer->free_buffers);
     buffer = *existing_buffer_slot;
   } else {
     buffer = context_allocate_zero_init(writer->context, writer->size, sizeof(byte));
@@ -40,7 +40,7 @@ bool _writer_allocate_next_buffer(writer *writer) {
     }
   }
 
-  byte **new_buffer_slot = queue_push(writer->buffers);
+  byte **new_buffer_slot = queue_push(&writer->buffers);
   if (!new_buffer_slot) {
     context_free(writer->context, buffer);
     return false;
@@ -59,7 +59,7 @@ bool _writer_maybe_allocate_next_buffer(writer *writer) {
 }
 
 size_t writer_get_bytes_stored(writer *writer) {
-  int buffer_count = (int)queue_get_count(writer->buffers);
+  int buffer_count = (int)queue_get_count(&writer->buffers);
   if (buffer_count > 0) {
     // there should always be at least 1 buffer
     // except for case when allocation for the first buffer failed
@@ -75,44 +75,41 @@ void writer_delete(writer *writer) {
     context_set_error(writer->context, "Writer is deleted while still having %zu non-consumed bytes", bytes_stored);
   }
 
-  while (queue_get_count(writer->buffers) > 0) {
-    byte **slot = queue_pop(writer->buffers);
+  while (queue_get_count(&writer->buffers) > 0) {
+    byte **slot = queue_pop(&writer->buffers);
     context_free(writer->context, *slot);
   }
-  queue_delete(writer->buffers);
+  queue_deinit(&writer->buffers);
 
-  while (queue_get_count(writer->free_buffers) > 0) {
-    byte **slot = queue_pop(writer->free_buffers);
+  while (queue_get_count(&writer->free_buffers) > 0) {
+    byte **slot = queue_pop(&writer->free_buffers);
     context_free(writer->context, *slot);
   }
-  queue_delete(writer->free_buffers);
+  queue_deinit(&writer->free_buffers);
 
   context_free(writer->context, writer);
 }
 
 writer *writer_new(context *context, size_t size) {
-  queue *buffers = queue_new(context, sizeof(byte *));
-  if (!buffers) {
-    return NULL;
-  }
-
-  queue *free_buffers = queue_new(context, sizeof(byte *));
-  if (!free_buffers) {
-    queue_delete(buffers);
-    return NULL;
-  }
-
   writer *w = context_allocate(context, 1, sizeof(writer));
   if (!w) {
-    queue_delete(buffers);
-    queue_delete(free_buffers);
     return NULL;
   }
-  w->buffers = buffers;
-  w->free_buffers = free_buffers;
   w->size = size;
   w->context = context;
   w->current_bit_index = 0;
+
+  if (!queue_init(&w->buffers, context, sizeof(byte *))) {
+    context_free(context, w);
+    return NULL;
+  }
+
+  if (!queue_init(&w->free_buffers, context, sizeof(byte *))) {
+    queue_deinit(&w->buffers);
+    context_free(context, w);
+    return NULL;
+  }
+
   if (!_writer_allocate_next_buffer(w)) {
     writer_delete(w);
     return NULL;
@@ -125,10 +122,12 @@ Returns buffer of length zero if there's no full buffer.
 Writer won't track this array of bytes anymore. It's up for caller to `free()` it.
 Can only return completely full buffers. Won't return partially full buffers, see `writer_consume_nonempty_buffer()` */
 buffer writer_consume_full_buffer(writer *writer) {
-  if (queue_get_count(writer->buffers) < 2) {
+  if (queue_get_count(&writer->buffers) < 2) {
+    // there always should be at least 1 non-full buffer in the buffer queue
+    // if there's only 1 buffer - it's not full, so we must not return it
     return EMPTY_BUFFER;
   }
-  byte **slot = queue_pop(writer->buffers);
+  byte **slot = queue_pop(&writer->buffers);
   return (buffer){.data = *slot, .length = writer->size};
 }
 
@@ -145,7 +144,7 @@ buffer writer_consume_nonempty_buffer(writer *writer) {
   if (writer->current_bit_index == 0) {
     return EMPTY_BUFFER;
   }
-  byte **slot = queue_pop(writer->buffers);
+  byte **slot = queue_pop(&writer->buffers);
   buffer result = {.data = *slot, .length = (writer->current_bit_index + 7) >> 3};
   _writer_allocate_next_buffer(writer);
   return result;
@@ -185,7 +184,7 @@ buffer writer_consume_all_buffers(writer *writer) {
 
 bool writer_write_bit(writer *writer, byte bit) {
   assert(bit == 1 || bit == 0);
-  byte **slot = queue_peek_tail(writer->buffers);
+  byte **slot = queue_peek_tail(&writer->buffers);
   byte *tail_buffer = *slot;
   tail_buffer[writer->current_bit_index >> 3] |= bit << (writer->current_bit_index & 7);
   writer->current_bit_index++;
@@ -194,7 +193,7 @@ bool writer_write_bit(writer *writer, byte bit) {
 
 bool writer_write_byte(writer *writer, byte value) {
   assert((writer->current_bit_index & 7) == 0 && "Cannot mix bit- and byte-level writes in a single writer instance.");
-  byte **slot = queue_peek_tail(writer->buffers);
+  byte **slot = queue_peek_tail(&writer->buffers);
   byte *tail_buffer = *slot;
   tail_buffer[writer->current_bit_index >> 3] = value;
   writer->current_bit_index += 8;
@@ -203,7 +202,7 @@ bool writer_write_byte(writer *writer, byte value) {
 
 /** Like `writer_supply_dirty_buffer()`, but assumes that buffer is already zero-initialized. */
 void writer_supply_zeroinit_buffer(writer *writer, byte *buffer) {
-  byte **slot = queue_push(writer->free_buffers);
+  byte **slot = queue_push(&writer->free_buffers);
   *slot = buffer;
 }
 
