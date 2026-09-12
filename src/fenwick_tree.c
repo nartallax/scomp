@@ -1,5 +1,6 @@
 #pragma once
 #include "./context.c"
+#include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -31,6 +32,8 @@ void ftree_delete(context *context, ftree tree) {
 }
 
 void ftree_add(ftree tree, int64_t symbol, uint64_t delta) {
+  assert(symbol + 1 < tree.size);
+
   symbol += 1; // 0-based outside -> 1-based internal
   for (int64_t i = symbol; i < tree.size; i += i & -i) {
     tree.data[i] += delta;
@@ -39,6 +42,8 @@ void ftree_add(ftree tree, int64_t symbol, uint64_t delta) {
 
 /** Get cumulative frequency of a symbol (including frequencies of symbols before this one) */
 uint64_t ftree_sum(ftree tree, int64_t symbol) {
+  assert(symbol + 1 < tree.size);
+
   symbol += 1; // 0-based outside -> 1-based internal
   uint64_t result = 0;
   for (int64_t i = symbol; i > 0; i -= i & -i) {
@@ -67,6 +72,8 @@ void ftree_to_source_array(ftree tree, uint64_t *buffer) {
 }
 
 uint64_t ftree_range_sum(ftree tree, int64_t from_index, int64_t to_index) {
+  assert(from_index + 1 < tree.size && to_index + 1 < tree.size);
+
   if (to_index < from_index) {
     return 0;
   }
@@ -75,6 +82,8 @@ uint64_t ftree_range_sum(ftree tree, int64_t from_index, int64_t to_index) {
 
 /** Get frequency of a symbol (only of this symbol) */
 uint64_t ftree_get(ftree tree, int64_t symbol) {
+  assert(symbol + 1 < tree.size);
+
   return ftree_range_sum(tree, symbol, symbol);
 }
 

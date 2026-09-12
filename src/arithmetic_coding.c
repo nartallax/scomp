@@ -132,27 +132,47 @@ acod_encoder *acod_encoder_new(context *context, writer *writer) {
   return encoder;
 }
 
-void _acod_encoder_finalize(acod_encoder *encoder) {
+bool _acod_encoder_write_shift_bit(acod_encoder *encoder, byte bit) {
+  if (!writer_write_bit(encoder->writer, bit)) {
+    return false;
+  }
+
+  // Write out the saved underflow bits
+  while (encoder->underflows > 0) {
+    if (!writer_write_bit(encoder->writer, bit ^ 1)) {
+      return false;
+    }
+    encoder->underflows--;
+  }
+
+  return true;
+}
+
+bool _acod_encoder_finalize(acod_encoder *encoder) {
   // This makes the final interval unambiguous.
   encoder->underflows++;
 
   byte final_bit = encoder->state.low < ACOD_QUARTER_RANGE ? 0 : 1;
-  writer_write_bit(encoder->writer, final_bit);
-
-  while (encoder->underflows > 0) {
-    writer_write_bit(encoder->writer, final_bit ^ 1);
-    encoder->underflows--;
-  }
+  return _acod_encoder_write_shift_bit(encoder, final_bit);
 }
 
 /** Flush remaining state, and delete the encoder.
-Must be called before deleting underlying writer. */
-void acod_encoder_delete(acod_encoder *encoder) {
-  _acod_encoder_finalize(encoder);
+Must be called before deleting underlying writer.
+Returns true if finalized successfully. */
+bool acod_encoder_delete(acod_encoder *encoder) {
+  bool result = false;
+  if (!context_is_errored(encoder->context)) {
+    // if context is errored - we must not attempt to write more stuff into the writer
+    // as it may be in the broken state
+    result = _acod_encoder_finalize(encoder);
+  }
   context_free(encoder->context, encoder);
+  return result;
 }
 
-void acod_encoder_write(acod_encoder *encoder, ftable *frequencies, symbol symbol) {
+/** Writes a single symbol with the encoder.
+Returns true if the write was successful. */
+bool acod_encoder_write(acod_encoder *encoder, ftable *frequencies, symbol symbol) {
   // TODO: consider moving those halvings outside of the encoder and decoder
   // encoder/decoder never modify frequency tables, and therefore should never trigger halvings
   // and also we need a test for this halving behavior
@@ -161,14 +181,9 @@ void acod_encoder_write(acod_encoder *encoder, ftable *frequencies, symbol symbo
 
   while (encoder->state.stage == ACOD_STAGE_SHIFT) {
     byte bit = encoder->state.low >> (ACOD_STATE_SIZE_BITS - 1);
-    writer_write_bit(encoder->writer, bit);
-
-    // Write out the saved underflow bits
-    while (encoder->underflows > 0) {
-      writer_write_bit(encoder->writer, bit ^ 1);
-      encoder->underflows--;
+    if (!_acod_encoder_write_shift_bit(encoder, bit)) {
+      return false;
     }
-
     _acod_perform_shift(&encoder->state);
   }
 
@@ -176,6 +191,8 @@ void acod_encoder_write(acod_encoder *encoder, ftable *frequencies, symbol symbo
     encoder->underflows++;
     _acod_perform_underflow(&encoder->state);
   }
+
+  return true;
 }
 
 typedef struct {

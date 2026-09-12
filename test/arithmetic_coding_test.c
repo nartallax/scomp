@@ -183,18 +183,84 @@ const char *test_acod_simple() {
   return NULL;
 }
 
+void _acod_test_fill_writer_bits(writer *w, size_t bit_count) {
+  for (size_t i = 0; i < bit_count; i++) {
+    writer_write_bit(w, 0);
+  }
+}
+
 const char *test_acod_allocation_failures() {
   TEST_ASSERT(context_is_errored(test_context) == false, "Error must not be set at the test start");
+
+  setup_test_context(0);
+  acod_decoder *decoder = acod_decoder_new(test_context);
+  TEST_ASSERT(context_is_errored(test_context) == true, "Error must be set after allocation fails");
+  TEST_ASSERT(decoder == NULL, "Decoder must be null after allocation fails");
 
   setup_test_context(0);
   acod_encoder *encoder = acod_encoder_new(test_context, NULL);
   TEST_ASSERT(context_is_errored(test_context) == true, "Error must be set after allocation fails");
   TEST_ASSERT(encoder == NULL, "Encoder must be null after allocation fails");
 
-  setup_test_context(0);
-  acod_decoder *decoder = acod_decoder_new(test_context);
-  TEST_ASSERT(context_is_errored(test_context) == true, "Error must be set after allocation fails");
-  TEST_ASSERT(decoder == NULL, "Decoder must be null after allocation fails");
+  // this tests for error on shift bit write
+  {
+    setup_test_context_default();
+    ftable *bit_table = ftable_new(test_context, 2, FTABLE_EXCLUDE_EOF | FTABLE_INIT_ONE);
+    writer *w = writer_new(test_context, 2);
+    encoder = acod_encoder_new(test_context, w);
+    TEST_ASSERT(context_is_errored(test_context) == false, "Initial allocation successful");
+
+    _acod_test_fill_writer_bits(w, 15);
+    update_test_context_for_alloc_failure(0);
+    TEST_ASSERT(!acod_encoder_write(encoder, bit_table, 0), "Write should return false on allocation fail");
+    TEST_ASSERT(context_is_errored(test_context) == true, "Errored after write fail");
+
+    ftable_delete(bit_table);
+    writer_delete(w);
+    acod_encoder_delete(encoder);
+  }
+
+  // this tests for error on underflow bit write
+  {
+    setup_test_context_default();
+    ftable *bit_table = ftable_new(test_context, 2, FTABLE_EXCLUDE_EOF | FTABLE_INIT_ONE);
+    writer *w = writer_new(test_context, 2);
+    encoder = acod_encoder_new(test_context, w);
+    TEST_ASSERT(context_is_errored(test_context) == false, "Not errored yet");
+
+    // this feels slightly like cheating, because I couldn't pick the right input data to make it underflow
+    // but I won't compromise 100% code coverage just because of that
+    encoder->underflows++;
+    _acod_test_fill_writer_bits(w, 14);
+    update_test_context_for_alloc_failure(0);
+    TEST_ASSERT(!acod_encoder_write(encoder, bit_table, 0), "Write should return false on allocation fail");
+    TEST_ASSERT(context_is_errored(test_context) == true, "Errored after write fail");
+
+    ftable_delete(bit_table);
+    writer_delete(w);
+    acod_encoder_delete(encoder);
+  }
+
+  // this tests for error on closing bit writes
+  {
+    setup_test_context_default();
+    ftable *bit_table = ftable_new(test_context, 2, FTABLE_EXCLUDE_EOF | FTABLE_INIT_ONE);
+    writer *w = writer_new(test_context, 2);
+    encoder = acod_encoder_new(test_context, w);
+    TEST_ASSERT(context_is_errored(test_context) == false, "Not errored yet");
+
+    // this feels slightly like cheating, because I couldn't pick the right input data to make it underflow
+    // but I won't compromise 100% code coverage just because of that
+    encoder->underflows++;
+    _acod_test_fill_writer_bits(w, 13);
+    update_test_context_for_alloc_failure(0);
+    TEST_ASSERT(acod_encoder_write(encoder, bit_table, 0), "Normal write should succeed");
+    TEST_ASSERT(context_is_errored(test_context) == false, "No error just yet");
+
+    ftable_delete(bit_table);
+    writer_delete(w);
+    TEST_ASSERT(!acod_encoder_delete(encoder), "Final writes should fail");
+  }
 
   return NULL;
 }
