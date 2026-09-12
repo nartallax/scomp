@@ -2,7 +2,9 @@
 #include "commons.c"
 #include "context.c"
 #include <stddef.h>
+#include <string.h>
 
+// #define it?
 const size_t QUEUE_DEFAULT_SIZE = 16;
 
 /** A queue data structure.
@@ -15,7 +17,7 @@ typedef struct {
   /** Storage for queue's contents.
   It's typed as byte array to make pointer arithmetics easier. */
   byte *values;
-  // length of the `values` array. is always power-of-two.
+  // length of the `values` array, in elements. is always power-of-two.
   size_t length;
   // head is the last occupied spot in values array
   size_t head;
@@ -58,15 +60,15 @@ size_t _queue_increment(queue *queue, size_t i) {
   return (i + 1) & (queue->length - 1);
 }
 
-void _queue_maybe_grow(queue *queue) {
+bool _queue_maybe_grow(queue *queue) {
   if (queue_get_count(queue) < queue->length - 1) {
-    return;
+    return true;
   }
 
   size_t new_length = queue->length * 2;
   byte *new_values = context_allocate(queue->context, new_length, queue->value_size);
   if (!new_values) {
-    return;
+    return false;
   }
 
   size_t i = 0;
@@ -83,12 +85,15 @@ void _queue_maybe_grow(queue *queue) {
   queue->values = new_values;
   queue->head = 0;
   queue->tail = i;
+  return true;
 }
 
 /** Returns pointer to the next free space in the queue. This space is now considered occupied.
 It's up for the caller to fill this space with actual values. */
-void *queue_allocate(queue *queue) {
-  _queue_maybe_grow(queue);
+void *queue_push(queue *queue) {
+  if (!_queue_maybe_grow(queue)) {
+    return NULL;
+  }
   void *result_pointer = queue->values + (queue->tail * queue->value_size);
   queue->tail = _queue_increment(queue, queue->tail);
   return result_pointer;
@@ -98,6 +103,7 @@ void *queue_allocate(queue *queue) {
 It's up for the caller to `free()` the item, if needed. */
 void *queue_pop(queue *queue) {
   if (queue_get_count(queue) < 1) {
+    // TODO: consider removing? or converting to assert
     context_set_error(queue->context, "Queue underflow");
     return NULL;
   }
@@ -110,6 +116,7 @@ void *queue_pop(queue *queue) {
 /** Returns pointer to the next element in the queue without removing it. */
 void *queue_peek(queue *queue) {
   if (queue_get_count(queue) < 1) {
+    // TODO: consider removing? or converting to assert
     context_set_error(queue->context, "Queue underflow on peek");
     return NULL;
   }
@@ -119,6 +126,7 @@ void *queue_peek(queue *queue) {
 
 void *queue_peek_tail(queue *queue) {
   if (queue_get_count(queue) < 1) {
+    // TODO: consider removing? or converting to assert
     context_set_error(queue->context, "Queue underflow on tail peek");
     return NULL;
   }

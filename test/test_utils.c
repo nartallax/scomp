@@ -27,7 +27,7 @@ int test_allocations_before_failure = 0;
 context *test_context = NULL;
 
 void _test_reset_allocators() {
-  context_set_allocators(test_context, malloc, calloc, free);
+  context_set_allocators(test_context, malloc, calloc, realloc, free);
 }
 
 void *test_malloc_with_counter(size_t size) {
@@ -48,6 +48,15 @@ void *test_calloc_with_counter(size_t count, size_t size) {
   return calloc(count, size);
 }
 
+void *test_realloc_with_counter(void *base, size_t size) {
+  if (test_allocations_before_failure < 1) {
+    _test_reset_allocators();
+    return NULL;
+  }
+  test_allocations_before_failure--;
+  return realloc(base, size);
+}
+
 void free_test_context() {
   if (test_context) {
     context_delete(test_context);
@@ -59,15 +68,17 @@ void setup_test_context(int allocations_before_failure_count) {
   free_test_context();
   malloc_fn mlc = malloc;
   calloc_fn clc = calloc;
+  realloc_fn rlc = realloc;
 
   if (allocations_before_failure_count >= 0) {
     mlc = test_malloc_with_counter;
     clc = test_calloc_with_counter;
+    rlc = test_realloc_with_counter;
     // +1 for the context allocation itself
     test_allocations_before_failure = allocations_before_failure_count + 1;
   }
 
-  test_context = context_new(mlc, clc, free);
+  test_context = context_new(mlc, clc, rlc, free);
 }
 
 void setup_test_context_default() {

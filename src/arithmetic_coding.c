@@ -22,6 +22,7 @@ const symbol_frequency ACOD_MAX_TOTAL_UNCAPPED = UINT64_MAX / ACOD_FULL_RANGE;
 const symbol_frequency ACOD_MAX_TOTAL = ACOD_MAX_TOTAL_UNCAPPED > ACOD_MIN_RANGE ? ACOD_MIN_RANGE : ACOD_MAX_TOTAL_UNCAPPED;
 const symbol_frequency ACOD_STATE_MASK = ACOD_FULL_RANGE - 1L;
 
+// TODO: enum here
 const int ACOD_STAGE_SHIFT = 1;
 const int ACOD_STAGE_UNDERFLOW = 2;
 const int ACOD_STAGE_READY = 3;
@@ -51,6 +52,7 @@ bool _acod_is_underflowable(acod_state *state) {
 
 void _acod_try_progress_stage(acod_state *state) {
   while (true) {
+    // TODO: switch here?
     if (state->stage == ACOD_STAGE_READY) {
       state->stage = ACOD_STAGE_SHIFT;
     } else if (state->stage == ACOD_STAGE_SHIFT) {

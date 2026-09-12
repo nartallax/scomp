@@ -153,16 +153,33 @@ const char *test_writer_buffer_reuse() {
 }
 
 const char *test_writer_allocation_failure() {
+  writer *writer;
   for (int i = 0; i < 6; i++) {
     setup_test_context(i);
     TEST_ASSERT(writer_new(test_context, 2) == NULL, "Writer should be null on allocation fail");
   }
 
   setup_test_context(6);
-  writer *writer = writer_new(test_context, 2);
+  writer = writer_new(test_context, 2);
   writer_write_byte(writer, 1);
   buffer b = writer_consume_all_buffers(writer);
   TEST_ASSERT(b.length == 0, "All-buffer allocation fail should return empty buffer");
+  writer_delete(writer);
+
+  setup_test_context(6);
+  writer = writer_new(test_context, 2);
+  TEST_ASSERT(writer_write_byte(writer, 1), "First write successful");
+  TEST_ASSERT(!writer_write_byte(writer, 2), "Second write not successful");
+  writer_delete(writer);
+
+  setup_test_context(6 + QUEUE_DEFAULT_SIZE - 1);
+  writer = writer_new(test_context, 2);
+  for (byte i = 0; i < QUEUE_DEFAULT_SIZE - 2; i++) {
+    TEST_ASSERT(writer_write_byte(writer, i), "Writes before queue growth should not fail (1)");
+    TEST_ASSERT(writer_write_byte(writer, i * 2), "Writes before queue growth should not fail (2)");
+  }
+  TEST_ASSERT(writer_write_byte(writer, 1), "First write successful");
+  TEST_ASSERT(!writer_write_byte(writer, 2), "Second write not successful");
   writer_delete(writer);
 
   return NULL;

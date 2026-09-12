@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+// TODO: enum here...?
 #define FTABLE_INCLUDE_EOF (1 << 0)
 #define FTABLE_EXCLUDE_EOF (1 << 1)
 #define FTABLE_INIT_ZERO (1 << 2)

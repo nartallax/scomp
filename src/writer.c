@@ -28,26 +28,34 @@ typedef struct {
 
 const buffer EMPTY_BUFFER = (buffer){.data = NULL, .length = 0};
 
-void _writer_allocate_next_buffer(writer *writer) {
+bool _writer_allocate_next_buffer(writer *writer) {
   byte *buffer;
   if (queue_get_count(writer->free_buffers) > 0) {
-    byte **slot = queue_pop(writer->free_buffers);
-    buffer = *slot;
+    byte **existing_buffer_slot = queue_pop(writer->free_buffers);
+    buffer = *existing_buffer_slot;
   } else {
     buffer = context_allocate_zero_init(writer->context, writer->size, sizeof(byte));
     if (!buffer) {
-      return;
+      return false;
     }
   }
-  byte **slot = queue_allocate(writer->buffers);
-  *slot = buffer;
+
+  byte **new_buffer_slot = queue_push(writer->buffers);
+  if (!new_buffer_slot) {
+    context_free(writer->context, buffer);
+    return false;
+  }
+
+  *new_buffer_slot = buffer;
   writer->current_bit_index = 0;
+  return true;
 }
 
-void _writer_maybe_allocate_next_buffer(writer *writer) {
+bool _writer_maybe_allocate_next_buffer(writer *writer) {
   if ((writer->current_bit_index >> 3) >= writer->size) {
-    _writer_allocate_next_buffer(writer);
+    return _writer_allocate_next_buffer(writer);
   }
+  return true;
 }
 
 size_t writer_get_bytes_stored(writer *writer) {
@@ -105,8 +113,7 @@ writer *writer_new(context *context, size_t size) {
   w->size = size;
   w->context = context;
   w->current_bit_index = 0;
-  _writer_allocate_next_buffer(w);
-  if (queue_get_count(w->buffers) == 0) {
+  if (!_writer_allocate_next_buffer(w)) {
     writer_delete(w);
     return NULL;
   }
@@ -176,27 +183,27 @@ buffer writer_consume_all_buffers(writer *writer) {
   return (buffer){.length = index, .data = bytes};
 }
 
-void writer_write_bit(writer *writer, byte bit) {
+bool writer_write_bit(writer *writer, byte bit) {
   assert(bit == 1 || bit == 0);
   byte **slot = queue_peek_tail(writer->buffers);
   byte *tail_buffer = *slot;
   tail_buffer[writer->current_bit_index >> 3] |= bit << (writer->current_bit_index & 7);
   writer->current_bit_index++;
-  _writer_maybe_allocate_next_buffer(writer);
+  return _writer_maybe_allocate_next_buffer(writer);
 }
 
-void writer_write_byte(writer *writer, byte value) {
+bool writer_write_byte(writer *writer, byte value) {
   assert((writer->current_bit_index & 7) == 0 && "Cannot mix bit- and byte-level writes in a single writer instance.");
   byte **slot = queue_peek_tail(writer->buffers);
   byte *tail_buffer = *slot;
   tail_buffer[writer->current_bit_index >> 3] = value;
   writer->current_bit_index += 8;
-  _writer_maybe_allocate_next_buffer(writer);
+  return _writer_maybe_allocate_next_buffer(writer);
 }
 
 /** Like `writer_supply_dirty_buffer()`, but assumes that buffer is already zero-initialized. */
 void writer_supply_zeroinit_buffer(writer *writer, byte *buffer) {
-  byte **slot = queue_allocate(writer->free_buffers);
+  byte **slot = queue_push(writer->free_buffers);
   *slot = buffer;
 }
 

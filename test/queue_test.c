@@ -4,7 +4,7 @@
 #include <string.h>
 
 void _test_queue_push(queue *q, const char *value) {
-  const char **slot = queue_allocate(q);
+  const char **slot = queue_push(q);
   *slot = value;
 }
 
@@ -132,12 +132,12 @@ typedef struct {
 const char *test_queue_non_pointer_values() {
   queue *q = queue_new(test_context, sizeof(test_xyz));
 
-  test_xyz *slot1 = queue_allocate(q);
+  test_xyz *slot1 = queue_push(q);
   slot1->x = 1;
   slot1->y = 2;
   slot1->z = 3;
 
-  test_xyz *slot2 = queue_allocate(q);
+  test_xyz *slot2 = queue_push(q);
   slot2->x = 4;
   slot2->y = 5;
   slot2->z = 6;
@@ -150,7 +150,7 @@ const char *test_queue_non_pointer_values() {
   TEST_ASSERT(pop_slot2->x == 4 && pop_slot2->y == 5 && pop_slot2->z == 6, "Popped xyz 2 should have expected values");
 
   for (size_t i = 0; i < QUEUE_DEFAULT_SIZE + 3; i++) {
-    test_xyz *slot = queue_allocate(q);
+    test_xyz *slot = queue_push(q);
     slot->x = i;
     slot->y = i + 1;
     slot->z = i + 2;
@@ -179,9 +179,11 @@ const char *test_queue_allocation_failures() {
   setup_test_context(2);
   q = queue_new(test_context, sizeof(const char *));
   TEST_ASSERT(context_is_errored(test_context) == false, "There should be no error just yet");
-  for (size_t i = 0; i < QUEUE_DEFAULT_SIZE + 1; i++) {
+  for (size_t i = 0; i < QUEUE_DEFAULT_SIZE - 1; i++) {
     _test_queue_push(q, "a");
   }
+  TEST_ASSERT(context_is_errored(test_context) == false, "There should be no error just yet");
+  TEST_ASSERT(queue_push(q) == NULL, "Push on allocation fail produces NULL");
   TEST_ASSERT(context_is_errored(test_context) == true, "There should be an error on queue overflow allocation fail");
 
   queue_delete(q);

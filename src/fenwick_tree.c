@@ -21,6 +21,7 @@ ftree ftree_new(context *context, int64_t size) {
   return tree;
 }
 
+// TODO: cringe. make it be init function instead that returns bool
 bool ftree_is_invalid(ftree tree) {
   return !tree.data; // allocation failed
 }
