@@ -6,7 +6,8 @@
 #include <string.h>
 
 const char *test_fenwick_tree_simple() {
-  ftree tree = ftree_new(test_context, 256 + 1);
+  ftree tree;
+  ftree_init(&tree, test_context, 256 + 1);
   ftree_add(tree, 15, 1);
   ftree_add(tree, 37, 1);
   ftree_add(tree, 64, 1);
@@ -17,7 +18,8 @@ const char *test_fenwick_tree_simple() {
 
   uint64_t *source_array = malloc(sizeof(uint64_t) * (256 + 1));
   ftree_to_source_array(tree, source_array);
-  ftree tree_from_source = ftree_new(test_context, 256 + 1);
+  ftree tree_from_source;
+  ftree_init(&tree_from_source, test_context, 256 + 1);
   ftree_fill_from_source_frequencies(tree_from_source, source_array, 0);
 
   int expected_cumulatives[][2] = {{0, 1}, {15, 3}, {21, 4}, {37, 5}, {64, 6}, {256, 7}};
@@ -44,30 +46,32 @@ const char *test_fenwick_tree_simple() {
   }
 
   free(source_array);
-  ftree_delete(test_context, tree);
-  ftree_delete(test_context, tree_from_source);
+  ftree_deinit(tree, test_context);
+  ftree_deinit(tree_from_source, test_context);
 
   return NULL;
 }
 
 const char *test_fenwick_tree_max_range() {
   for (int64_t size = 1; size < 1024; size++) {
-    ftree tree = ftree_new(test_context, size);
+    ftree tree;
+    ftree_init(&tree, test_context, size);
     TEST_ASSERT(ftree_length(tree) == size, "ftree_length must be equal to passed size");
     ftree_add(tree, 0, 1);
     ftree_add(tree, size - 1, 1);
     uint64_t sum = ftree_sum(tree, size - 1);
     TEST_ASSERT(sum == 2, "Sum of just two increments must be 2");
-    ftree_delete(test_context, tree);
+    ftree_deinit(tree, test_context);
   }
   return NULL;
 }
 
 const char *test_fenwick_tree_range_sum_cornercase() {
-  ftree tree = ftree_new(test_context, 5);
+  ftree tree;
+  ftree_init(&tree, test_context, 5);
   ftree_add(tree, 1, 1);
   TEST_ASSERT(ftree_range_sum(tree, 2, 1) == 0, "Range sums with negative range lengths must be zero");
-  ftree_delete(test_context, tree);
+  ftree_deinit(tree, test_context);
   return NULL;
 }
 
@@ -75,7 +79,8 @@ const char *test_fenwick_tree_allocation_failure() {
   setup_test_context(0);
   TEST_ASSERT(context_is_errored(test_context) == false, "Error must not be set at the test start");
 
-  ftree_new(test_context, 5);
+  ftree tree;
+  TEST_ASSERT(!ftree_init(&tree, test_context, 5), "Init must return false on init failure");
   TEST_ASSERT(context_is_errored(test_context) == true, "Error must be present when allocation fails");
   error *last_error = context_get_error(test_context);
   TEST_ASSERT(strncmp(last_error->message, "Failed to allocate memory: calloc(6, 8)", last_error->message_length) == 0, "Error message must be the one we expect");

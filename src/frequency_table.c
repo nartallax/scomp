@@ -68,7 +68,7 @@ void ftable_increment(ftable *table, symbol symbol) {
 }
 
 void ftable_delete(ftable *table) {
-  ftree_delete(table->context, table->frequencies);
+  ftree_deinit(table->frequencies, table->context);
   context_free(table->context, table->compaction_buffer);
   context_free(table->context, table);
 }
@@ -82,9 +82,8 @@ ftable *ftable_new(context *context, symbol length, ftable_flags init_flags) {
   }
 
   table->compaction_buffer = NULL; // just to zero-init
-  table->frequencies = ftree_new(context, length + eof_padding);
   table->context = context;
-  if (ftree_is_invalid(table->frequencies)) {
+  if (!ftree_init(&table->frequencies, context, length + eof_padding)) {
     ftable_delete(table);
     return NULL;
   }

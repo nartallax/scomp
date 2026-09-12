@@ -14,20 +14,14 @@ typedef struct {
   uint64_t *data;
 } ftree;
 
-ftree ftree_new(context *context, int64_t size) {
-  ftree tree;
+bool ftree_init(ftree *tree, context *context, int64_t size) {
   // +1 because fenwick trees' indices are inherently 1-based
-  tree.size = size + 1;
-  tree.data = context_allocate_zero_init(context, tree.size, sizeof(uint64_t));
-  return tree;
+  tree->size = size + 1;
+  tree->data = context_allocate_zero_init(context, tree->size, sizeof(uint64_t));
+  return tree->data != NULL;
 }
 
-// TODO: cringe. make it be init function instead that returns bool
-bool ftree_is_invalid(ftree tree) {
-  return !tree.data; // allocation failed
-}
-
-void ftree_delete(context *context, ftree tree) {
+void ftree_deinit(ftree tree, context *context) {
   context_free(context, tree.data);
 }
 
