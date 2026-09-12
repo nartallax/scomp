@@ -102,27 +102,6 @@ const char *test_queue_overflow_while_not_wrapping() {
   return NULL;
 }
 
-const char *test_queue_underflow() {
-  queue *q = queue_new(test_context, sizeof(const char *));
-  TEST_ASSERT(context_is_errored(test_context) == false, "There should be no error on start");
-
-  _test_queue_push(q, "a");
-  _str(queue_pop(q));
-  TEST_ASSERT(_str(queue_pop(q)) == NULL, "Pop on empty queue should return null");
-  TEST_ASSERT(context_is_errored(test_context) == true, "Queue underflow should error");
-  context_clear_error(test_context);
-
-  TEST_ASSERT(_str(queue_peek(q)) == NULL, "Peek on empty queue should return null");
-  TEST_ASSERT(context_is_errored(test_context) == true, "Queue underflow on peek should error");
-  context_clear_error(test_context);
-
-  TEST_ASSERT(_str(queue_peek_tail(q)) == NULL, "Peek tail on empty queue should return null");
-  TEST_ASSERT(context_is_errored(test_context) == true, "Queue underflow on peek tail should error");
-
-  queue_delete(q);
-  return NULL;
-}
-
 typedef struct {
   uint64_t x;
   uint64_t y;

@@ -19,9 +19,6 @@ typedef struct {
   bool is_present;
 } error;
 
-// TODO: we need to rethink our approach to handling context failures
-// let's accept a function that would be called on error instead
-
 /** Context contains values that should be global for the compression process.
 True global values are not great because of multithreading. */
 typedef struct {

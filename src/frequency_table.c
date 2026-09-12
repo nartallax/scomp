@@ -5,11 +5,12 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-// TODO: enum here...?
-#define FTABLE_INCLUDE_EOF (1 << 0)
-#define FTABLE_EXCLUDE_EOF (1 << 1)
-#define FTABLE_INIT_ZERO (1 << 2)
-#define FTABLE_INIT_ONE (1 << 3)
+typedef enum {
+  FTABLE_INCLUDE_EOF = 1 << 0,
+  FTABLE_EXCLUDE_EOF = (1 << 1),
+  FTABLE_INIT_ZERO = (1 << 2),
+  FTABLE_INIT_ONE = (1 << 3)
+} ftable_flags;
 
 /** Frequency table - a table (aka map) of symbol frequencies (symbol -> symbol_frequency).
 Each symbol has a frequency, which is a non-negative integer.
@@ -72,7 +73,7 @@ void ftable_delete(ftable *table) {
   context_free(table->context, table);
 }
 
-ftable *ftable_new(context *context, symbol length, int init_flags) {
+ftable *ftable_new(context *context, symbol length, ftable_flags init_flags) {
   symbol eof_padding = _ftable_get_eof_length_padding(init_flags);
 
   ftable *table = context_allocate(context, 1, sizeof(ftable));

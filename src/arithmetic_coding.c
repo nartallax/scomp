@@ -22,16 +22,17 @@ const symbol_frequency ACOD_MAX_TOTAL_UNCAPPED = UINT64_MAX / ACOD_FULL_RANGE;
 const symbol_frequency ACOD_MAX_TOTAL = ACOD_MAX_TOTAL_UNCAPPED > ACOD_MIN_RANGE ? ACOD_MIN_RANGE : ACOD_MAX_TOTAL_UNCAPPED;
 const symbol_frequency ACOD_STATE_MASK = ACOD_FULL_RANGE - 1L;
 
-// TODO: enum here
-const int ACOD_STAGE_SHIFT = 1;
-const int ACOD_STAGE_UNDERFLOW = 2;
-const int ACOD_STAGE_READY = 3;
-const int ACOD_STAGE_PREPARATION = 4;
+typedef enum {
+  ACOD_STAGE_SHIFT = 1,
+  ACOD_STAGE_UNDERFLOW,
+  ACOD_STAGE_READY,
+  ACOD_STAGE_PREPARATION
+} acod_stage;
 
 typedef struct {
   symbol_frequency high;
   symbol_frequency low;
-  int stage;
+  acod_stage stage;
 } acod_state;
 
 acod_state _acod_state_new() {
@@ -52,15 +53,17 @@ bool _acod_is_underflowable(acod_state *state) {
 
 void _acod_try_progress_stage(acod_state *state) {
   while (true) {
-    // TODO: switch here?
-    if (state->stage == ACOD_STAGE_READY) {
+    switch (state->stage) {
+    case ACOD_STAGE_READY:
       state->stage = ACOD_STAGE_SHIFT;
-    } else if (state->stage == ACOD_STAGE_SHIFT) {
+      break;
+    case ACOD_STAGE_SHIFT:
       if (_acod_is_shiftable(state)) {
         return;
       }
       state->stage = ACOD_STAGE_UNDERFLOW;
-    } else { // underflow
+      break;
+    default: // underflow
       if (_acod_is_underflowable(state)) {
         return;
       }

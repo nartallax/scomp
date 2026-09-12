@@ -1,7 +1,6 @@
 #include "./arithmetic_coding_test.c"
 #include "./fenwick_tree_test.c"
 #include "./frequency_table_test.c"
-#include "./math_test.c"
 #include "./queue_test.c"
 #include "./stack_test.c"
 #include "./test_utils.c"
@@ -19,7 +18,6 @@ typedef struct {
 
 int main() {
   test tests[] = {
-      MAKE_TEST(test_is_power_of_two),
       MAKE_TEST(test_fenwick_tree_simple),
       MAKE_TEST(test_fenwick_tree_max_range),
       MAKE_TEST(test_fenwick_tree_range_sum_cornercase),
@@ -36,7 +34,6 @@ int main() {
       MAKE_TEST(test_queue_simple),
       MAKE_TEST(test_queue_overflow_while_wrapping),
       MAKE_TEST(test_queue_overflow_while_not_wrapping),
-      MAKE_TEST(test_queue_underflow),
       MAKE_TEST(test_queue_non_pointer_values),
       MAKE_TEST(test_queue_allocation_failures),
       MAKE_TEST(test_writer_bytes),

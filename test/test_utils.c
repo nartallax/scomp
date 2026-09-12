@@ -1,5 +1,4 @@
 #pragma once
-#include "../src/commons.c"
 #include "../src/context.c"
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,17 +10,6 @@
       return (comment);                                                                                                                                                                                \
     }                                                                                                                                                                                                  \
   } while (0)
-
-// TODO: rm?
-void merge_byte_arrays(byte **receiver, size_t *receiver_length, byte *b, size_t b_len) {
-  byte *old_receiver = *receiver;
-  byte *result = malloc(sizeof(byte) * (*receiver_length + b_len));
-  memcpy(result, *receiver, *receiver_length);
-  memcpy(result + *receiver_length, b, b_len);
-  *receiver = result;
-  *receiver_length += b_len;
-  free(old_receiver);
-}
 
 int test_allocations_before_failure = 0;
 context *test_context = NULL;

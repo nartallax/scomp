@@ -4,3 +4,4 @@ ColumnLimit: 200
 BreakBeforeBraces: Attach
 SpaceBeforeParens: ControlStatements
 AllowShortFunctionsOnASingleLine: None
+AllowShortEnumsOnASingleLine: false
