@@ -16,31 +16,22 @@ typedef struct {
   size_t count;
 } stack;
 
-// TODO: consider reducing indirection by making small data structures like this (stack, queue) to be inlineable
-// to achieve this, we must convert this allocator into init function
-stack *stack_new(context *context, size_t value_size) {
-  stack *result = context_allocate(context, 1, sizeof(stack));
-  if (!result) {
-    return NULL;
+bool stack_init(stack *stack, context *context, size_t value_size) {
+  stack->context = context;
+  stack->value_size = value_size;
+  stack->length = STACK_DEFAULT_LENGTH;
+  stack->count = 0;
+  stack->values = context_allocate(context, stack->length, value_size);
+  if (!stack->values) {
+    return false;
   }
 
-  result->context = context;
-  result->value_size = value_size;
-  result->length = STACK_DEFAULT_LENGTH;
-  result->count = 0;
-  result->values = context_allocate(context, result->length, value_size);
-  if (!result->values) {
-    context_free(context, result);
-    return NULL;
-  }
-
-  return result;
+  return true;
 }
 
 /** If values are heap-allocated, callers must take care of them, as they will not be deleted in this function */
-void stack_delete(stack *stack) {
+void stack_deinit(stack *stack) {
   context_free(stack->context, stack->values);
-  context_free(stack->context, stack);
 }
 
 bool _stack_maybe_grow(stack *stack) {

@@ -25,6 +25,9 @@ void ftree_deinit(ftree tree, context *context) {
   context_free(context, tree.data);
 }
 
+// TODO: passing tree by value everywhere goes against other places in this repo
+// after we have proper perf test, start passing it by reference and measure if it affects perf
+// if it doesn't - include context in the tree, to avoid passing it in deinit
 void ftree_add(ftree tree, int64_t symbol, uint64_t delta) {
   assert(symbol + 1 < tree.size);
 
