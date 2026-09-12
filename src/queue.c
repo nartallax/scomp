@@ -103,7 +103,7 @@ void *queue_push(queue *queue) {
 /** Returns pointer to the next element in the queue. This element is now considered consumed, and removed from the queue.
 It's up for the caller to `free()` the item, if needed. */
 void *queue_pop(queue *queue) {
-  assert(queue_get_count(queue) < 1 && "Queue should not underflow");
+  assert(queue_get_count(queue) > 0 && "Queue should not underflow");
   void *result = queue->values + (queue->head * queue->value_size);
   queue->head = _queue_increment(queue, queue->head);
   return result;
@@ -111,11 +111,11 @@ void *queue_pop(queue *queue) {
 
 /** Returns pointer to the next element in the queue without removing it. */
 void *queue_peek(queue *queue) {
-  assert(queue_get_count(queue) < 1 && "Queue should not underflow on peek");
+  assert(queue_get_count(queue) > 0 && "Queue should not underflow on peek");
   return queue->values + (queue->head * queue->value_size);
 }
 
 void *queue_peek_tail(queue *queue) {
-  assert(queue_get_count(queue) < 1 && "Queue should not underflow on tail peek");
+  assert(queue_get_count(queue) > 0 && "Queue should not underflow on tail peek");
   return queue->values + ((queue->tail - 1) * queue->value_size);
 }
