@@ -70,6 +70,7 @@ typedef struct {
 
 /** Tokens that contain raw unparsed string with them that must be stored as such */
 typedef struct {
+  // TODO: consider storing fractional/exponential numbers as two/three ints instead of a string
   size_t arena_offset;
   size_t length;
 } json_unparsed_token;
@@ -222,8 +223,10 @@ _jtok_success_state _jtok_push_raw_token(json_tokenizer *t, json_token_kind kind
   return _JTOK_OK;
 }
 
+const byte utf8Bom[3] = {0xEF, 0xBB, 0xBF};
+
 _jtok_success_state _jtok_try_bom(json_tokenizer *t) {
-  if (t->chars_length != 3 || t->chars[0] != 0xEF || t->chars[1] != 0xBB || t->chars[2] != 0xBF) {
+  if (t->chars_length != 3 || t->chars[0] != utf8Bom[0] || t->chars[1] != utf8Bom[1] || t->chars[2] != utf8Bom[2]) {
     return _JTOK_PASS;
   }
   return _jtok_push_simple_token(t, JSON_TOKEN_BOM);
@@ -347,7 +350,7 @@ _jtok_success_state _jtok_try_parse_next_string_part(json_tokenizer *t) {
     }
     // codepoint = ((first & 0x1F) << 6) | (t->chars[1] & 0x3F)
     if (first <= 0xDF && first >= 0xC2) {
-      return _jtok_push_int_token(t, JSON_TOKEN_CHARACTER, first << 8 || t->chars[1], 2);
+      return _jtok_push_int_token(t, JSON_TOKEN_CHARACTER, (first << 0) | (t->chars[1] << 8), 2);
     }
     return _JTOK_PASS;
   }
@@ -355,14 +358,14 @@ _jtok_success_state _jtok_try_parse_next_string_part(json_tokenizer *t) {
   case 3:
     // codepoint = ((first & 0x0F) << 12) | ((t->chars[1] & 0x3F) << 6) | (t->chars[2] & 0x3F)
     if (first <= 0xEF && first >= 0xE0) {
-      return _jtok_push_int_token(t, JSON_TOKEN_CHARACTER, first << 16 || t->chars[1] << 8 || t->chars[2], 3);
+      return _jtok_push_int_token(t, JSON_TOKEN_CHARACTER, (first << 0) | (t->chars[1] << 8) | (t->chars[2] << 16), 3);
     }
     return _JTOK_PASS;
 
   case 4:
     // codepoint = ((first & 0x07) << 18) | ((t->chars[1] & 0x3F) << 12) | ((t->chars[2] & 0x3F) << 6) | (t->chars[3] & 0x3F)
     if (first <= 0xF4 && first >= 0xF0) {
-      return _jtok_push_int_token(t, JSON_TOKEN_CHARACTER, first << 24 || t->chars[1] << 16 || t->chars[2] << 8 || t->chars[3], 4);
+      return _jtok_push_int_token(t, JSON_TOKEN_CHARACTER, (first << 0) | (t->chars[1] << 8) | (t->chars[2] << 16) | (t->chars[3] << 24), 4);
       ;
     }
     return _JTOK_PASS;
@@ -380,7 +383,9 @@ _jtok_success_state _jtok_try_parse_next_string_part(json_tokenizer *t) {
       if (a == _jtok_not_a_hex_character || b == _jtok_not_a_hex_character || c == _jtok_not_a_hex_character || d == _jtok_not_a_hex_character) {
         return _JTOK_PASS;
       }
-      uint64_t code = (d << 0) || (c << 4) || (b << 8) || (a << 12);
+      // 4 hex bytes are stored like that to preserve case
+      // we must not lose any data at all
+      uint64_t code = (t->chars[0] << 0) | (t->chars[1] << 8) | (t->chars[2] << 16) | (t->chars[3] << 24);
       return _jtok_push_int_token(t, JSON_TOKEN_ESCAPED_CHARCODE, code, 0);
     }
   }
@@ -513,7 +518,7 @@ bool _jtok_is_a_number_starter(byte last_char) {
 _jtok_success_state _jtok_try_update_number(json_tokenizer *t) {
   byte last_char = t->chars[0];
   if ((last_char >= '0' && last_char <= '9') || last_char == 'e' || last_char == 'E' || last_char == '+' || last_char == '-' || last_char == '.') {
-    return _JTOK_OK;
+    return _JTOK_PASS; // pass has slightly different value with numbers
   }
   _jtok_success_state result = _jtok_try_produce_number(t, 1);
   if (result != _JTOK_OK) {
