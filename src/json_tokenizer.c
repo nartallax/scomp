@@ -1,5 +1,4 @@
 #pragma once
-#include "arena.c"
 #include "commons.c"
 #include "context.c"
 #include "limits.h"
@@ -51,9 +50,8 @@ typedef enum {
   // integer tokens
   JSON_TOKEN_CHARACTER,        // normal, non-escaped element of a string. one unicode codepoint; `int_token->value` contains sequence of utf-8 bytes merged into one uint64, not decoded codepoint
   JSON_TOKEN_ESCAPED_CHARCODE, // \u1234
-  JSON_TOKEN_INTEGER,          // 12345, -12345, +12345. only 64-bit safe integers
 
-  // string tokens
+  // number tokens
   JSON_TOKEN_NUMBER, // 12.345, 1e10. every number that is not 64-bit safe integer
 } json_token_kind;
 
@@ -68,12 +66,16 @@ typedef struct {
   byte mod; // for numbers: '+', '-' or 0 (for "no sign"). for utf-8: byte length.
 } json_integer_token;
 
-/** Tokens that contain raw unparsed string with them that must be stored as such */
+/** Tokens that contains a number in JSON sense. */
 typedef struct {
-  // TODO: consider storing fractional/exponential numbers as two/three ints instead of a string
-  size_t arena_offset;
-  size_t length;
-} json_unparsed_token;
+  bool has_fraction_part;
+  byte exponent_symbol; // 'e', 'E' or 0, meaning no exponent
+  byte exponent_sign;   // '-', '+' or 0
+  byte sign;            // '-', '+' or 0
+  uint64_t integer_part;
+  uint64_t fraction_part;
+  uint64_t exponent_part;
+} json_number_token;
 
 /** Any of the tokens described above. */
 typedef struct {
@@ -82,7 +84,7 @@ typedef struct {
   union {
     json_character_token char_token;
     json_integer_token int_token;
-    json_unparsed_token raw_token;
+    json_number_token number_token;
   };
 } json_token;
 
@@ -103,14 +105,12 @@ typedef struct {
   byte chars[JTOK_MAX_CHARS_LENGTH];
   /** Next free index in `characters` field */
   size_t chars_length;
-  arena raw_tokens_arena;
   json_token_kind last_nonws_read_token_kind;
 } json_tokenizer;
 
 void json_tokenizer_deinint(json_tokenizer *tokenizer) {
   queue_deinit(&tokenizer->token_queue);
   stack_deinit(&tokenizer->context_stack);
-  arena_deinit(&tokenizer->raw_tokens_arena);
 }
 
 bool json_tokenizer_init(json_tokenizer *tokenizer, context *context) {
@@ -120,12 +120,6 @@ bool json_tokenizer_init(json_tokenizer *tokenizer, context *context) {
 
   if (!stack_init(&tokenizer->context_stack, context, sizeof(json_context_type))) {
     queue_deinit(&tokenizer->token_queue);
-    return false;
-  }
-
-  if (!arena_init(&tokenizer->raw_tokens_arena, context)) {
-    queue_deinit(&tokenizer->token_queue);
-    stack_deinit(&tokenizer->context_stack);
     return false;
   }
 
@@ -141,10 +135,6 @@ bool json_tokenizer_init(json_tokenizer *tokenizer, context *context) {
   *slot = JSON_CONTEXT_ROOT;
 
   return true;
-}
-
-const byte *json_tokenizer_get_raw_token_content(json_tokenizer *tokenizer, json_token *token) {
-  return arena_offset_to_pointer(&tokenizer->raw_tokens_arena, token->raw_token.arena_offset);
 }
 
 /** Returns true if the tokenizer is at its initial/final state.
@@ -199,27 +189,23 @@ _jtok_success_state _jtok_push_int_token(json_tokenizer *t, json_token_kind kind
   return _JTOK_OK;
 }
 
-_jtok_success_state _jtok_push_raw_token(json_tokenizer *t, json_token_kind kind, size_t end_offset) {
+_jtok_success_state _jtok_push_number_token(json_tokenizer *t, byte sign, uint64_t integer_part, bool has_fraction, uint64_t fraction_part, byte exponent_symbol, byte exponent_sign,
+                                            uint64_t exponent_part) {
   json_token *slot = queue_push(&t->token_queue);
   if (!slot) {
     return _JTOK_ERROR;
   }
 
-  slot->kind = kind;
-  slot->raw_token.length = t->chars_length - end_offset;
-  slot->raw_token.arena_offset = arena_allocate(&t->raw_tokens_arena, slot->raw_token.length + 1);
-  if (!slot->raw_token.arena_offset) {
-    return _JTOK_ERROR;
-  }
-  byte *raw_token_content = arena_offset_to_pointer(&t->raw_tokens_arena, slot->raw_token.arena_offset);
-  for (size_t i = 0; i < slot->raw_token.length; i++) {
-    raw_token_content[i] = t->chars[i];
-  }
-  // null-terminate the string just in case
-  raw_token_content[slot->raw_token.length] = 0;
+  slot->kind = JSON_TOKEN_NUMBER;
+  slot->number_token.integer_part = integer_part;
+  slot->number_token.fraction_part = fraction_part;
+  slot->number_token.exponent_part = exponent_part;
+  slot->number_token.has_fraction_part = has_fraction;
+  slot->number_token.sign = sign;
+  slot->number_token.exponent_symbol = exponent_symbol;
+  slot->number_token.exponent_sign = exponent_sign;
 
   t->chars_length = 0;
-  t->last_nonws_read_token_kind = kind;
   return _JTOK_OK;
 }
 
@@ -434,11 +420,20 @@ _jtok_success_state _jtok_pop_context(json_tokenizer *t) {
   }
 }
 
+const uint64_t tenth_of_max_uint64 = UINT64_MAX / 10;
+bool _jtok_uint64_will_overflow(uint64_t value, byte addition) {
+  return value >= tenth_of_max_uint64 - addition;
+}
+
 _jtok_success_state _jtok_try_produce_number(json_tokenizer *t, size_t end_offset) {
   _jtok_number_state state = _JTOK_NUMBER_STATE_START;
   int state_digits = 0;
-  bool int_overflow = false;
-  uint64_t int_value = 0;
+  uint64_t integer_part = 0;
+  uint64_t fraction_part = 0;
+  uint64_t exponent_part = 0;
+  bool has_fraction_part = false;
+  byte exponent_symbol = 0;
+  byte exponent_sign = 0;
   byte sign = 0;
   for (size_t i = 0; i < t->chars_length - end_offset; i++) {
     byte c = t->chars[i];
@@ -447,23 +442,25 @@ _jtok_success_state _jtok_try_produce_number(json_tokenizer *t, size_t end_offse
       if (c == '+' || c == '-') {
         sign = c;
       } else if (c >= '0' && c <= '9') {
-        if (int_value >= (UINT64_MAX / 10) - 9) {
-          int_overflow = true;
-        } else {
-          int_value = (int_value * 10) + (c - '0');
+        byte new_digit = c - '0';
+        if (_jtok_uint64_will_overflow(integer_part, new_digit)) {
+          return _JTOK_PASS;
         }
+        integer_part = (integer_part * 10) + new_digit;
         state_digits++;
       } else if (c == '.') {
         if (state_digits == 0) {
           // .123 is invalid
           return _JTOK_PASS;
         }
+        has_fraction_part = true;
         state = _JTOK_NUMBER_STATE_FRACTION;
       } else if (c == 'e' || c == 'E') {
         if (state_digits == 0) {
           // -e123 is invalid
           return _JTOK_PASS;
         }
+        exponent_symbol = c;
         state = _JTOK_NUMBER_STATE_EXPONENT;
       } else {
         return _JTOK_PASS;
@@ -471,12 +468,18 @@ _jtok_success_state _jtok_try_produce_number(json_tokenizer *t, size_t end_offse
       continue;
     case _JTOK_NUMBER_STATE_FRACTION:
       if (c >= '0' && c <= '9') {
+        byte new_digit = c - '0';
+        if (_jtok_uint64_will_overflow(fraction_part, new_digit)) {
+          return _JTOK_PASS;
+        }
+        fraction_part = (fraction_part * 10) + new_digit;
         state_digits++;
       } else if (c == 'e' || c == 'E') {
         if (state_digits == 0) {
           // 1.e123 is invalid
           return _JTOK_PASS;
         }
+        exponent_symbol = c;
         state = _JTOK_NUMBER_STATE_EXPONENT;
       }
       continue;
@@ -486,7 +489,13 @@ _jtok_success_state _jtok_try_produce_number(json_tokenizer *t, size_t end_offse
           // 1e1+ is invalid
           return _JTOK_PASS;
         }
+        exponent_sign = c;
       } else if (c >= '0' && c <= '9') {
+        byte new_digit = c - '0';
+        if (_jtok_uint64_will_overflow(exponent_part, new_digit)) {
+          return _JTOK_PASS;
+        }
+        exponent_part = (exponent_part * 10) + new_digit;
         state_digits++;
       }
       continue;
@@ -494,20 +503,16 @@ _jtok_success_state _jtok_try_produce_number(json_tokenizer *t, size_t end_offse
   }
 
   if (state_digits == 0) {
-    // "", "1.", "1e", "1.2e" are all invalid
+    // "", "1.", "1e", "1.2e" are all invalid numbers
     return _JTOK_PASS;
   }
 
-  _jtok_success_state result;
-  if (state == _JTOK_NUMBER_STATE_START && !int_overflow) {
-    result = _jtok_push_int_token(t, JSON_TOKEN_INTEGER, int_value, sign);
-  } else {
-    result = _jtok_push_raw_token(t, JSON_TOKEN_INTEGER, end_offset);
+  _jtok_success_state result = _jtok_push_number_token(t, sign, integer_part, has_fraction_part, fraction_part, exponent_symbol, exponent_sign, exponent_part);
+  if (result != _JTOK_OK) {
+    return result;
   }
-  if (result == _JTOK_OK) {
-    return _jtok_pop_context(t);
-  }
-  return result;
+
+  return _jtok_pop_context(t);
 }
 
 bool _jtok_is_a_number_starter(byte last_char) {

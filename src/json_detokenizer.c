@@ -60,15 +60,39 @@ bool json_detokenizer_write(writer *w, json_token *token) {
     byte d = (chars >> 24) & 0xff;
     return writer_write_byte(w, '\\') && writer_write_byte(w, 'u') && writer_write_byte(w, a) && writer_write_byte(w, b) && writer_write_byte(w, c) && writer_write_byte(w, d);
   }
-  case JSON_TOKEN_INTEGER: {
-    if (token->int_token.mod != 0) {
-      if (!writer_write_byte(w, token->int_token.mod)) {
+  case JSON_TOKEN_NUMBER:
+    // integer part
+    if (token->number_token.sign != 0) {
+      if (!writer_write_byte(w, token->number_token.sign)) {
         return false;
       }
     }
-    return _jdet_write_int(w, token->int_token.value);
-  }
-  case JSON_TOKEN_NUMBER: {
-  }
+    if (!_jdet_write_int(w, token->number_token.integer_part)) {
+      return false;
+    }
+
+    // fraction part
+    if (token->number_token.has_fraction_part) {
+      if (!writer_write_byte(w, '.') || !_jdet_write_int(w, token->number_token.fraction_part)) {
+        return false;
+      }
+    }
+
+    // exponent part
+    if (token->number_token.exponent_symbol != 0) {
+      if (!writer_write_byte(w, token->number_token.exponent_symbol)) {
+        return false;
+      }
+      if (token->number_token.exponent_sign != 0) {
+        if (!writer_write_byte(w, token->number_token.exponent_sign)) {
+          return false;
+        }
+      }
+      if (!_jdet_write_int(w, token->number_token.exponent_part)) {
+        return false;
+      }
+    }
+
+    return true;
   }
 }

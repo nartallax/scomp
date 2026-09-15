@@ -5,6 +5,7 @@
 
 #define ARENA_DEFAULT_LENGTH 1024
 
+// TODO: do we still need it?
 typedef struct {
   context *context;
   byte *data;
