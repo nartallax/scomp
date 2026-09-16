@@ -217,3 +217,11 @@ void writer_supply_dirty_buffer(writer *writer, byte *buffer) {
   }
   writer_supply_zeroinit_buffer(writer, buffer);
 }
+
+// TODO: unicode-aware string compression
+// 1 freq table for charcode start, 0-4
+// 0 means "not a unicode byte". we know it's something in range 128-255, so we only write lower 7 bits as a symbol in a freq table for 0
+// 1 means "1 unicode byte". likewise, we know it's 0-127, and we can only write 7 bits, using another freq table, for 1
+// 2 means "2 unicode bytes". likewise, only write meaningful bits of first byte as a symbol, and second byte as a symbol, using two more freq tables for that
+// 3, 4 - likewise. only meaningful bits for the first byte, the rest of them as-is, using separate unicode tables
+// wonder if it will be significantly worse on non-unicode streams
