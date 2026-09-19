@@ -127,6 +127,8 @@ bool json_tokenizer_init(json_tokenizer *tokenizer, context *context) {
   tokenizer->chars_length = 0;
   tokenizer->last_nonws_read_token_kind = JSON_TOKEN_COMMA;
 
+  // TODO: make sure that here (and in other places) overflow isn't possible
+  // as in, a million '[' should be treated as invalid json instead of allocating million states
   json_context_type *slot = stack_push(&tokenizer->context_stack);
   if (!slot) {
     json_tokenizer_deinint(tokenizer);
