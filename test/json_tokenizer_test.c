@@ -13,26 +13,26 @@ bool test_json_tokenizer_push_string(json_tokenizer *t, const char *str) {
 
 const char *test_json_tokenizer_string() {
   json_tokenizer t;
-  TEST_ASSERT(json_tokenizer_init(&t, test_context), "Init should be successful");
-  TEST_ASSERT(json_tokenizer_is_empty(&t), "Empty tokenizer should return true");
-  TEST_ASSERT(test_json_tokenizer_push_string(&t, "\"abcde\""), "Push should be successful");
-  TEST_ASSERT(json_tokenizer_is_empty(&t) == false, "Non-empty tokenizer should return false");
-  TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_QUOTES, "Kind should be expected one");
+  TEST_ASSERT(json_tokenizer_init(&t, test_context));
+  TEST_ASSERT(json_tokenizer_is_empty(&t));
+  TEST_ASSERT(test_json_tokenizer_push_string(&t, "\"abcde\""));
+  TEST_ASSERT(json_tokenizer_is_empty(&t) == false);
+  TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_QUOTES);
 
   json_token *k = json_tokenizer_consume(&t);
-  TEST_ASSERT(k->kind == JSON_TOKEN_CHARACTER && k->int_token.value == 'a' && k->int_token.mod == 1, "Expected 1-byte character");
+  TEST_ASSERT(k->kind == JSON_TOKEN_CHARACTER && k->int_token.value == 'a' && k->int_token.mod == 1);
   k = json_tokenizer_consume(&t);
-  TEST_ASSERT(k->kind == JSON_TOKEN_CHARACTER && k->int_token.value == 'b' && k->int_token.mod == 1, "Expected 1-byte character");
+  TEST_ASSERT(k->kind == JSON_TOKEN_CHARACTER && k->int_token.value == 'b' && k->int_token.mod == 1);
   k = json_tokenizer_consume(&t);
-  TEST_ASSERT(k->kind == JSON_TOKEN_CHARACTER && k->int_token.value == 'c' && k->int_token.mod == 1, "Expected 1-byte character");
+  TEST_ASSERT(k->kind == JSON_TOKEN_CHARACTER && k->int_token.value == 'c' && k->int_token.mod == 1);
   k = json_tokenizer_consume(&t);
-  TEST_ASSERT(k->kind == JSON_TOKEN_CHARACTER && k->int_token.value == 'd' && k->int_token.mod == 1, "Expected 1-byte character");
+  TEST_ASSERT(k->kind == JSON_TOKEN_CHARACTER && k->int_token.value == 'd' && k->int_token.mod == 1);
   k = json_tokenizer_consume(&t);
-  TEST_ASSERT(k->kind == JSON_TOKEN_CHARACTER && k->int_token.value == 'e' && k->int_token.mod == 1, "Expected 1-byte character");
-  TEST_ASSERT(json_tokenizer_is_empty(&t) == false, "Non-empty tokenizer should return false");
-  TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_QUOTES, "Kind should be expected one");
-  TEST_ASSERT(json_tokenizer_consume(&t) == NULL, "Null on empty tokenizer");
-  TEST_ASSERT(json_tokenizer_is_empty(&t), "Empty tokenizer should return true");
+  TEST_ASSERT(k->kind == JSON_TOKEN_CHARACTER && k->int_token.value == 'e' && k->int_token.mod == 1);
+  TEST_ASSERT(json_tokenizer_is_empty(&t) == false);
+  TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_QUOTES);
+  TEST_ASSERT(json_tokenizer_consume(&t) == NULL);
+  TEST_ASSERT(json_tokenizer_is_empty(&t));
 
   json_tokenizer_deinit(&t);
 

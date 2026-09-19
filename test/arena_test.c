@@ -9,9 +9,9 @@ const char *test_arena_simple() {
   size_t first_offset = arena_allocate(&a, sizeof(byte) * 5);
   size_t second_offset = arena_allocate(&a, sizeof(byte) * 5);
   size_t third_offset = arena_allocate(&a, sizeof(byte) * 5);
-  TEST_ASSERT(first_offset != second_offset, "Different allocations should produce different pointers");
-  TEST_ASSERT(second_offset != third_offset, "Different allocations should produce different pointers");
-  TEST_ASSERT(first_offset != third_offset, "Different allocations should produce different pointers");
+  TEST_ASSERT(first_offset != second_offset);
+  TEST_ASSERT(second_offset != third_offset);
+  TEST_ASSERT(first_offset != third_offset);
 
   byte *first = arena_offset_to_pointer(&a, first_offset);
   for (int i = 0; i < 5; i++) {
@@ -29,9 +29,9 @@ const char *test_arena_simple() {
   }
 
   for (int i = 0; i < 5; i++) {
-    TEST_ASSERT(first[i] == 1, "Allocations must not overlap");
-    TEST_ASSERT(second[i] == 2, "Allocations must not overlap");
-    TEST_ASSERT(third[i] == 3, "Allocations must not overlap");
+    TEST_ASSERT(first[i] == 1);
+    TEST_ASSERT(second[i] == 2);
+    TEST_ASSERT(third[i] == 3);
   }
 
   arena_free(&a);
@@ -40,8 +40,8 @@ const char *test_arena_simple() {
 
   byte *forth = arena_offset_to_pointer(&a, arena_allocate(&a, 10));
   byte *fifth = arena_offset_to_pointer(&a, arena_allocate(&a, 10));
-  TEST_ASSERT(forth == first, "After reset, the same addresses are reused");
-  TEST_ASSERT(fifth == third, "After reset, the same addresses are reused");
+  TEST_ASSERT(forth == first);
+  TEST_ASSERT(fifth == third);
 
   size_t big_buffer_offset = arena_allocate(&a, ARENA_DEFAULT_LENGTH);
   size_t even_bigger_buffer_offset = arena_allocate(&a, ARENA_DEFAULT_LENGTH * 2);
@@ -70,15 +70,15 @@ const char *test_arena_one_big_allocation() {
 const char *test_arena_allocation_failures() {
   arena a;
   setup_test_context(0);
-  TEST_ASSERT(!arena_init(&a, test_context), "Init should return false on allocation failure");
-  TEST_ASSERT(context_is_errored(test_context), "Context should be errored on allocation failure");
+  TEST_ASSERT(!arena_init(&a, test_context));
+  TEST_ASSERT(context_is_errored(test_context));
 
   setup_test_context(1);
   arena_init(&a, test_context);
   size_t first_offset = arena_allocate(&a, 15);
-  TEST_ASSERT(first_offset != 0, "Offset should be non-zero on successfull allocation");
-  TEST_ASSERT(arena_allocate(&a, ARENA_DEFAULT_LENGTH) == 0, "Allocation failure should produce 0 offset");
-  TEST_ASSERT(context_is_errored(test_context), "Context should be errored on allocation failure");
+  TEST_ASSERT(first_offset != 0);
+  TEST_ASSERT(arena_allocate(&a, ARENA_DEFAULT_LENGTH) == 0);
+  TEST_ASSERT(context_is_errored(test_context));
 
   arena_deinit(&a);
 

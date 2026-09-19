@@ -4,10 +4,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define TEST_ASSERT(condition, comment)                                                                                                                                                                \
+#define TEST_ASSERT(expr)                                                                                                                                                                              \
   do {                                                                                                                                                                                                 \
-    if (!(condition)) {                                                                                                                                                                                \
-      return (comment);                                                                                                                                                                                \
+    if (!(expr)) {                                                                                                                                                                                     \
+      return #expr;                                                                                                                                                                                    \
     }                                                                                                                                                                                                  \
   } while (0)
 

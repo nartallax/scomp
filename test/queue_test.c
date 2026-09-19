@@ -18,24 +18,24 @@ const char *_str(const char **slot) {
 const char *test_queue_simple() {
   queue *q = malloc(sizeof(queue));
   queue_init(q, test_context, sizeof(const char *));
-  TEST_ASSERT(queue_get_count(q) == 0, "Empty queue should have length of zero");
+  TEST_ASSERT(queue_get_count(q) == 0);
 
   _test_queue_push(q, "first");
-  TEST_ASSERT(queue_get_count(q) == 1, "Single-value queue should have length of 1");
+  TEST_ASSERT(queue_get_count(q) == 1);
 
   _test_queue_push(q, "second");
   _test_queue_push(q, "third");
   _test_queue_push(q, "forth");
-  TEST_ASSERT(queue_get_count(q) == 4, "Queue length should have expected value");
-  TEST_ASSERT(strcmp(_str(queue_peek(q)), "first") == 0, "Peek should return expected value");
-  TEST_ASSERT(strcmp(_str(queue_peek(q)), "first") == 0, "Peek should not remove values");
-  TEST_ASSERT(strcmp(_str(queue_peek_tail(q)), "forth") == 0, "Peek tail should return last value");
-  TEST_ASSERT(strcmp(_str(queue_pop(q)), "first") == 0, "Pop should return expected value");
-  TEST_ASSERT(strcmp(_str(queue_pop(q)), "second") == 0, "Pop should return expected value");
-  TEST_ASSERT(queue_get_count(q) == 2, "Queue length should have expected value after pops");
-  TEST_ASSERT(strcmp(_str(queue_pop(q)), "third") == 0, "Pop should return expected value");
-  TEST_ASSERT(strcmp(_str(queue_pop(q)), "forth") == 0, "Pop should return expected value");
-  TEST_ASSERT(queue_get_count(q) == 0, "Empty queue should have length of zero");
+  TEST_ASSERT(queue_get_count(q) == 4);
+  TEST_ASSERT(strcmp(_str(queue_peek(q)), "first") == 0);
+  TEST_ASSERT(strcmp(_str(queue_peek(q)), "first") == 0);
+  TEST_ASSERT(strcmp(_str(queue_peek_tail(q)), "forth") == 0);
+  TEST_ASSERT(strcmp(_str(queue_pop(q)), "first") == 0);
+  TEST_ASSERT(strcmp(_str(queue_pop(q)), "second") == 0);
+  TEST_ASSERT(queue_get_count(q) == 2);
+  TEST_ASSERT(strcmp(_str(queue_pop(q)), "third") == 0);
+  TEST_ASSERT(strcmp(_str(queue_pop(q)), "forth") == 0);
+  TEST_ASSERT(queue_get_count(q) == 0);
 
   queue_deinit(q);
   free(q);
@@ -51,36 +51,36 @@ const char *test_queue_overflow_while_wrapping() {
     _test_queue_push(q, "a");
   }
 
-  TEST_ASSERT(queue_get_count(q) == QUEUE_DEFAULT_SIZE - 1, "Count should have expected value");
+  TEST_ASSERT(queue_get_count(q) == QUEUE_DEFAULT_SIZE - 1);
 
   _str(queue_pop(q));
   _str(queue_pop(q));
   _str(queue_pop(q));
 
-  TEST_ASSERT(queue_get_count(q) == QUEUE_DEFAULT_SIZE - 4, "Count should have expected value");
-  TEST_ASSERT(q->length == QUEUE_DEFAULT_SIZE, "Length should not have grown yet");
+  TEST_ASSERT(queue_get_count(q) == QUEUE_DEFAULT_SIZE - 4);
+  TEST_ASSERT(q->length == QUEUE_DEFAULT_SIZE);
 
   for (size_t i = 0; i < 7; i++) {
     _test_queue_push(q, "b");
   }
 
-  TEST_ASSERT(queue_get_count(q) == QUEUE_DEFAULT_SIZE + 3, "Count should have expected value");
-  TEST_ASSERT(q->length == QUEUE_DEFAULT_SIZE * 2, "Length should have grown");
+  TEST_ASSERT(queue_get_count(q) == QUEUE_DEFAULT_SIZE + 3);
+  TEST_ASSERT(q->length == QUEUE_DEFAULT_SIZE * 2);
   for (size_t i = 0; i < QUEUE_DEFAULT_SIZE - 4; i++) {
-    TEST_ASSERT(strcmp(_str(queue_pop(q)), "a") == 0, "This pop should return 'a'");
+    TEST_ASSERT(strcmp(_str(queue_pop(q)), "a") == 0);
   }
   for (size_t i = 0; i < 7; i++) {
-    TEST_ASSERT(strcmp(_str(queue_pop(q)), "b") == 0, "This pop should return 'b'");
+    TEST_ASSERT(strcmp(_str(queue_pop(q)), "b") == 0);
   }
-  TEST_ASSERT(queue_get_count(q) == 0, "Count should have expected value");
+  TEST_ASSERT(queue_get_count(q) == 0);
 
   for (size_t i = 0; i < QUEUE_DEFAULT_SIZE * 2 + 3; i++) {
     _test_queue_push(q, "c");
   }
-  TEST_ASSERT(queue_get_count(q) == (QUEUE_DEFAULT_SIZE * 2) + 3, "Count should have expected value");
-  TEST_ASSERT(q->length == QUEUE_DEFAULT_SIZE * 4, "Length should have grown again");
+  TEST_ASSERT(queue_get_count(q) == (QUEUE_DEFAULT_SIZE * 2) + 3);
+  TEST_ASSERT(q->length == QUEUE_DEFAULT_SIZE * 4);
   for (size_t i = 0; i < QUEUE_DEFAULT_SIZE * 2 + 3; i++) {
-    TEST_ASSERT(strcmp(_str(queue_pop(q)), "c") == 0, "This pop should return 'c'");
+    TEST_ASSERT(strcmp(_str(queue_pop(q)), "c") == 0);
   }
 
   queue_deinit(q);
@@ -92,15 +92,15 @@ const char *test_queue_overflow_while_not_wrapping() {
   queue *q = malloc(sizeof(queue));
   queue_init(q, test_context, sizeof(const char *));
 
-  TEST_ASSERT(q->length == QUEUE_DEFAULT_SIZE, "Length should not have grown yet");
+  TEST_ASSERT(q->length == QUEUE_DEFAULT_SIZE);
   for (size_t i = 0; i < QUEUE_DEFAULT_SIZE * 2 + 5; i++) {
     _test_queue_push(q, "a");
   }
 
-  TEST_ASSERT(queue_get_count(q) == QUEUE_DEFAULT_SIZE * 2 + 5, "Count should have expected value");
-  TEST_ASSERT(q->length == QUEUE_DEFAULT_SIZE * 4, "Length should have grown");
+  TEST_ASSERT(queue_get_count(q) == QUEUE_DEFAULT_SIZE * 2 + 5);
+  TEST_ASSERT(q->length == QUEUE_DEFAULT_SIZE * 4);
   for (size_t i = 0; i < QUEUE_DEFAULT_SIZE * 2 + 5; i++) {
-    TEST_ASSERT(strcmp(_str(queue_pop(q)), "a") == 0, "This pop should return 'a'");
+    TEST_ASSERT(strcmp(_str(queue_pop(q)), "a") == 0);
   }
 
   queue_deinit(q);
@@ -128,12 +128,12 @@ const char *test_queue_non_pointer_values() {
   slot2->y = 5;
   slot2->z = 6;
 
-  TEST_ASSERT(slot1 != slot2, "Allocated slots should not be equal");
+  TEST_ASSERT(slot1 != slot2);
 
   test_xyz *pop_slot1 = queue_pop(q);
-  TEST_ASSERT(pop_slot1->x == 1 && pop_slot1->y == 2 && pop_slot1->z == 3, "Popped xyz should have expected values");
+  TEST_ASSERT(pop_slot1->x == 1 && pop_slot1->y == 2 && pop_slot1->z == 3);
   test_xyz *pop_slot2 = queue_pop(q);
-  TEST_ASSERT(pop_slot2->x == 4 && pop_slot2->y == 5 && pop_slot2->z == 6, "Popped xyz 2 should have expected values");
+  TEST_ASSERT(pop_slot2->x == 4 && pop_slot2->y == 5 && pop_slot2->z == 6);
 
   for (size_t i = 0; i < QUEUE_DEFAULT_SIZE + 3; i++) {
     test_xyz *slot = queue_push(q);
@@ -144,7 +144,7 @@ const char *test_queue_non_pointer_values() {
 
   for (size_t i = 0; i < QUEUE_DEFAULT_SIZE + 3; i++) {
     test_xyz *slot = queue_pop(q);
-    TEST_ASSERT(slot->x == i && slot->y == i + 1 && slot->z == i + 2, "Popped xyz in cycle should have expected values");
+    TEST_ASSERT(slot->x == i && slot->y == i + 1 && slot->z == i + 2);
   }
 
   queue_deinit(q);
@@ -156,17 +156,17 @@ const char *test_queue_allocation_failures() {
   setup_test_context(0);
   queue q;
 
-  TEST_ASSERT(!queue_init(&q, test_context, sizeof(const char *)), "Queue should be null on first allocation fail");
+  TEST_ASSERT(!queue_init(&q, test_context, sizeof(const char *)));
 
   setup_test_context(1);
   queue_init(&q, test_context, sizeof(const char *));
-  TEST_ASSERT(context_is_errored(test_context) == false, "There should be no error just yet");
+  TEST_ASSERT(context_is_errored(test_context) == false);
   for (size_t i = 0; i < QUEUE_DEFAULT_SIZE - 1; i++) {
     _test_queue_push(&q, "a");
   }
-  TEST_ASSERT(context_is_errored(test_context) == false, "There should be no error just yet");
-  TEST_ASSERT(queue_push(&q) == NULL, "Push on allocation fail produces NULL");
-  TEST_ASSERT(context_is_errored(test_context) == true, "There should be an error on queue overflow allocation fail");
+  TEST_ASSERT(context_is_errored(test_context) == false);
+  TEST_ASSERT(queue_push(&q) == NULL);
+  TEST_ASSERT(context_is_errored(test_context) == true);
 
   queue_deinit(&q);
 
