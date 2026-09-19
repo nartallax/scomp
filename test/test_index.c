@@ -2,6 +2,7 @@
 #include "./arithmetic_coding_test.c"
 #include "./fenwick_tree_test.c"
 #include "./frequency_table_test.c"
+#include "./json_tokenizer_test.c"
 #include "./queue_test.c"
 #include "./stack_test.c"
 #include "./test_utils.c"
@@ -47,6 +48,8 @@ int main() {
       MAKE_TEST(test_ftable_allocation_failures),
       MAKE_TEST(test_acod_simple),
       MAKE_TEST(test_acod_allocation_failures),
+      MAKE_TEST(test_json_tokenizer_string),
+      MAKE_TEST(test_json_tokenizer_allocation_failures),
       // tests go here
   };
 

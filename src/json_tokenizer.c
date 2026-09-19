@@ -108,7 +108,7 @@ typedef struct {
   json_token_kind last_nonws_read_token_kind;
 } json_tokenizer;
 
-void json_tokenizer_deinint(json_tokenizer *tokenizer) {
+void json_tokenizer_deinit(json_tokenizer *tokenizer) {
   queue_deinit(&tokenizer->token_queue);
   stack_deinit(&tokenizer->context_stack);
 }
@@ -131,7 +131,7 @@ bool json_tokenizer_init(json_tokenizer *tokenizer, context *context) {
   // as in, a million '[' should be treated as invalid json instead of allocating million states
   json_context_type *slot = stack_push(&tokenizer->context_stack);
   if (!slot) {
-    json_tokenizer_deinint(tokenizer);
+    json_tokenizer_deinit(tokenizer);
     return false;
   }
   *slot = JSON_CONTEXT_ROOT;
@@ -399,7 +399,7 @@ _jtok_success_state _jtok_pop_context(json_tokenizer *t) {
   json_context_type *base_state_slot = stack_peek(&t->context_stack);
   json_context_type base_state = *base_state_slot;
 
-  switch (*base_state_slot) {
+  switch (base_state) {
   case JSON_CONTEXT_ARRAY:
     if (t->last_nonws_read_token_kind == JSON_TOKEN_COMMA) {
       return _jtok_push_context(t, JSON_CONTEXT_VALUE);
