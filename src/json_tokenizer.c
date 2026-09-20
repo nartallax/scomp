@@ -443,7 +443,7 @@ _jtok_success_state _jtok_try_produce_number(json_tokenizer *t, size_t end_offse
     byte c = t->chars[i];
     switch (state) {
     case _JTOK_NUMBER_STATE_START:
-      if (c == '+' || c == '-') {
+      if (c == '-') {
         sign = c;
       } else if (c >= '0' && c <= '9') {
         byte new_digit = c - '0';

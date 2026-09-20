@@ -60,13 +60,6 @@ const char *test_json_tokenizer_numbers() {
   TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_WHITESPACE);
   TEST_ASSERT(json_tokenizer_is_empty(&t));
 
-  TEST_ASSERT(test_json_tokenizer_push_string(&t, "+12345 "));
-  k = json_tokenizer_consume(&t);
-  TEST_ASSERT(k != NULL);
-  TEST_ASSERT(k->kind == JSON_TOKEN_NUMBER && !k->number_token.has_fraction_part && k->number_token.exponent_symbol == 0 && k->number_token.integer_part == 12345 && k->number_token.sign == '+');
-  TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_WHITESPACE);
-  TEST_ASSERT(json_tokenizer_is_empty(&t));
-
   TEST_ASSERT(test_json_tokenizer_push_string(&t, "123.456 "));
   k = json_tokenizer_consume(&t);
   TEST_ASSERT(k != NULL);
