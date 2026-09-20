@@ -49,6 +49,10 @@ int main() {
       MAKE_TEST(test_acod_simple),
       MAKE_TEST(test_acod_allocation_failures),
       MAKE_TEST(test_json_tokenizer_string),
+      MAKE_TEST(test_json_tokenizer_numbers),
+      MAKE_TEST(test_json_tokenizer_constants),
+      MAKE_TEST(test_json_tokenizer_array),
+      MAKE_TEST(test_json_tokenizer_object),
       MAKE_TEST(test_json_tokenizer_allocation_failures),
       // tests go here
   };

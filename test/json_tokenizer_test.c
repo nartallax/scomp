@@ -39,6 +39,75 @@ const char *test_json_tokenizer_string() {
   return NULL;
 }
 
+const char *test_json_tokenizer_numbers() {
+  json_tokenizer t;
+  json_token *k;
+  TEST_ASSERT(json_tokenizer_init(&t, test_context));
+
+  // space is here to terminate the number, otherwise tokenizer will wait for more
+  // wonder if it will bite me later
+  TEST_ASSERT(test_json_tokenizer_push_string(&t, "12345 "));
+  k = json_tokenizer_consume(&t);
+  TEST_ASSERT(k != NULL);
+  TEST_ASSERT(k->kind == JSON_TOKEN_NUMBER && !k->number_token.has_fraction_part && k->number_token.exponent_symbol == 0 && k->number_token.integer_part == 12345);
+  TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_WHITESPACE);
+  TEST_ASSERT(json_tokenizer_is_empty(&t));
+
+  TEST_ASSERT(test_json_tokenizer_push_string(&t, "123.456 "));
+  k = json_tokenizer_consume(&t);
+  TEST_ASSERT(k != NULL);
+  TEST_ASSERT(k->kind == JSON_TOKEN_NUMBER && k->number_token.has_fraction_part && k->number_token.fraction_part == 456 && k->number_token.exponent_symbol == 0 && k->number_token.integer_part == 123);
+  TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_WHITESPACE);
+  TEST_ASSERT(json_tokenizer_is_empty(&t));
+
+  TEST_ASSERT(test_json_tokenizer_push_string(&t, "123e456 "));
+  k = json_tokenizer_consume(&t);
+  TEST_ASSERT(k != NULL);
+  TEST_ASSERT(k->kind == JSON_TOKEN_NUMBER && !k->number_token.has_fraction_part && k->number_token.exponent_symbol == 'e' && k->number_token.exponent_part == 456 &&
+              k->number_token.integer_part == 123 && k->number_token.exponent_sign == 0);
+  TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_WHITESPACE);
+  TEST_ASSERT(json_tokenizer_is_empty(&t));
+
+  TEST_ASSERT(test_json_tokenizer_push_string(&t, "123e-456 "));
+  k = json_tokenizer_consume(&t);
+  TEST_ASSERT(k != NULL);
+  TEST_ASSERT(k->kind == JSON_TOKEN_NUMBER && !k->number_token.has_fraction_part && k->number_token.exponent_symbol == 'e' && k->number_token.exponent_part == 456 &&
+              k->number_token.integer_part == 123 && k->number_token.exponent_sign == '-');
+  TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_WHITESPACE);
+  TEST_ASSERT(json_tokenizer_is_empty(&t));
+
+  TEST_ASSERT(test_json_tokenizer_push_string(&t, "123e+456 "));
+  k = json_tokenizer_consume(&t);
+  TEST_ASSERT(k != NULL);
+  TEST_ASSERT(k->kind == JSON_TOKEN_NUMBER && !k->number_token.has_fraction_part && k->number_token.exponent_symbol == 'e' && k->number_token.exponent_part == 456 &&
+              k->number_token.integer_part == 123 && k->number_token.exponent_sign == '+');
+  TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_WHITESPACE);
+  TEST_ASSERT(json_tokenizer_is_empty(&t));
+
+  TEST_ASSERT(test_json_tokenizer_push_string(&t, "123E+456 "));
+  k = json_tokenizer_consume(&t);
+  TEST_ASSERT(k != NULL);
+  TEST_ASSERT(k->kind == JSON_TOKEN_NUMBER && !k->number_token.has_fraction_part && k->number_token.exponent_symbol == 'E' && k->number_token.exponent_part == 456 &&
+              k->number_token.integer_part == 123 && k->number_token.exponent_sign == '+');
+  TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_WHITESPACE);
+  TEST_ASSERT(json_tokenizer_is_empty(&t));
+
+  json_tokenizer_deinit(&t);
+  return NULL;
+}
+
+const char *test_json_tokenizer_constants() {
+  return NULL;
+}
+
+const char *test_json_tokenizer_array() {
+  return NULL;
+}
+
+const char *test_json_tokenizer_object() {
+  return NULL;
+}
+
 const char *test_json_tokenizer_allocation_failures() {
   return NULL;
 }

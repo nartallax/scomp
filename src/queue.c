@@ -5,7 +5,6 @@
 #include <stddef.h>
 #include <string.h>
 
-// #define it?
 const size_t QUEUE_DEFAULT_SIZE = 16;
 
 /** A queue data structure.
@@ -67,6 +66,7 @@ bool _queue_maybe_grow(queue *queue) {
 
   size_t i = 0;
   size_t qsize = queue->value_size;
+  // TODO: cringe. use realloc and move only segment that touches the end of the array
   for (size_t pointer = queue->head; pointer != queue->tail; pointer = _queue_increment(queue, pointer)) {
     for (size_t byte_pointer = 0; byte_pointer < queue->value_size; byte_pointer++) {
       new_values[(i * qsize) + byte_pointer] = queue->values[(pointer * qsize) + byte_pointer];

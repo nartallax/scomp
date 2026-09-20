@@ -60,6 +60,10 @@ void ftable_halve_until_total_below_limit(ftable *table, symbol limit) {
   }
 }
 
+// TODO: think about batching increments
+// like, gather 16 symbols and only then increment them all at once
+// will it be faster? can it be faster if we abolish fenwick trees and instead go with raw arrays?
+// how much compression ratio will be harmed?
 void ftable_increment(ftable *table, symbol symbol) {
   ftable_halve_until_total_below_limit(table, UINT64_MAX - 1);
 
