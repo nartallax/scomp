@@ -157,6 +157,42 @@ const char *test_json_tokenizer_array() {
 }
 
 const char *test_json_tokenizer_object() {
+  json_tokenizer t;
+  TEST_ASSERT(json_tokenizer_init(&t, test_context));
+
+  TEST_ASSERT(test_json_tokenizer_push_string(&t, "{}"));
+  TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_OBJECT_OPEN);
+  TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_OBJECT_CLOSE);
+  TEST_ASSERT(json_tokenizer_is_empty(&t));
+
+  TEST_ASSERT(test_json_tokenizer_push_string(&t, "{\"width\":15, \"is_good\":true}"));
+  TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_OBJECT_OPEN);
+  TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_QUOTES);
+  TEST_ASSERT(json_tokenizer_consume(&t)->int_token.value == 'w');
+  TEST_ASSERT(json_tokenizer_consume(&t)->int_token.value == 'i');
+  TEST_ASSERT(json_tokenizer_consume(&t)->int_token.value == 'd');
+  TEST_ASSERT(json_tokenizer_consume(&t)->int_token.value == 't');
+  TEST_ASSERT(json_tokenizer_consume(&t)->int_token.value == 'h');
+  TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_QUOTES);
+  TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_COLON);
+  TEST_ASSERT(json_tokenizer_consume(&t)->number_token.integer_part == 15);
+  TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_COMMA);
+  TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_WHITESPACE);
+  TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_QUOTES);
+  TEST_ASSERT(json_tokenizer_consume(&t)->int_token.value == 'i');
+  TEST_ASSERT(json_tokenizer_consume(&t)->int_token.value == 's');
+  TEST_ASSERT(json_tokenizer_consume(&t)->int_token.value == '_');
+  TEST_ASSERT(json_tokenizer_consume(&t)->int_token.value == 'g');
+  TEST_ASSERT(json_tokenizer_consume(&t)->int_token.value == 'o');
+  TEST_ASSERT(json_tokenizer_consume(&t)->int_token.value == 'o');
+  TEST_ASSERT(json_tokenizer_consume(&t)->int_token.value == 'd');
+  TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_QUOTES);
+  TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_COLON);
+  TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_TRUE);
+  TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_OBJECT_CLOSE);
+  TEST_ASSERT(json_tokenizer_is_empty(&t));
+
+  json_tokenizer_deinit(&t);
   return NULL;
 }
 

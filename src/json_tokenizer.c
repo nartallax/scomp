@@ -411,14 +411,15 @@ _jtok_success_state _jtok_pop_context(json_tokenizer *t) {
   case JSON_CONTEXT_OBJECT:
     if (old_state == JSON_CONTEXT_OBJECT_KEY) {
       return _jtok_push_context(t, JSON_CONTEXT_OBJECT_KV_SEPARATOR);
-    } else if (old_state == JSON_CONTEXT_OBJECT_KV_SEPARATOR) {
-      return _jtok_push_context(t, JSON_CONTEXT_VALUE);
     }
     return _JTOK_OK;
   case JSON_CONTEXT_VALUE:
     // if we are popping into value context - this means that value have already been read
     // (JSON_CONTEXT_NUMBER or JSON_CONTEXT_STRING are pushed on top of value)
     // and the only logical thing for us is to pop value too
+    return _jtok_pop_context(t);
+  case JSON_CONTEXT_OBJECT_KV_SEPARATOR:
+    // same as above
     return _jtok_pop_context(t);
   default:
     return _JTOK_OK;
@@ -608,6 +609,9 @@ _jtok_success_state _jtok_try_tokenize(json_tokenizer *t) {
   json_context_type *context_slot = stack_peek(&t->context_stack);
   _jtok_success_state result = _JTOK_PASS;
 
+  t->chars[t->chars_length] = 0;
+  printf("tokenize: \"%s\" (state = %i)\n", t->chars, *context_slot);
+
   switch (*context_slot) {
   case JSON_CONTEXT_ROOT:
     return _jtok_try_bom(t) || _jtok_try_value(t) || _jtok_try_whitespace(t);
@@ -625,7 +629,7 @@ _jtok_success_state _jtok_try_tokenize(json_tokenizer *t) {
     if (t->last_nonws_read_token_kind != JSON_TOKEN_COLON) {
       result = _jtok_try_colon(t);
     }
-    return result || _jtok_try_whitespace(t);
+    return result || _jtok_try_value(t) || _jtok_try_whitespace(t);
 
   case JSON_CONTEXT_ARRAY:
     if (t->last_nonws_read_token_kind != JSON_TOKEN_ARRAY_OPEN && t->last_nonws_read_token_kind != JSON_TOKEN_COMMA) {
@@ -658,5 +662,10 @@ bool json_tokenizer_push(json_tokenizer *t, byte b) {
   t->chars[t->chars_length] = b;
   t->chars_length++;
 
-  return _jtok_try_tokenize(t) != _JTOK_ERROR;
+  bool result = _jtok_try_tokenize(t) != _JTOK_ERROR;
+
+  t->chars[t->chars_length] = 0;
+  printf("after tokenize: \"%s\"\n", t->chars);
+
+  return result;
 }
