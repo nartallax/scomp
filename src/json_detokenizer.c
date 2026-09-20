@@ -24,7 +24,7 @@ bool json_detokenizer_write(writer *w, json_token *token) {
   case JSON_TOKEN_ARRAY_CLOSE:
     return writer_write_byte(w, '}');
   case JSON_TOKEN_BOM:
-    return writer_write_byte(w, utf8Bom[0]) && writer_write_byte(w, utf8Bom[1]) && writer_write_byte(w, utf8Bom[2]);
+    return writer_write_byte(w, utf8_bom[0]) && writer_write_byte(w, utf8_bom[1]) && writer_write_byte(w, utf8_bom[2]);
   case JSON_TOKEN_TRUE:
     return writer_write_byte(w, 't') && writer_write_byte(w, 'r') && writer_write_byte(w, 'u') && writer_write_byte(w, 'e');
   case JSON_TOKEN_FALSE:

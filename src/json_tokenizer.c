@@ -21,7 +21,7 @@ typedef enum {
   JSON_CONTEXT_ARRAY,               // expecting value, or closing token
   JSON_CONTEXT_STRING,              // expecting characters
   JSON_CONTEXT_OBJECT_KEY,          // like string, but hints about further state changes
-  JSON_CONTEXT_NUMBER               // expecting numeric components
+  JSON_CONTEXT_NUMBER,              // expecting numeric components
 } json_context_type;
 
 typedef enum {
@@ -69,13 +69,13 @@ typedef struct {
 
 /** Tokens that contains a number in JSON sense. */
 typedef struct {
-  bool has_fraction_part;
-  byte exponent_symbol; // 'e', 'E' or 0, meaning no exponent
-  byte exponent_sign;   // '-', '+' or 0
-  byte sign;            // '-', '+' or 0
   uint64_t integer_part;
   uint64_t fraction_part;
   uint64_t exponent_part;
+  bool has_fraction_part;
+  byte exponent_symbol; // 'e', 'E' or 0, meaning no exponent
+  byte exponent_sign;   // '-', '+' or 0
+  byte sign;            // '-', or 0
 } json_number_token;
 
 /** Any of the tokens described above. */
@@ -189,6 +189,7 @@ _jtok_success_state _jtok_push_int_token(json_tokenizer *t, json_token_kind kind
   slot->int_token.value = value;
   slot->int_token.mod = sign;
   t->chars_length = 0;
+  t->last_nonws_read_token_kind = kind;
   return _JTOK_OK;
 }
 
@@ -209,13 +210,14 @@ _jtok_success_state _jtok_push_number_token(json_tokenizer *t, byte sign, uint64
   slot->number_token.exponent_sign = exponent_sign;
 
   t->chars_length = 0;
+  t->last_nonws_read_token_kind = JSON_TOKEN_NUMBER;
   return _JTOK_OK;
 }
 
-const byte utf8Bom[3] = {0xEF, 0xBB, 0xBF};
+const byte utf8_bom[3] = {0xEF, 0xBB, 0xBF};
 
 _jtok_success_state _jtok_try_bom(json_tokenizer *t) {
-  if (t->chars_length != 3 || t->chars[0] != utf8Bom[0] || t->chars[1] != utf8Bom[1] || t->chars[2] != utf8Bom[2]) {
+  if (t->chars_length != 3 || t->chars[0] != utf8_bom[0] || t->chars[1] != utf8_bom[1] || t->chars[2] != utf8_bom[2]) {
     return _JTOK_PASS;
   }
   return _jtok_push_simple_token(t, JSON_TOKEN_BOM);
@@ -428,7 +430,6 @@ bool _jtok_uint64_will_overflow(uint64_t value, byte addition) {
   return value >= tenth_of_max_uint64 - addition;
 }
 
-// TODO: this sucks. it has n^2 complexity, which we can demonstrate with long numbers
 _jtok_success_state _jtok_try_produce_number(json_tokenizer *t, size_t end_offset) {
   _jtok_number_state state = _JTOK_NUMBER_STATE_START;
   int state_digits = 0;
@@ -523,7 +524,7 @@ _jtok_success_state _jtok_try_produce_number(json_tokenizer *t, size_t end_offse
 }
 
 bool _jtok_is_a_number_starter(byte last_char) {
-  return (last_char >= '0' && last_char <= '9') || last_char == '+' || last_char == '-';
+  return (last_char >= '0' && last_char <= '9') || last_char == '-';
 }
 
 // assumes the tokenizer is in number-parsing context already
