@@ -152,6 +152,8 @@ const char *test_json_tokenizer_array() {
   TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_ARRAY_CLOSE);
   TEST_ASSERT(json_tokenizer_is_empty(&t));
 
+  // TODO: bool/null arrays
+
   json_tokenizer_deinit(&t);
   return NULL;
 }
