@@ -143,7 +143,7 @@ bool json_tokenizer_init(json_tokenizer *tokenizer, context *context) {
 /** Returns true if the tokenizer is at its initial/final state.
 It's an easy way to check if a JSON was properly formatted. If it is - after stream consumption tokenizer will be empty. */
 bool json_tokenizer_is_empty(json_tokenizer *tokenizer) {
-  return queue_get_count(&tokenizer->token_queue) == 0 && stack_get_count(&tokenizer->context_stack) == 1 && tokenizer->chars_length == 0;
+  return tokenizer->chars_length == 0 && stack_get_count(&tokenizer->context_stack) == 1 && queue_get_count(&tokenizer->token_queue) == 0;
 }
 
 /** If there is a token to consume - the token is returned, null otherwise. */
@@ -162,9 +162,7 @@ _jtok_success_state _jtok_push_simple_token(json_tokenizer *t, json_token_kind k
   }
   slot->kind = kind;
   t->chars_length = 0;
-  if (kind != JSON_TOKEN_WHITESPACE) {
-    t->last_nonws_read_token_kind = kind;
-  }
+  t->last_nonws_read_token_kind = kind;
   return _JTOK_OK;
 }
 
@@ -176,7 +174,9 @@ _jtok_success_state _jtok_push_char_token(json_tokenizer *t, json_token_kind kin
   slot->kind = kind;
   slot->char_token.character = character;
   t->chars_length = 0;
-  t->last_nonws_read_token_kind = kind;
+  if (kind != JSON_TOKEN_WHITESPACE) {
+    t->last_nonws_read_token_kind = kind;
+  }
   return _JTOK_OK;
 }
 
@@ -624,8 +624,7 @@ _jtok_success_state _jtok_try_tokenize(json_tokenizer *t) {
   json_context_type *context_slot = stack_peek(&t->context_stack);
   _jtok_success_state result = _JTOK_PASS;
 
-  // t->chars[t->chars_length] = 0;
-  // printf("tokenize: \"%s\" (state = %i)\n", t->chars, *context_slot);
+  // printf("tokenize: %.*s\n", (int)t->chars_length, t->chars);
 
   switch (*context_slot) {
   case JSON_CONTEXT_ROOT:
@@ -682,6 +681,7 @@ _jtok_success_state _jtok_try_tokenize(json_tokenizer *t) {
     if (_jtok_push_context(t, JSON_CONTEXT_VALUE) != _JTOK_OK) {
       return _JTOK_ERROR;
     }
+
     return _jtok_try_tokenize(t);
 
   case JSON_CONTEXT_STRING:
@@ -711,8 +711,7 @@ bool json_tokenizer_push(json_tokenizer *t, byte b) {
 
   bool result = _jtok_try_tokenize(t) != _JTOK_ERROR;
 
-  // t->chars[t->chars_length] = 0;
-  // printf("after tokenize: \"%s\"\n", t->chars);
+  // printf("after tokenize: %.*s\n", (int)t->chars_length, t->chars);
 
   return result;
 }

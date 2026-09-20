@@ -54,6 +54,8 @@ int main() {
       MAKE_TEST(test_json_tokenizer_array),
       MAKE_TEST(test_json_tokenizer_object),
       MAKE_TEST(test_json_tokenizer_whitespaces),
+      MAKE_TEST(test_json_tokenizer_nesting),
+      MAKE_TEST(test_json_tokenizer_emptiness),
       MAKE_TEST(test_json_tokenizer_allocation_failures),
       // tests go here
   };
