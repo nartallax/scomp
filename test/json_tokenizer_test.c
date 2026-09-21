@@ -11,6 +11,17 @@ bool test_json_tokenizer_push_string(json_tokenizer *t, const char *str) {
   return true;
 }
 
+bool test_json_tokenizer_reinit(json_tokenizer *t) {
+  if (!json_tokenizer_is_empty(t)) {
+    return false;
+  }
+  json_tokenizer_deinit(t);
+  if (!json_tokenizer_init(t, test_context)) {
+    return false;
+  }
+  return true;
+}
+
 const char *test_json_tokenizer_string() {
   json_tokenizer t;
   TEST_ASSERT(json_tokenizer_init(&t, test_context));
@@ -32,10 +43,9 @@ const char *test_json_tokenizer_string() {
   TEST_ASSERT(json_tokenizer_is_empty(&t) == false);
   TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_QUOTES);
   TEST_ASSERT(json_tokenizer_consume(&t) == NULL);
-  TEST_ASSERT(json_tokenizer_is_empty(&t));
+  TEST_ASSERT(test_json_tokenizer_reinit(&t));
 
   json_tokenizer_deinit(&t);
-
   return NULL;
 }
 
@@ -44,60 +54,58 @@ const char *test_json_tokenizer_numbers() {
   json_token *k;
   TEST_ASSERT(json_tokenizer_init(&t, test_context));
 
-  // space is here to terminate the number, otherwise tokenizer will wait for more
-  // wonder if it will bite me later
-  TEST_ASSERT(test_json_tokenizer_push_string(&t, "12345 "));
+  TEST_ASSERT(test_json_tokenizer_push_string(&t, "12345"));
+  TEST_ASSERT(json_tokenizer_finalize(&t));
   k = json_tokenizer_consume(&t);
   TEST_ASSERT(k != NULL);
   TEST_ASSERT(k->kind == JSON_TOKEN_NUMBER && !k->number_token.has_fraction_part && k->number_token.exponent_symbol == 0 && k->number_token.integer_part == 12345 && k->number_token.sign == 0);
-  TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_WHITESPACE);
-  TEST_ASSERT(json_tokenizer_is_empty(&t));
+  TEST_ASSERT(test_json_tokenizer_reinit(&t));
 
-  TEST_ASSERT(test_json_tokenizer_push_string(&t, "-12345 "));
+  TEST_ASSERT(test_json_tokenizer_push_string(&t, "-12345"));
+  TEST_ASSERT(json_tokenizer_finalize(&t));
   k = json_tokenizer_consume(&t);
   TEST_ASSERT(k != NULL);
   TEST_ASSERT(k->kind == JSON_TOKEN_NUMBER && !k->number_token.has_fraction_part && k->number_token.exponent_symbol == 0 && k->number_token.integer_part == 12345 && k->number_token.sign == '-');
-  TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_WHITESPACE);
-  TEST_ASSERT(json_tokenizer_is_empty(&t));
+  TEST_ASSERT(test_json_tokenizer_reinit(&t));
 
-  TEST_ASSERT(test_json_tokenizer_push_string(&t, "123.456 "));
+  TEST_ASSERT(test_json_tokenizer_push_string(&t, "123.456"));
+  TEST_ASSERT(json_tokenizer_finalize(&t));
   k = json_tokenizer_consume(&t);
   TEST_ASSERT(k != NULL);
   TEST_ASSERT(k->kind == JSON_TOKEN_NUMBER && k->number_token.has_fraction_part && k->number_token.fraction_part == 456 && k->number_token.exponent_symbol == 0 && k->number_token.integer_part == 123);
-  TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_WHITESPACE);
-  TEST_ASSERT(json_tokenizer_is_empty(&t));
+  TEST_ASSERT(test_json_tokenizer_reinit(&t));
 
-  TEST_ASSERT(test_json_tokenizer_push_string(&t, "123e456 "));
+  TEST_ASSERT(test_json_tokenizer_push_string(&t, "123e456"));
+  TEST_ASSERT(json_tokenizer_finalize(&t));
   k = json_tokenizer_consume(&t);
   TEST_ASSERT(k != NULL);
   TEST_ASSERT(k->kind == JSON_TOKEN_NUMBER && !k->number_token.has_fraction_part && k->number_token.exponent_symbol == 'e' && k->number_token.exponent_part == 456 &&
               k->number_token.integer_part == 123 && k->number_token.exponent_sign == 0);
-  TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_WHITESPACE);
-  TEST_ASSERT(json_tokenizer_is_empty(&t));
+  TEST_ASSERT(test_json_tokenizer_reinit(&t));
 
-  TEST_ASSERT(test_json_tokenizer_push_string(&t, "123e-456 "));
+  TEST_ASSERT(test_json_tokenizer_push_string(&t, "123e-456"));
+  TEST_ASSERT(json_tokenizer_finalize(&t));
   k = json_tokenizer_consume(&t);
   TEST_ASSERT(k != NULL);
   TEST_ASSERT(k->kind == JSON_TOKEN_NUMBER && !k->number_token.has_fraction_part && k->number_token.exponent_symbol == 'e' && k->number_token.exponent_part == 456 &&
               k->number_token.integer_part == 123 && k->number_token.exponent_sign == '-');
-  TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_WHITESPACE);
-  TEST_ASSERT(json_tokenizer_is_empty(&t));
+  TEST_ASSERT(test_json_tokenizer_reinit(&t));
 
-  TEST_ASSERT(test_json_tokenizer_push_string(&t, "123e+456 "));
+  TEST_ASSERT(test_json_tokenizer_push_string(&t, "123e+456"));
+  TEST_ASSERT(json_tokenizer_finalize(&t));
   k = json_tokenizer_consume(&t);
   TEST_ASSERT(k != NULL);
   TEST_ASSERT(k->kind == JSON_TOKEN_NUMBER && !k->number_token.has_fraction_part && k->number_token.exponent_symbol == 'e' && k->number_token.exponent_part == 456 &&
               k->number_token.integer_part == 123 && k->number_token.exponent_sign == '+');
-  TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_WHITESPACE);
-  TEST_ASSERT(json_tokenizer_is_empty(&t));
+  TEST_ASSERT(test_json_tokenizer_reinit(&t));
 
-  TEST_ASSERT(test_json_tokenizer_push_string(&t, "123E+456 "));
+  TEST_ASSERT(test_json_tokenizer_push_string(&t, "123E+456"));
+  TEST_ASSERT(json_tokenizer_finalize(&t));
   k = json_tokenizer_consume(&t);
   TEST_ASSERT(k != NULL);
   TEST_ASSERT(k->kind == JSON_TOKEN_NUMBER && !k->number_token.has_fraction_part && k->number_token.exponent_symbol == 'E' && k->number_token.exponent_part == 456 &&
               k->number_token.integer_part == 123 && k->number_token.exponent_sign == '+');
-  TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_WHITESPACE);
-  TEST_ASSERT(json_tokenizer_is_empty(&t));
+  TEST_ASSERT(test_json_tokenizer_reinit(&t));
 
   json_tokenizer_deinit(&t);
   return NULL;
@@ -109,15 +117,15 @@ const char *test_json_tokenizer_constants() {
 
   TEST_ASSERT(test_json_tokenizer_push_string(&t, "true"));
   TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_TRUE);
-  TEST_ASSERT(json_tokenizer_is_empty(&t));
+  TEST_ASSERT(test_json_tokenizer_reinit(&t));
 
   TEST_ASSERT(test_json_tokenizer_push_string(&t, "false"));
   TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_FALSE);
-  TEST_ASSERT(json_tokenizer_is_empty(&t));
+  TEST_ASSERT(test_json_tokenizer_reinit(&t));
 
   TEST_ASSERT(test_json_tokenizer_push_string(&t, "null"));
   TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_NULL);
-  TEST_ASSERT(json_tokenizer_is_empty(&t));
+  TEST_ASSERT(test_json_tokenizer_reinit(&t));
 
   json_tokenizer_deinit(&t);
   return NULL;
@@ -145,12 +153,12 @@ const char *test_json_tokenizer_array() {
   k = json_tokenizer_consume(&t);
   TEST_ASSERT(k->kind == JSON_TOKEN_NUMBER && k->number_token.integer_part == 4);
   TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_ARRAY_CLOSE);
-  TEST_ASSERT(json_tokenizer_is_empty(&t));
+  TEST_ASSERT(test_json_tokenizer_reinit(&t));
 
   TEST_ASSERT(test_json_tokenizer_push_string(&t, "[]"));
   TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_ARRAY_OPEN);
   TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_ARRAY_CLOSE);
-  TEST_ASSERT(json_tokenizer_is_empty(&t));
+  TEST_ASSERT(test_json_tokenizer_reinit(&t));
 
   TEST_ASSERT(test_json_tokenizer_push_string(&t, "[\r \t\n]"));
   TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_ARRAY_OPEN);
@@ -159,7 +167,7 @@ const char *test_json_tokenizer_array() {
   TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_WHITESPACE);
   TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_WHITESPACE);
   TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_ARRAY_CLOSE);
-  TEST_ASSERT(json_tokenizer_is_empty(&t));
+  TEST_ASSERT(test_json_tokenizer_reinit(&t));
 
   TEST_ASSERT(test_json_tokenizer_push_string(&t, "[true, false, null]"));
   TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_ARRAY_OPEN);
@@ -171,7 +179,7 @@ const char *test_json_tokenizer_array() {
   TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_WHITESPACE);
   TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_NULL);
   TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_ARRAY_CLOSE);
-  TEST_ASSERT(json_tokenizer_is_empty(&t));
+  TEST_ASSERT(test_json_tokenizer_reinit(&t));
 
   json_tokenizer_deinit(&t);
   return NULL;
@@ -184,7 +192,7 @@ const char *test_json_tokenizer_object() {
   TEST_ASSERT(test_json_tokenizer_push_string(&t, "{}"));
   TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_OBJECT_OPEN);
   TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_OBJECT_CLOSE);
-  TEST_ASSERT(json_tokenizer_is_empty(&t));
+  TEST_ASSERT(test_json_tokenizer_reinit(&t));
 
   TEST_ASSERT(test_json_tokenizer_push_string(&t, "{\r \t\n}"));
   TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_OBJECT_OPEN);
@@ -193,7 +201,7 @@ const char *test_json_tokenizer_object() {
   TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_WHITESPACE);
   TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_WHITESPACE);
   TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_OBJECT_CLOSE);
-  TEST_ASSERT(json_tokenizer_is_empty(&t));
+  TEST_ASSERT(test_json_tokenizer_reinit(&t));
 
   TEST_ASSERT(test_json_tokenizer_push_string(&t, "{\"width\":15, \"is_good\":true}"));
   TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_OBJECT_OPEN);
@@ -220,7 +228,7 @@ const char *test_json_tokenizer_object() {
   TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_COLON);
   TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_TRUE);
   TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_OBJECT_CLOSE);
-  TEST_ASSERT(json_tokenizer_is_empty(&t));
+  TEST_ASSERT(test_json_tokenizer_reinit(&t));
 
   json_tokenizer_deinit(&t);
   return NULL;
@@ -245,7 +253,7 @@ const char *test_json_tokenizer_whitespaces() {
   TEST_ASSERT(k->kind == JSON_TOKEN_WHITESPACE && k->char_token.character == '\t');
   TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_NUMBER);
   TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_ARRAY_CLOSE);
-  TEST_ASSERT(json_tokenizer_is_empty(&t));
+  TEST_ASSERT(test_json_tokenizer_reinit(&t));
 
   json_tokenizer_deinit(&t);
   return NULL;
@@ -299,7 +307,8 @@ const char *test_json_tokenizer_nesting() {
   TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_OBJECT_CLOSE);
   TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_WHITESPACE);
   TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_ARRAY_CLOSE);
-  TEST_ASSERT(json_tokenizer_is_empty(&t));
+  TEST_ASSERT(test_json_tokenizer_reinit(&t));
+
   json_tokenizer_deinit(&t);
   return NULL;
 }

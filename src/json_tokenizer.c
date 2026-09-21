@@ -127,7 +127,7 @@ bool json_tokenizer_init(json_tokenizer *tokenizer, context *context) {
 
   tokenizer->context = context;
   tokenizer->chars_length = 0;
-  tokenizer->last_nonws_read_token_kind = JSON_TOKEN_COMMA;
+  tokenizer->last_nonws_read_token_kind = JSON_TOKEN_WHITESPACE;
 
   // TODO: make sure that here (and in other places) overflow isn't possible
   // as in, a million '[' should be treated as invalid json instead of allocating million states
@@ -587,22 +587,25 @@ _jtok_success_state _jtok_try_tokenize(json_tokenizer *t) {
   json_context_type *context_slot = stack_peek(&t->context_stack);
   _jtok_success_state result = _JTOK_PASS;
 
-  // printf("tokenize: %.*s\n", (int)t->chars_length, t->chars);
+  // printf("tokenize: %.*s (state = %i)\n", (int)t->chars_length, t->chars, *context_slot);
 
   switch (*context_slot) {
   case JSON_CONTEXT_ROOT:
-    result = _jtok_try_whitespace(t);
-    if (result) {
-      return result;
+    // note that JSON_TOKEN_WHITESPACE is the default value for that field; it's impossible to have this situation otherwise
+    // so this condition is "only proceed if we just red the BOM, or if this is very beginning of the stream"
+    // this condition exists because two JSON values in a row are not a valid JSON
+    if (t->last_nonws_read_token_kind != JSON_TOKEN_BOM && t->last_nonws_read_token_kind != JSON_TOKEN_WHITESPACE) {
+      return _JTOK_PASS;
     }
 
-    if (!utf8_can_bytes_be_bom_start(t->chars, t->chars_length)) {
-      if (_jtok_push_context(t, JSON_CONTEXT_VALUE) != _JTOK_OK) {
-        return _JTOK_ERROR;
-      }
-      return result || _jtok_try_tokenize(t);
+    if (t->last_nonws_read_token_kind != JSON_TOKEN_BOM && utf8_can_bytes_be_bom_start(t->chars, t->chars_length)) {
+      return _jtok_try_bom(t);
     }
-    return _jtok_try_bom(t);
+
+    if (_jtok_push_context(t, JSON_CONTEXT_VALUE) != _JTOK_OK) {
+      return _JTOK_ERROR;
+    }
+    return result || _jtok_try_tokenize(t);
 
   case JSON_CONTEXT_VALUE:
     return _jtok_try_value(t) || _jtok_try_whitespace(t);
@@ -677,4 +680,19 @@ bool json_tokenizer_push(json_tokenizer *t, byte b) {
   // printf("after tokenize: %.*s\n", (int)t->chars_length, t->chars);
 
   return result;
+}
+
+/** Call this after you have no more bytes to push into the tokenizer.
+This will attempt to consume all remaining buffer bytes, and may produce a number. */
+bool json_tokenizer_finalize(json_tokenizer *t) {
+  json_context_type *context_slot = stack_peek(&t->context_stack);
+  // printf("finalize: %.*s (state = %i)\n", (int)t->chars_length, t->chars, *context_slot);
+  _jtok_success_state result = _JTOK_PASS;
+  if (*context_slot == JSON_CONTEXT_NUMBER) {
+    result = _jtok_try_produce_number(t, 0);
+  }
+
+  // printf("after finalize: %.*s\n", (int)t->chars_length, t->chars);
+
+  return result != _JTOK_ERROR;
 }
