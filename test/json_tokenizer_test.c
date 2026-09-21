@@ -330,6 +330,57 @@ const char *test_json_tokenizer_emptiness() {
   return NULL;
 }
 
+bool test_json_tokenizer_setup_for_queue_failure(json_tokenizer *t, size_t offset, int allocations_before_failure) {
+  setup_test_context_default();
+  if (!json_tokenizer_init(t, test_context)) {
+    return false;
+  }
+  char *lots_of_array_open = string_repeat("[", 1, QUEUE_DEFAULT_LENGTH - offset);
+  if (!test_json_tokenizer_push_string(t, lots_of_array_open)) {
+    return false;
+  }
+  free(lots_of_array_open);
+  update_test_context_for_alloc_failure(allocations_before_failure);
+  return true;
+}
+
 const char *test_json_tokenizer_allocation_failures() {
+  json_tokenizer t;
+  char *lots_of_array_open;
+  setup_test_context(0);
+  TEST_ASSERT(!json_tokenizer_init(&t, test_context));
+
+  // printf("queue size/length = %zu/%zu; stack size/length = %zu/%zu\n", queue_get_count(&t.token_queue), t.token_queue.length, t.state_stack.count, t.state_stack.length);
+
+  setup_test_context(1);
+  TEST_ASSERT(!json_tokenizer_init(&t, test_context));
+
+  // overflow on context push
+  setup_test_context_default();
+  TEST_ASSERT(json_tokenizer_init(&t, test_context));
+  lots_of_array_open = string_repeat("[", 1, STACK_DEFAULT_LENGTH - 1);
+  TEST_ASSERT(test_json_tokenizer_push_string(&t, lots_of_array_open));
+  free(lots_of_array_open);
+  update_test_context_for_alloc_failure(0);
+  TEST_ASSERT(!test_json_tokenizer_push_string(&t, "["));
+  json_tokenizer_deinit(&t);
+
+  // overflow on token queue push
+  TEST_ASSERT(test_json_tokenizer_setup_for_queue_failure(&t, 1, 1));
+  TEST_ASSERT(!test_json_tokenizer_push_string(&t, "["));
+  json_tokenizer_deinit(&t);
+
+  TEST_ASSERT(test_json_tokenizer_setup_for_queue_failure(&t, 1, 1));
+  TEST_ASSERT(!test_json_tokenizer_push_string(&t, "123 "));
+  json_tokenizer_deinit(&t);
+
+  TEST_ASSERT(test_json_tokenizer_setup_for_queue_failure(&t, 2, 0));
+  TEST_ASSERT(!test_json_tokenizer_push_string(&t, "\"a\""));
+  json_tokenizer_deinit(&t);
+
+  TEST_ASSERT(test_json_tokenizer_setup_for_queue_failure(&t, 1, 0));
+  TEST_ASSERT(!test_json_tokenizer_push_string(&t, " "));
+  json_tokenizer_deinit(&t);
+
   return NULL;
 }

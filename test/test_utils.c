@@ -19,6 +19,7 @@ void _test_reset_allocators() {
 }
 
 void *test_malloc_with_counter(size_t size) {
+  // printf("malloc(%zu), allocations left: %i\n", size, test_allocations_before_failure);
   if (test_allocations_before_failure < 1) {
     _test_reset_allocators();
     return NULL;
@@ -28,6 +29,7 @@ void *test_malloc_with_counter(size_t size) {
 }
 
 void *test_calloc_with_counter(size_t count, size_t size) {
+  // printf("calloc(%zu, %zu), allocations left: %i\n", count, size, test_allocations_before_failure);
   if (test_allocations_before_failure < 1) {
     _test_reset_allocators();
     return NULL;
@@ -37,6 +39,7 @@ void *test_calloc_with_counter(size_t count, size_t size) {
 }
 
 void *test_realloc_with_counter(void *base, size_t size) {
+  // printf("realloc(%zu), allocations left: %i\n", size, test_allocations_before_failure);
   if (test_allocations_before_failure < 1) {
     _test_reset_allocators();
     return NULL;
@@ -76,4 +79,16 @@ void setup_test_context(int allocations_before_failure_count) {
 
 void setup_test_context_default() {
   setup_test_context(-1);
+}
+
+char *string_repeat(const char *base, size_t length, int times) {
+  size_t result_length = (times * length) + 1;
+  char *result = malloc(sizeof(char) * result_length);
+  for (int i = 0; i < times; i++) {
+    for (size_t j = 0; j < length; j++) {
+      result[(i * length) + j] = base[j];
+    }
+  }
+  result[result_length - 1] = 0;
+  return result;
 }

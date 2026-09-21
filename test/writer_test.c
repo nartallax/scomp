@@ -172,9 +172,9 @@ const char *test_writer_allocation_failure() {
   TEST_ASSERT(!writer_write_byte(writer, 2));
   writer_delete(writer);
 
-  setup_test_context(4 + QUEUE_DEFAULT_SIZE - 1);
+  setup_test_context(4 + QUEUE_DEFAULT_LENGTH - 1);
   writer = writer_new(test_context, 2);
-  for (byte i = 0; i < QUEUE_DEFAULT_SIZE - 2; i++) {
+  for (byte i = 0; i < QUEUE_DEFAULT_LENGTH - 2; i++) {
     TEST_ASSERT(writer_write_byte(writer, i));
     TEST_ASSERT(writer_write_byte(writer, i * 2));
   }

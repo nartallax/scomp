@@ -47,26 +47,26 @@ const char *test_queue_overflow_while_wrapping() {
   queue *q = malloc(sizeof(queue));
   queue_init(q, test_context, sizeof(const char *));
 
-  for (size_t i = 0; i < QUEUE_DEFAULT_SIZE - 1; i++) {
+  for (size_t i = 0; i < QUEUE_DEFAULT_LENGTH - 1; i++) {
     _test_queue_push(q, "a");
   }
 
-  TEST_ASSERT(queue_get_count(q) == QUEUE_DEFAULT_SIZE - 1);
+  TEST_ASSERT(queue_get_count(q) == QUEUE_DEFAULT_LENGTH - 1);
 
   _str(queue_pop(q));
   _str(queue_pop(q));
   _str(queue_pop(q));
 
-  TEST_ASSERT(queue_get_count(q) == QUEUE_DEFAULT_SIZE - 4);
-  TEST_ASSERT(q->length == QUEUE_DEFAULT_SIZE);
+  TEST_ASSERT(queue_get_count(q) == QUEUE_DEFAULT_LENGTH - 4);
+  TEST_ASSERT(q->length == QUEUE_DEFAULT_LENGTH);
 
   for (size_t i = 0; i < 7; i++) {
     _test_queue_push(q, "b");
   }
 
-  TEST_ASSERT(queue_get_count(q) == QUEUE_DEFAULT_SIZE + 3);
-  TEST_ASSERT(q->length == QUEUE_DEFAULT_SIZE * 2);
-  for (size_t i = 0; i < QUEUE_DEFAULT_SIZE - 4; i++) {
+  TEST_ASSERT(queue_get_count(q) == QUEUE_DEFAULT_LENGTH + 3);
+  TEST_ASSERT(q->length == QUEUE_DEFAULT_LENGTH * 2);
+  for (size_t i = 0; i < QUEUE_DEFAULT_LENGTH - 4; i++) {
     TEST_ASSERT(strcmp(_str(queue_pop(q)), "a") == 0);
   }
   for (size_t i = 0; i < 7; i++) {
@@ -74,12 +74,12 @@ const char *test_queue_overflow_while_wrapping() {
   }
   TEST_ASSERT(queue_get_count(q) == 0);
 
-  for (size_t i = 0; i < QUEUE_DEFAULT_SIZE * 2 + 3; i++) {
+  for (size_t i = 0; i < QUEUE_DEFAULT_LENGTH * 2 + 3; i++) {
     _test_queue_push(q, "c");
   }
-  TEST_ASSERT(queue_get_count(q) == (QUEUE_DEFAULT_SIZE * 2) + 3);
-  TEST_ASSERT(q->length == QUEUE_DEFAULT_SIZE * 4);
-  for (size_t i = 0; i < QUEUE_DEFAULT_SIZE * 2 + 3; i++) {
+  TEST_ASSERT(queue_get_count(q) == (QUEUE_DEFAULT_LENGTH * 2) + 3);
+  TEST_ASSERT(q->length == QUEUE_DEFAULT_LENGTH * 4);
+  for (size_t i = 0; i < QUEUE_DEFAULT_LENGTH * 2 + 3; i++) {
     TEST_ASSERT(strcmp(_str(queue_pop(q)), "c") == 0);
   }
 
@@ -92,14 +92,14 @@ const char *test_queue_overflow_while_not_wrapping() {
   queue *q = malloc(sizeof(queue));
   queue_init(q, test_context, sizeof(const char *));
 
-  TEST_ASSERT(q->length == QUEUE_DEFAULT_SIZE);
-  for (size_t i = 0; i < QUEUE_DEFAULT_SIZE * 2 + 5; i++) {
+  TEST_ASSERT(q->length == QUEUE_DEFAULT_LENGTH);
+  for (size_t i = 0; i < QUEUE_DEFAULT_LENGTH * 2 + 5; i++) {
     _test_queue_push(q, "a");
   }
 
-  TEST_ASSERT(queue_get_count(q) == QUEUE_DEFAULT_SIZE * 2 + 5);
-  TEST_ASSERT(q->length == QUEUE_DEFAULT_SIZE * 4);
-  for (size_t i = 0; i < QUEUE_DEFAULT_SIZE * 2 + 5; i++) {
+  TEST_ASSERT(queue_get_count(q) == QUEUE_DEFAULT_LENGTH * 2 + 5);
+  TEST_ASSERT(q->length == QUEUE_DEFAULT_LENGTH * 4);
+  for (size_t i = 0; i < QUEUE_DEFAULT_LENGTH * 2 + 5; i++) {
     TEST_ASSERT(strcmp(_str(queue_pop(q)), "a") == 0);
   }
 
@@ -135,14 +135,14 @@ const char *test_queue_non_pointer_values() {
   test_xyz *pop_slot2 = queue_pop(q);
   TEST_ASSERT(pop_slot2->x == 4 && pop_slot2->y == 5 && pop_slot2->z == 6);
 
-  for (size_t i = 0; i < QUEUE_DEFAULT_SIZE + 3; i++) {
+  for (size_t i = 0; i < QUEUE_DEFAULT_LENGTH + 3; i++) {
     test_xyz *slot = queue_push(q);
     slot->x = i;
     slot->y = i + 1;
     slot->z = i + 2;
   }
 
-  for (size_t i = 0; i < QUEUE_DEFAULT_SIZE + 3; i++) {
+  for (size_t i = 0; i < QUEUE_DEFAULT_LENGTH + 3; i++) {
     test_xyz *slot = queue_pop(q);
     TEST_ASSERT(slot->x == i && slot->y == i + 1 && slot->z == i + 2);
   }
@@ -161,7 +161,7 @@ const char *test_queue_allocation_failures() {
   setup_test_context(1);
   queue_init(&q, test_context, sizeof(const char *));
   TEST_ASSERT(context_is_errored(test_context) == false);
-  for (size_t i = 0; i < QUEUE_DEFAULT_SIZE - 1; i++) {
+  for (size_t i = 0; i < QUEUE_DEFAULT_LENGTH - 1; i++) {
     _test_queue_push(&q, "a");
   }
   TEST_ASSERT(context_is_errored(test_context) == false);

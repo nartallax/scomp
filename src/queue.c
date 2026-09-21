@@ -5,7 +5,7 @@
 #include <stddef.h>
 #include <string.h>
 
-const size_t QUEUE_DEFAULT_SIZE = 16;
+#define QUEUE_DEFAULT_LENGTH 16
 
 /** A queue data structure.
 Can store data of arbitrary size (passed in constructor).
@@ -26,7 +26,7 @@ typedef struct {
 } queue;
 
 bool queue_init(queue *queue, context *context, size_t value_size) {
-  queue->length = QUEUE_DEFAULT_SIZE;
+  queue->length = QUEUE_DEFAULT_LENGTH;
   queue->head = 0;
   queue->tail = 0;
   queue->context = context;
@@ -54,7 +54,8 @@ size_t _queue_increment(queue *queue, size_t i) {
 }
 
 bool _queue_maybe_grow(queue *queue) {
-  if (queue_get_count(queue) < queue->length - 1) {
+  size_t count = queue_get_count(queue);
+  if (count < queue->length - 1) {
     return true;
   }
 

@@ -9,21 +9,22 @@
 #include <inttypes.h>
 #include <stdint.h>
 
+// TODO: reduce this number, it doesn't need to be that long
 #define JTOK_MAX_CHARS_LENGTH 64
 
-/** Types of context in which JSON tokens may appear.
-Different types of contexts may contain different types of tokens
+/** Types of state in which JSON tokens may appear.
+Different types of states may contain different types of tokens
 ("}" cannot appear in the middle of the array etc) */
 typedef enum {
-  JSON_CONTEXT_ROOT = 1,            // expecting BOM or value
-  JSON_CONTEXT_VALUE,               // expecting some sort of value
-  JSON_CONTEXT_OBJECT,              // expecting key, or closing token
-  JSON_CONTEXT_OBJECT_KV_SEPARATOR, // expecting ":"
-  JSON_CONTEXT_ARRAY,               // expecting value, or closing token
-  JSON_CONTEXT_STRING,              // expecting characters
-  JSON_CONTEXT_OBJECT_KEY,          // like string, but hints about further state changes
-  JSON_CONTEXT_NUMBER,              // expecting numeric components
-} json_context_type;
+  JSON_STATE_ROOT = 1,            // expecting BOM or value
+  JSON_STATE_VALUE,               // expecting some sort of value
+  JSON_STATE_OBJECT,              // expecting key, or closing token
+  JSON_STATE_OBJECT_KV_SEPARATOR, // expecting ":"
+  JSON_STATE_ARRAY,               // expecting value, or closing token
+  JSON_STATE_STRING,              // expecting characters
+  JSON_STATE_OBJECT_KEY,          // like string, but hints about further state changes
+  JSON_STATE_NUMBER,              // expecting numeric components
+} json_state_type;
 
 typedef enum {
   _JTOK_NUMBER_STATE_START = 1,
@@ -70,6 +71,7 @@ typedef struct {
 
 /** Tokens that contains a number in JSON sense. */
 typedef struct {
+  // TODO: consider using smaller sizes for fraction/exponent, this is the largest struct in the union
   uint64_t integer_part;
   uint64_t fraction_part;
   uint64_t exponent_part;
@@ -91,9 +93,9 @@ typedef struct {
 } json_token;
 
 typedef enum {
-  _JTOK_PASS = 0,
-  _JTOK_OK = 1,
-  _JTOK_ERROR = 2
+  _JTOK_PASS = 1,
+  _JTOK_OK,
+  _JTOK_ERROR
 } _jtok_success_state;
 
 /** Json tokenizer is a state machine that converts bytes of encoded JSON into tokens that describe contents of the JSON */
@@ -101,7 +103,7 @@ typedef struct {
   context *context;
   /** Parsed tokens ready for consumption */
   queue token_queue;
-  stack context_stack;
+  stack state_stack;
   /** Unparsed characters.
   Length of this field is determined mostly by max possible meaningful length of a number */
   byte chars[JTOK_MAX_CHARS_LENGTH];
@@ -112,7 +114,7 @@ typedef struct {
 
 void json_tokenizer_deinit(json_tokenizer *tokenizer) {
   queue_deinit(&tokenizer->token_queue);
-  stack_deinit(&tokenizer->context_stack);
+  stack_deinit(&tokenizer->state_stack);
 }
 
 bool json_tokenizer_init(json_tokenizer *tokenizer, context *context) {
@@ -120,7 +122,7 @@ bool json_tokenizer_init(json_tokenizer *tokenizer, context *context) {
     return false;
   }
 
-  if (!stack_init(&tokenizer->context_stack, context, sizeof(json_context_type))) {
+  if (!stack_init(&tokenizer->state_stack, context, sizeof(json_state_type))) {
     queue_deinit(&tokenizer->token_queue);
     return false;
   }
@@ -131,12 +133,9 @@ bool json_tokenizer_init(json_tokenizer *tokenizer, context *context) {
 
   // TODO: make sure that here (and in other places) overflow isn't possible
   // as in, a million '[' should be treated as invalid json instead of allocating million states
-  json_context_type *slot = stack_push(&tokenizer->context_stack);
-  if (!slot) {
-    json_tokenizer_deinit(tokenizer);
-    return false;
-  }
-  *slot = JSON_CONTEXT_ROOT;
+  json_state_type *slot = stack_push(&tokenizer->state_stack);
+  // this push would never fail, as stack have already allocated memory for some values
+  *slot = JSON_STATE_ROOT;
 
   return true;
 }
@@ -144,7 +143,7 @@ bool json_tokenizer_init(json_tokenizer *tokenizer, context *context) {
 /** Returns true if the tokenizer is at its initial/final state.
 It's an easy way to check if a JSON was properly formatted. If it is - after stream consumption tokenizer will be empty. */
 bool json_tokenizer_is_empty(json_tokenizer *tokenizer) {
-  return tokenizer->chars_length == 0 && stack_get_count(&tokenizer->context_stack) == 1 && queue_get_count(&tokenizer->token_queue) == 0;
+  return tokenizer->chars_length == 0 && stack_get_count(&tokenizer->state_stack) == 1 && queue_get_count(&tokenizer->token_queue) == 0;
 }
 
 /** If there is a token to consume - the token is returned, null otherwise. */
@@ -358,37 +357,37 @@ _jtok_success_state _jtok_try_parse_next_string_part(json_tokenizer *t) {
   return _jtok_push_int_token(t, JSON_TOKEN_CHARACTER, result, codepoint_length);
 }
 
-_jtok_success_state _jtok_push_context(json_tokenizer *t, json_context_type context) {
-  // printf("push context: %i\n", context);
-  json_context_type *slot = stack_push(&t->context_stack);
+_jtok_success_state _jtok_push_state(json_tokenizer *t, json_state_type state) {
+  // printf("push state: %i\n", state);
+  json_state_type *slot = stack_push(&t->state_stack);
   if (!slot) {
     return _JTOK_ERROR;
   }
-  *slot = context;
+  *slot = state;
   return _JTOK_OK;
 }
 
-_jtok_success_state _jtok_pop_context(json_tokenizer *t) {
-  json_context_type *old_state_slot = stack_pop(&t->context_stack);
-  json_context_type old_state = *old_state_slot;
-  json_context_type *base_state_slot = stack_peek(&t->context_stack);
-  json_context_type base_state = *base_state_slot;
-  // printf("pop context: %i -> %i\n", old_state, base_state);
+_jtok_success_state _jtok_pop_state(json_tokenizer *t) {
+  json_state_type *old_state_slot = stack_pop(&t->state_stack);
+  json_state_type old_state = *old_state_slot;
+  json_state_type *base_state_slot = stack_peek(&t->state_stack);
+  json_state_type base_state = *base_state_slot;
+  // printf("pop state: %i -> %i\n", old_state, base_state);
 
   switch (base_state) {
-  case JSON_CONTEXT_OBJECT:
-    if (old_state == JSON_CONTEXT_OBJECT_KEY) {
-      return _jtok_push_context(t, JSON_CONTEXT_OBJECT_KV_SEPARATOR);
+  case JSON_STATE_OBJECT:
+    if (old_state == JSON_STATE_OBJECT_KEY) {
+      return _jtok_push_state(t, JSON_STATE_OBJECT_KV_SEPARATOR);
     }
     return _JTOK_OK;
-  case JSON_CONTEXT_OBJECT_KV_SEPARATOR:
-    // this pops to JSON_CONTEXT_OBJECT after reading a value
-    return _jtok_pop_context(t);
-  case JSON_CONTEXT_VALUE:
+  case JSON_STATE_OBJECT_KV_SEPARATOR:
+    // this pops to JSON_STATE_OBJECT after reading a value
+    return _jtok_pop_state(t);
+  case JSON_STATE_VALUE:
     // after a composite value, like object, string, array or number, is finished reading - its state is popped
     // and Value state is exposed. but Value must not immediately follow another Value
     // therefore, we must pop this state to expose underlying state
-    return _jtok_pop_context(t);
+    return _jtok_pop_state(t);
   default:
     return _JTOK_OK;
   }
@@ -458,6 +457,8 @@ _jtok_success_state _jtok_try_produce_number(json_tokenizer *t, size_t end_offse
         exponent_symbol = c;
         state = _JTOK_NUMBER_STATE_EXPONENT;
         state_digits = 0;
+      } else {
+        return _JTOK_PASS;
       }
       continue;
     case _JTOK_NUMBER_STATE_EXPONENT:
@@ -474,6 +475,8 @@ _jtok_success_state _jtok_try_produce_number(json_tokenizer *t, size_t end_offse
         }
         exponent_part = (exponent_part * 10) + new_digit;
         state_digits++;
+      } else {
+        return _JTOK_PASS;
       }
       continue;
     }
@@ -489,14 +492,14 @@ _jtok_success_state _jtok_try_produce_number(json_tokenizer *t, size_t end_offse
     return result;
   }
 
-  return _jtok_pop_context(t);
+  return _jtok_pop_state(t);
 }
 
 bool _jtok_is_a_number_starter(byte last_char) {
   return (last_char >= '0' && last_char <= '9') || last_char == '-';
 }
 
-// assumes the tokenizer is in number-parsing context already
+// assumes the tokenizer is in number-parsing state already
 _jtok_success_state _jtok_try_update_number(json_tokenizer *t) {
   byte last_char = t->chars[t->chars_length - 1];
   if ((last_char >= '0' && last_char <= '9') || last_char == 'e' || last_char == 'E' || last_char == '+' || last_char == '-' || last_char == '.') {
@@ -513,10 +516,10 @@ _jtok_success_state _jtok_try_update_number(json_tokenizer *t) {
   return result;
 }
 
-_jtok_success_state _jtok_try_start_string(json_tokenizer *t, json_context_type context) {
+_jtok_success_state _jtok_try_start_string(json_tokenizer *t, json_state_type state) {
   _jtok_success_state result = _jtok_try_quotes(t);
   if (result == _JTOK_OK) {
-    return _jtok_push_context(t, context);
+    return _jtok_push_state(t, state);
   }
   return result;
 }
@@ -524,7 +527,7 @@ _jtok_success_state _jtok_try_start_string(json_tokenizer *t, json_context_type 
 _jtok_success_state _jtok_try_end_string(json_tokenizer *t) {
   _jtok_success_state result = _jtok_try_quotes(t);
   if (result == _JTOK_OK) {
-    return _jtok_pop_context(t);
+    return _jtok_pop_state(t);
   }
   return result;
 }
@@ -532,7 +535,7 @@ _jtok_success_state _jtok_try_end_string(json_tokenizer *t) {
 _jtok_success_state _jtok_try_start_object(json_tokenizer *t) {
   _jtok_success_state result = _jtok_try_object_open(t);
   if (result == _JTOK_OK) {
-    return _jtok_push_context(t, JSON_CONTEXT_OBJECT);
+    return _jtok_push_state(t, JSON_STATE_OBJECT);
   }
   return result;
 }
@@ -540,7 +543,7 @@ _jtok_success_state _jtok_try_start_object(json_tokenizer *t) {
 _jtok_success_state _jtok_try_end_object(json_tokenizer *t) {
   _jtok_success_state result = _jtok_try_object_close(t);
   if (result == _JTOK_OK) {
-    return _jtok_pop_context(t);
+    return _jtok_pop_state(t);
   }
   return result;
 }
@@ -548,7 +551,7 @@ _jtok_success_state _jtok_try_end_object(json_tokenizer *t) {
 _jtok_success_state _jtok_try_start_array(json_tokenizer *t) {
   _jtok_success_state result = _jtok_try_array_open(t);
   if (result == _JTOK_OK) {
-    return _jtok_push_context(t, JSON_CONTEXT_ARRAY);
+    return _jtok_push_state(t, JSON_STATE_ARRAY);
   }
   return result;
 }
@@ -556,41 +559,60 @@ _jtok_success_state _jtok_try_start_array(json_tokenizer *t) {
 _jtok_success_state _jtok_try_end_array(json_tokenizer *t) {
   _jtok_success_state result = _jtok_try_array_close(t);
   if (result == _JTOK_OK) {
-    return _jtok_pop_context(t);
+    return _jtok_pop_state(t);
   }
   return result;
 }
 
 _jtok_success_state _jtok_try_start_number(json_tokenizer *t) {
   if (t->chars_length == 1 && _jtok_is_a_number_starter(t->chars[0])) {
-    return _jtok_push_context(t, JSON_CONTEXT_NUMBER);
+    return _jtok_push_state(t, JSON_STATE_NUMBER);
   }
   return _JTOK_PASS;
 }
 
 _jtok_success_state _jtok_try_const_value(json_tokenizer *t) {
-  // those values are simple and don't require a separate context to parse them
-  // because of that, we need to manually pop Value context
+  // those values are simple and don't require a separate state to parse them
+  // because of that, we need to manually pop Value state
   // (in case of composite values, Value state will be popped on popping state of that composite value)
-  _jtok_success_state result = _jtok_try_true(t) || _jtok_try_false(t) || _jtok_try_null(t);
+  _jtok_success_state result = _jtok_try_true(t);
+  if (result == _JTOK_PASS) {
+    result = _jtok_try_false(t);
+    if (result == _JTOK_PASS) {
+      result = _jtok_try_null(t);
+    }
+  }
   if (result == _JTOK_OK) {
-    return _jtok_pop_context(t);
+    return _jtok_pop_state(t);
   }
   return result;
 }
 
 _jtok_success_state _jtok_try_value(json_tokenizer *t) {
-  return _jtok_try_start_string(t, JSON_CONTEXT_STRING) || _jtok_try_start_number(t) || _jtok_try_start_array(t) || _jtok_try_start_object(t) || _jtok_try_const_value(t);
+  _jtok_success_state result = _jtok_try_start_string(t, JSON_STATE_STRING);
+  if (result == _JTOK_PASS) {
+    result = _jtok_try_start_number(t);
+    if (result == _JTOK_PASS) {
+      result = _jtok_try_start_array(t);
+      if (result == _JTOK_PASS) {
+        result = _jtok_try_start_object(t);
+        if (result == _JTOK_PASS) {
+          result = _jtok_try_const_value(t);
+        }
+      }
+    }
+  }
+  return result;
 }
 
 _jtok_success_state _jtok_try_tokenize(json_tokenizer *t) {
-  json_context_type *context_slot = stack_peek(&t->context_stack);
+  json_state_type *state_slot = stack_peek(&t->state_stack);
   _jtok_success_state result = _JTOK_PASS;
 
-  // printf("tokenize: %.*s (state = %i)\n", (int)t->chars_length, t->chars, *context_slot);
+  // printf("tokenize: %.*s (state = %i)\n", (int)t->chars_length, t->chars, *state_slot);
 
-  switch (*context_slot) {
-  case JSON_CONTEXT_ROOT:
+  switch (*state_slot) {
+  case JSON_STATE_ROOT:
     // note that JSON_TOKEN_WHITESPACE is the default value for that field; it's impossible to have this situation otherwise
     // so this condition is "only proceed if we just red the BOM, or if this is very beginning of the stream"
     // this condition exists because two JSON values in a row are not a valid JSON
@@ -602,59 +624,78 @@ _jtok_success_state _jtok_try_tokenize(json_tokenizer *t) {
       return _jtok_try_bom(t);
     }
 
-    if (_jtok_push_context(t, JSON_CONTEXT_VALUE) != _JTOK_OK) {
+    if (_jtok_push_state(t, JSON_STATE_VALUE) != _JTOK_OK) {
       return _JTOK_ERROR;
     }
-    return result || _jtok_try_tokenize(t);
+    return _jtok_try_tokenize(t);
 
-  case JSON_CONTEXT_VALUE:
-    return _jtok_try_value(t) || _jtok_try_whitespace(t);
+  case JSON_STATE_VALUE:
+    result = _jtok_try_value(t);
+    if (result == _JTOK_PASS) {
+      result = _jtok_try_whitespace(t);
+    }
+    return result;
 
-  case JSON_CONTEXT_OBJECT:
+  case JSON_STATE_OBJECT:
     if (t->last_nonws_read_token_kind != JSON_TOKEN_OBJECT_OPEN && t->last_nonws_read_token_kind != JSON_TOKEN_COMMA) {
       result = _jtok_try_comma(t);
     }
-    return result || _jtok_try_start_string(t, JSON_CONTEXT_OBJECT_KEY) || _jtok_try_end_object(t) || _jtok_try_whitespace(t);
-
-  case JSON_CONTEXT_OBJECT_KV_SEPARATOR:
-    if (t->last_nonws_read_token_kind != JSON_TOKEN_COLON) {
-      result = _jtok_try_colon(t);
-      if (result == _JTOK_OK) {
-        if (_jtok_push_context(t, JSON_CONTEXT_VALUE) != _JTOK_OK) {
-          return _JTOK_ERROR;
+    if (result == _JTOK_PASS) {
+      result = _jtok_try_start_string(t, JSON_STATE_OBJECT_KEY);
+      if (result == _JTOK_PASS) {
+        result = _jtok_try_end_object(t);
+        if (result == _JTOK_PASS) {
+          result = _jtok_try_whitespace(t);
         }
       }
     }
-    return result || _jtok_try_whitespace(t);
+    return result;
 
-  case JSON_CONTEXT_ARRAY:
-    result = _jtok_try_whitespace(t) || _jtok_try_end_array(t);
-    if (result) {
+  case JSON_STATE_OBJECT_KV_SEPARATOR:
+    if (t->last_nonws_read_token_kind != JSON_TOKEN_COLON) {
+      result = _jtok_try_colon(t);
+      if (result == _JTOK_OK) {
+        return _jtok_push_state(t, JSON_STATE_VALUE);
+      }
+    }
+    if (result == _JTOK_PASS) {
+      result = _jtok_try_whitespace(t);
+    }
+    return result;
+
+  case JSON_STATE_ARRAY:
+    result = _jtok_try_whitespace(t);
+    if (result == _JTOK_PASS) {
+      result = _jtok_try_end_array(t);
+    }
+    if (result != _JTOK_PASS) {
       return result;
     }
 
     if (t->last_nonws_read_token_kind != JSON_TOKEN_ARRAY_OPEN && t->last_nonws_read_token_kind != JSON_TOKEN_COMMA) {
       result = _jtok_try_comma(t);
       if (result == _JTOK_OK) {
-        if (_jtok_push_context(t, JSON_CONTEXT_VALUE) != _JTOK_OK) {
-          return _JTOK_ERROR;
-        }
+        return _jtok_push_state(t, JSON_STATE_VALUE);
       }
       return result;
     }
 
     // it's not comma, or whitespace, or array end, which means it can only be a value
-    if (_jtok_push_context(t, JSON_CONTEXT_VALUE) != _JTOK_OK) {
+    if (_jtok_push_state(t, JSON_STATE_VALUE) != _JTOK_OK) {
       return _JTOK_ERROR;
     }
 
     return _jtok_try_tokenize(t);
 
-  case JSON_CONTEXT_STRING:
-  case JSON_CONTEXT_OBJECT_KEY:
-    return _jtok_try_end_string(t) || _jtok_try_parse_next_string_part(t);
+  case JSON_STATE_STRING:
+  case JSON_STATE_OBJECT_KEY:
+    result = _jtok_try_end_string(t);
+    if (result == _JTOK_PASS) {
+      result = _jtok_try_parse_next_string_part(t);
+    }
+    return result;
 
-  case JSON_CONTEXT_NUMBER:
+  case JSON_STATE_NUMBER:
     result = _jtok_try_update_number(t);
     if (result == _JTOK_OK) {
       result = _jtok_try_tokenize(t);
@@ -675,7 +716,9 @@ bool json_tokenizer_push(json_tokenizer *t, byte b) {
   t->chars[t->chars_length] = b;
   t->chars_length++;
 
-  bool result = _jtok_try_tokenize(t) != _JTOK_ERROR;
+  _jtok_success_state tokenize_result = _jtok_try_tokenize(t);
+  // printf("tokenize result: %i\n", tokenize_result);
+  bool result = tokenize_result != _JTOK_ERROR;
 
   // printf("after tokenize: %.*s\n", (int)t->chars_length, t->chars);
 
@@ -685,10 +728,10 @@ bool json_tokenizer_push(json_tokenizer *t, byte b) {
 /** Call this after you have no more bytes to push into the tokenizer.
 This will attempt to consume all remaining buffer bytes, and may produce a number. */
 bool json_tokenizer_finalize(json_tokenizer *t) {
-  json_context_type *context_slot = stack_peek(&t->context_stack);
-  // printf("finalize: %.*s (state = %i)\n", (int)t->chars_length, t->chars, *context_slot);
+  json_state_type *state_slot = stack_peek(&t->state_stack);
+  // printf("finalize: %.*s (state = %i)\n", (int)t->chars_length, t->chars, *state_slot);
   _jtok_success_state result = _JTOK_PASS;
-  if (*context_slot == JSON_CONTEXT_NUMBER) {
+  if (*state_slot == JSON_STATE_NUMBER) {
     result = _jtok_try_produce_number(t, 0);
   }
 
