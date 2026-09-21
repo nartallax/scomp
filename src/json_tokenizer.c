@@ -215,35 +215,36 @@ _jtok_success_state _jtok_push_number_token(json_tokenizer *t, byte sign, uint64
 }
 
 _jtok_success_state _jtok_try_bom(json_tokenizer *t) {
-  if (t->chars_length != UTF8_BOM_LENGTH || !utf8_can_bytes_be_bom_start(t->chars, t->chars_length)) {
-    return _JTOK_PASS;
+  // second condition is commented out because it is checked by the caller
+  if (t->chars_length == UTF8_BOM_LENGTH /* && utf8_can_bytes_be_bom_start(t->chars, t->chars_length) */) {
+    return _jtok_push_simple_token(t, JSON_TOKEN_BOM);
   }
-  return _jtok_push_simple_token(t, JSON_TOKEN_BOM);
+  return _JTOK_PASS;
 }
 
 _jtok_success_state _jtok_try_object_open(json_tokenizer *t) {
-  if (t->chars_length == 1 && t->chars[0] == '{') {
+  if (t->chars[0] == '{') {
     return _jtok_push_simple_token(t, JSON_TOKEN_OBJECT_OPEN);
   }
   return _JTOK_PASS;
 }
 
 _jtok_success_state _jtok_try_object_close(json_tokenizer *t) {
-  if (t->chars_length == 1 && t->chars[0] == '}') {
+  if (t->chars[0] == '}') {
     return _jtok_push_simple_token(t, JSON_TOKEN_OBJECT_CLOSE);
   }
   return _JTOK_PASS;
 }
 
 _jtok_success_state _jtok_try_array_open(json_tokenizer *t) {
-  if (t->chars_length == 1 && t->chars[0] == '[') {
+  if (t->chars[0] == '[') {
     return _jtok_push_simple_token(t, JSON_TOKEN_ARRAY_OPEN);
   }
   return _JTOK_PASS;
 }
 
 _jtok_success_state _jtok_try_array_close(json_tokenizer *t) {
-  if (t->chars_length == 1 && t->chars[0] == ']') {
+  if (t->chars[0] == ']') {
     return _jtok_push_simple_token(t, JSON_TOKEN_ARRAY_CLOSE);
   }
   return _JTOK_PASS;
@@ -271,21 +272,21 @@ _jtok_success_state _jtok_try_null(json_tokenizer *t) {
 }
 
 _jtok_success_state _jtok_try_comma(json_tokenizer *t) {
-  if (t->chars_length == 1 && t->chars[0] == ',') {
+  if (t->chars[0] == ',') {
     return _jtok_push_simple_token(t, JSON_TOKEN_COMMA);
   }
   return _JTOK_PASS;
 }
 
 _jtok_success_state _jtok_try_colon(json_tokenizer *t) {
-  if (t->chars_length == 1 && t->chars[0] == ':') {
+  if (t->chars[0] == ':') {
     return _jtok_push_simple_token(t, JSON_TOKEN_COLON);
   }
   return _JTOK_PASS;
 }
 
 _jtok_success_state _jtok_try_quotes(json_tokenizer *t) {
-  if (t->chars_length == 1 && t->chars[0] == '"') {
+  if (t->chars[0] == '"') {
     return _jtok_push_simple_token(t, JSON_TOKEN_QUOTES);
   }
   return _JTOK_PASS;
@@ -293,7 +294,7 @@ _jtok_success_state _jtok_try_quotes(json_tokenizer *t) {
 
 _jtok_success_state _jtok_try_whitespace(json_tokenizer *t) {
   byte first = t->chars[0];
-  if (t->chars_length == 1 && (first == ' ' || first == '\n' || first == '\r' || first == '\t')) {
+  if (first == ' ' || first == '\n' || first == '\r' || first == '\t') {
     return _jtok_push_char_token(t, JSON_TOKEN_WHITESPACE, t->chars[0]);
   }
   return _JTOK_PASS;
@@ -342,6 +343,11 @@ _jtok_success_state _jtok_try_parse_next_string_part(json_tokenizer *t) {
   size_t codepoint_length = utf8_get_sequence_length_by_first_byte(t->chars[0]);
   if (t->chars_length != codepoint_length) {
     // this includes codepoint_length of 0
+    return _JTOK_PASS;
+  }
+
+  if (first == '\\') {
+    // we must wait for more characters, as it is escape symbol
     return _JTOK_PASS;
   }
 
@@ -565,7 +571,7 @@ _jtok_success_state _jtok_try_end_array(json_tokenizer *t) {
 }
 
 _jtok_success_state _jtok_try_start_number(json_tokenizer *t) {
-  if (t->chars_length == 1 && _jtok_is_a_number_starter(t->chars[0])) {
+  if (_jtok_is_a_number_starter(t->chars[0])) {
     return _jtok_push_state(t, JSON_STATE_NUMBER);
   }
   return _JTOK_PASS;

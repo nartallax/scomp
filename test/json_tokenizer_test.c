@@ -11,26 +11,30 @@ bool test_json_tokenizer_push_string(json_tokenizer *t, const char *str) {
   return true;
 }
 
+bool test_json_tokenizer_reinit_nonempty(json_tokenizer *t) {
+  if (json_tokenizer_is_empty(t)) {
+    return false;
+  }
+  json_tokenizer_deinit(t);
+  return json_tokenizer_init(t, test_context);
+}
+
 bool test_json_tokenizer_reinit(json_tokenizer *t) {
   if (!json_tokenizer_is_empty(t)) {
     return false;
   }
   json_tokenizer_deinit(t);
-  if (!json_tokenizer_init(t, test_context)) {
-    return false;
-  }
-  return true;
+  return json_tokenizer_init(t, test_context);
 }
 
 const char *test_json_tokenizer_string() {
   json_tokenizer t;
+  json_token *k;
   TEST_ASSERT(json_tokenizer_init(&t, test_context));
-  TEST_ASSERT(json_tokenizer_is_empty(&t));
-  TEST_ASSERT(test_json_tokenizer_push_string(&t, "\"abcde\""));
-  TEST_ASSERT(json_tokenizer_is_empty(&t) == false);
-  TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_QUOTES);
 
-  json_token *k = json_tokenizer_consume(&t);
+  TEST_ASSERT(test_json_tokenizer_push_string(&t, "\"abcde\""));
+  TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_QUOTES);
+  k = json_tokenizer_consume(&t);
   TEST_ASSERT(k->kind == JSON_TOKEN_CHARACTER && k->int_token.value == 'a' && k->int_token.mod == 1);
   k = json_tokenizer_consume(&t);
   TEST_ASSERT(k->kind == JSON_TOKEN_CHARACTER && k->int_token.value == 'b' && k->int_token.mod == 1);
@@ -40,9 +44,29 @@ const char *test_json_tokenizer_string() {
   TEST_ASSERT(k->kind == JSON_TOKEN_CHARACTER && k->int_token.value == 'd' && k->int_token.mod == 1);
   k = json_tokenizer_consume(&t);
   TEST_ASSERT(k->kind == JSON_TOKEN_CHARACTER && k->int_token.value == 'e' && k->int_token.mod == 1);
-  TEST_ASSERT(json_tokenizer_is_empty(&t) == false);
   TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_QUOTES);
   TEST_ASSERT(json_tokenizer_consume(&t) == NULL);
+  TEST_ASSERT(test_json_tokenizer_reinit(&t));
+
+  TEST_ASSERT(test_json_tokenizer_push_string(&t, "\"\\r\\\\\\n\\t\\\"\\/\\b\\f\""));
+  TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_QUOTES);
+  k = json_tokenizer_consume(&t);
+  TEST_ASSERT(k->kind == JSON_TOKEN_ESCAPED_CHARACTER && k->char_token.character == 'r');
+  k = json_tokenizer_consume(&t);
+  TEST_ASSERT(k->kind == JSON_TOKEN_ESCAPED_CHARACTER && k->char_token.character == '\\');
+  k = json_tokenizer_consume(&t);
+  TEST_ASSERT(k->kind == JSON_TOKEN_ESCAPED_CHARACTER && k->char_token.character == 'n');
+  k = json_tokenizer_consume(&t);
+  TEST_ASSERT(k->kind == JSON_TOKEN_ESCAPED_CHARACTER && k->char_token.character == 't');
+  k = json_tokenizer_consume(&t);
+  TEST_ASSERT(k->kind == JSON_TOKEN_ESCAPED_CHARACTER && k->char_token.character == '"');
+  k = json_tokenizer_consume(&t);
+  TEST_ASSERT(k->kind == JSON_TOKEN_ESCAPED_CHARACTER && k->char_token.character == '/');
+  k = json_tokenizer_consume(&t);
+  TEST_ASSERT(k->kind == JSON_TOKEN_ESCAPED_CHARACTER && k->char_token.character == 'b');
+  k = json_tokenizer_consume(&t);
+  TEST_ASSERT(k->kind == JSON_TOKEN_ESCAPED_CHARACTER && k->char_token.character == 'f');
+  TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_QUOTES);
   TEST_ASSERT(test_json_tokenizer_reinit(&t));
 
   json_tokenizer_deinit(&t);
@@ -115,17 +139,47 @@ const char *test_json_tokenizer_constants() {
   json_tokenizer t;
   TEST_ASSERT(json_tokenizer_init(&t, test_context));
 
-  TEST_ASSERT(test_json_tokenizer_push_string(&t, "true"));
-  TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_TRUE);
-  TEST_ASSERT(test_json_tokenizer_reinit(&t));
+  const char true_str[5] = "true";
+  for (size_t i = 0; i < sizeof(true_str) - 1; i++) {
+    for (size_t j = 0; j < sizeof(true_str) - 1; j++) {
+      TEST_ASSERT(json_tokenizer_push(&t, j <= i ? true_str[j] : '0'));
+    }
+    if (i == sizeof(true_str) - 2) {
+      TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_TRUE);
+      TEST_ASSERT(test_json_tokenizer_reinit(&t));
+    } else {
+      TEST_ASSERT(json_tokenizer_consume(&t) == NULL);
+      TEST_ASSERT(test_json_tokenizer_reinit_nonempty(&t));
+    }
+  }
 
-  TEST_ASSERT(test_json_tokenizer_push_string(&t, "false"));
-  TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_FALSE);
-  TEST_ASSERT(test_json_tokenizer_reinit(&t));
+  const char false_str[6] = "false";
+  for (size_t i = 0; i < sizeof(false_str) - 1; i++) {
+    for (size_t j = 0; j < sizeof(false_str) - 1; j++) {
+      TEST_ASSERT(json_tokenizer_push(&t, j <= i ? false_str[j] : '0'));
+    }
+    if (i == sizeof(false_str) - 2) {
+      TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_FALSE);
+      TEST_ASSERT(test_json_tokenizer_reinit(&t));
+    } else {
+      TEST_ASSERT(json_tokenizer_consume(&t) == NULL);
+      TEST_ASSERT(test_json_tokenizer_reinit_nonempty(&t));
+    }
+  }
 
-  TEST_ASSERT(test_json_tokenizer_push_string(&t, "null"));
-  TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_NULL);
-  TEST_ASSERT(test_json_tokenizer_reinit(&t));
+  const char null_str[5] = "null";
+  for (size_t i = 0; i < sizeof(null_str) - 1; i++) {
+    for (size_t j = 0; j < sizeof(null_str) - 1; j++) {
+      TEST_ASSERT(json_tokenizer_push(&t, j <= i ? null_str[j] : '0'));
+    }
+    if (i == sizeof(null_str) - 2) {
+      TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_NULL);
+      TEST_ASSERT(test_json_tokenizer_reinit(&t));
+    } else {
+      TEST_ASSERT(json_tokenizer_consume(&t) == NULL);
+      TEST_ASSERT(test_json_tokenizer_reinit_nonempty(&t));
+    }
+  }
 
   json_tokenizer_deinit(&t);
   return NULL;
@@ -230,6 +284,11 @@ const char *test_json_tokenizer_object() {
   TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_OBJECT_CLOSE);
   TEST_ASSERT(test_json_tokenizer_reinit(&t));
 
+  TEST_ASSERT(test_json_tokenizer_push_string(&t, "{uwu"));
+  TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_OBJECT_OPEN);
+  TEST_ASSERT(json_tokenizer_consume(&t) == NULL);
+  TEST_ASSERT(test_json_tokenizer_reinit_nonempty(&t));
+
   json_tokenizer_deinit(&t);
   return NULL;
 }
@@ -254,6 +313,29 @@ const char *test_json_tokenizer_whitespaces() {
   TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_NUMBER);
   TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_ARRAY_CLOSE);
   TEST_ASSERT(test_json_tokenizer_reinit(&t));
+
+  TEST_ASSERT(test_json_tokenizer_push_string(&t, "[owo]"));
+  TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_ARRAY_OPEN);
+  TEST_ASSERT(json_tokenizer_consume(&t) == NULL);
+  TEST_ASSERT(test_json_tokenizer_reinit_nonempty(&t));
+
+  json_tokenizer_deinit(&t);
+  return NULL;
+}
+
+const char *test_json_try_bom() {
+  json_tokenizer t;
+  TEST_ASSERT(json_tokenizer_init(&t, test_context));
+  TEST_ASSERT(json_tokenizer_push(&t, utf8_bom[0]));
+  TEST_ASSERT(json_tokenizer_push(&t, utf8_bom[1]));
+  TEST_ASSERT(json_tokenizer_push(&t, utf8_bom[2]));
+  TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_BOM);
+  TEST_ASSERT(test_json_tokenizer_reinit(&t));
+
+  TEST_ASSERT(json_tokenizer_push(&t, utf8_bom[0]));
+  TEST_ASSERT(json_tokenizer_push(&t, utf8_bom[1]));
+  TEST_ASSERT(json_tokenizer_push(&t, 0x0));
+  TEST_ASSERT(json_tokenizer_consume(&t) == NULL);
 
   json_tokenizer_deinit(&t);
   return NULL;
