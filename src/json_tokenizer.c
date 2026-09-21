@@ -4,6 +4,7 @@
 #include "limits.h"
 #include "queue.c"
 #include "stack.c"
+#include "utf8.c"
 #include <complex.h>
 #include <inttypes.h>
 #include <stdint.h>
@@ -214,14 +215,8 @@ _jtok_success_state _jtok_push_number_token(json_tokenizer *t, byte sign, uint64
   return _JTOK_OK;
 }
 
-const byte utf8_bom[3] = {0xEF, 0xBB, 0xBF};
-
-_jtok_success_state _jtok_can_be_bom(json_tokenizer *t) {
-  return t->chars_length == 0 && (t->chars_length < 1 || t->chars[0] == utf8_bom[0]) && (t->chars_length < 2 || t->chars[1] == utf8_bom[1]) && (t->chars_length < 3 || t->chars[2] == utf8_bom[2]);
-}
-
 _jtok_success_state _jtok_try_bom(json_tokenizer *t) {
-  if (t->chars_length != 3 || !_jtok_can_be_bom(t)) {
+  if (t->chars_length != 3 || !utf8_can_bytes_be_bom_start(t->chars, t->chars_length)) {
     return _JTOK_PASS;
   }
   return _jtok_push_simple_token(t, JSON_TOKEN_BOM);
@@ -324,71 +319,46 @@ uint64_t _jtok_parse_hex(byte hex_char) {
 // this assumes that string-ending quotes have been processed already
 _jtok_success_state _jtok_try_parse_next_string_part(json_tokenizer *t) {
   byte first = t->chars[0];
-
-  // utf-8 codepoint parsing
-  switch (t->chars_length) {
-  case 1:
-    // codepoint = first
-    if (first <= 0x7F) {
-      return _jtok_push_int_token(t, JSON_TOKEN_CHARACTER, first, 1);
+  if (t->chars_length == 2 && first == '\\') {
+    // normal escape sequence
+    byte c = t->chars[1];
+    // we are free to return here, as backslash cannot be followed just by any random character, only those selected few
+    if (c == '\\' || c == '"' || c == '/' || c == 'b' || c == 'f' || c == 'n' || c == 'r' || c == 't') {
+      return _jtok_push_char_token(t, JSON_TOKEN_ESCAPED_CHARACTER, c);
     }
     return _JTOK_PASS;
-  case 2: {
-    // normal escape?
-    if (first == '\\') {
-      byte c = t->chars[1];
-      // we are free to return here, as backslash cannot be followed just by any random character, only those selected few
-      if (c == '\\' || c == '"' || c == '/' || c == 'b' || c == 'f' || c == 'n' || c == 'r' || c == 't') {
-        return _jtok_push_char_token(t, JSON_TOKEN_ESCAPED_CHARACTER, c);
-      }
+  } else if (t->chars_length == 6 && first == '\\' && t->chars[1] == 'u') {
+    // utf-16 charcode escape sequence
+    uint64_t a = _jtok_parse_hex(t->chars[2]);
+    uint64_t b = _jtok_parse_hex(t->chars[3]);
+    uint64_t c = _jtok_parse_hex(t->chars[4]);
+    uint64_t d = _jtok_parse_hex(t->chars[5]);
+    if (a == _jtok_not_a_hex_character || b == _jtok_not_a_hex_character || c == _jtok_not_a_hex_character || d == _jtok_not_a_hex_character) {
       return _JTOK_PASS;
     }
-    // codepoint = ((first & 0x1F) << 6) | (t->chars[1] & 0x3F)
-    if (first <= 0xDF && first >= 0xC2) {
-      return _jtok_push_int_token(t, JSON_TOKEN_CHARACTER, (first << 0) | (t->chars[1] << 8), 2);
-    }
+    // 4 hex bytes are stored like that to preserve case
+    // as we must not lose any data at all during tokenization
+    uint64_t code = (t->chars[0] << 0) | (t->chars[1] << 8) | (t->chars[2] << 16) | (t->chars[3] << 24);
+    return _jtok_push_int_token(t, JSON_TOKEN_ESCAPED_CHARCODE, code, 0);
+  }
+
+  // trying to parse normal utf-8 byte sequence
+  size_t codepoint_length = utf8_get_sequence_length_by_first_byte(t->chars[0]);
+  if (t->chars_length != codepoint_length) {
+    // this includes codepoint_length of 0
     return _JTOK_PASS;
   }
 
-  case 3:
-    // codepoint = ((first & 0x0F) << 12) | ((t->chars[1] & 0x3F) << 6) | (t->chars[2] & 0x3F)
-    if (first <= 0xEF && first >= 0xE0) {
-      return _jtok_push_int_token(t, JSON_TOKEN_CHARACTER, (first << 0) | (t->chars[1] << 8) | (t->chars[2] << 16), 3);
-    }
-    return _JTOK_PASS;
-
-  case 4:
-    // codepoint = ((first & 0x07) << 18) | ((t->chars[1] & 0x3F) << 12) | ((t->chars[2] & 0x3F) << 6) | (t->chars[3] & 0x3F)
-    if (first <= 0xF4 && first >= 0xF0) {
-      return _jtok_push_int_token(t, JSON_TOKEN_CHARACTER, (first << 0) | (t->chars[1] << 8) | (t->chars[2] << 16) | (t->chars[3] << 24), 4);
-      ;
-    }
-    return _JTOK_PASS;
-
-  case 6: {
-    // charcode escape?
-    if (first == '\\') {
-      if (t->chars[1] != 'u') {
-        return _JTOK_PASS;
-      }
-      uint64_t a = _jtok_parse_hex(t->chars[2]);
-      uint64_t b = _jtok_parse_hex(t->chars[3]);
-      uint64_t c = _jtok_parse_hex(t->chars[4]);
-      uint64_t d = _jtok_parse_hex(t->chars[5]);
-      if (a == _jtok_not_a_hex_character || b == _jtok_not_a_hex_character || c == _jtok_not_a_hex_character || d == _jtok_not_a_hex_character) {
-        return _JTOK_PASS;
-      }
-      // 4 hex bytes are stored like that to preserve case
-      // we must not lose any data at all
-      uint64_t code = (t->chars[0] << 0) | (t->chars[1] << 8) | (t->chars[2] << 16) | (t->chars[3] << 24);
-      return _jtok_push_int_token(t, JSON_TOKEN_ESCAPED_CHARCODE, code, 0);
-    }
-  }
-
-  default:
-    // utf-8 only specifies sequences of bytes up to 4
+  if (!utf8_are_continuation_bytes_valid(t->chars, codepoint_length)) {
     return _JTOK_PASS;
   }
+
+  uint64_t result = first;
+  for (size_t i = 1; i < codepoint_length; i++) {
+    // note that it's utf-8 bytes compressed into uint64_t, not a decoded codepoint
+    result |= t->chars[i] << (8 * i);
+  }
+  return _jtok_push_int_token(t, JSON_TOKEN_CHARACTER, result, codepoint_length);
 }
 
 _jtok_success_state _jtok_push_context(json_tokenizer *t, json_context_type context) {
@@ -633,7 +603,7 @@ _jtok_success_state _jtok_try_tokenize(json_tokenizer *t) {
       return result;
     }
 
-    if (!_jtok_can_be_bom(t)) {
+    if (!utf8_can_bytes_be_bom_start(t->chars, t->chars_length)) {
       if (_jtok_push_context(t, JSON_CONTEXT_VALUE) != _JTOK_OK) {
         return _JTOK_ERROR;
       }

@@ -6,6 +6,7 @@
 #include "./queue_test.c"
 #include "./stack_test.c"
 #include "./test_utils.c"
+#include "./utf8_test.c"
 #include "./writer_test.c"
 #include <stdio.h>
 
@@ -20,6 +21,7 @@ typedef struct {
 
 int main() {
   test tests[] = {
+      MAKE_TEST(test_utf8_simple),
       MAKE_TEST(test_fenwick_tree_simple),
       MAKE_TEST(test_fenwick_tree_max_range),
       MAKE_TEST(test_fenwick_tree_range_sum_cornercase),
