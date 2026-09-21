@@ -568,23 +568,19 @@ _jtok_success_state _jtok_try_start_number(json_tokenizer *t) {
   return _JTOK_PASS;
 }
 
-_jtok_success_state _jtok_try_value(json_tokenizer *t) {
-  _jtok_success_state result = _jtok_try_start_string(t, JSON_CONTEXT_STRING) || _jtok_try_start_number(t) || _jtok_try_start_array(t) || _jtok_try_start_object(t) || _jtok_try_true(t) ||
-                               _jtok_try_false(t) || _jtok_try_null(t);
+_jtok_success_state _jtok_try_const_value(json_tokenizer *t) {
+  // those values are simple and don't require a separate context to parse them
+  // because of that, we need to manually pop Value context
+  // (in case of composite values, Value state will be popped on popping state of that composite value)
+  _jtok_success_state result = _jtok_try_true(t) || _jtok_try_false(t) || _jtok_try_null(t);
   if (result == _JTOK_OK) {
-    // OK may be returned even if queue is empty in case of numbers
-    if (queue_get_count(&t->token_queue) > 0) {
-      json_token *token_slot = queue_peek_tail(&t->token_queue);
-      json_token_kind last_parsed_token_kind = token_slot->kind;
-      if (last_parsed_token_kind == JSON_TOKEN_TRUE || last_parsed_token_kind == JSON_TOKEN_FALSE || last_parsed_token_kind == JSON_TOKEN_NULL) {
-        // composite values will pop their own context, which then will cause popping of Value context
-        // but simple values won't; because of that, we need to pop the state here
-        // TODO: move in _try functioins? or maybe wrap in a function
-        return _jtok_pop_context(t);
-      }
-    }
+    return _jtok_pop_context(t);
   }
   return result;
+}
+
+_jtok_success_state _jtok_try_value(json_tokenizer *t) {
+  return _jtok_try_start_string(t, JSON_CONTEXT_STRING) || _jtok_try_start_number(t) || _jtok_try_start_array(t) || _jtok_try_start_object(t) || _jtok_try_const_value(t);
 }
 
 _jtok_success_state _jtok_try_tokenize(json_tokenizer *t) {
