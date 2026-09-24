@@ -5,6 +5,16 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+// TODO: dual frequency tables
+// imagine if frequencies at the start of the stream have one distribution, but later shift to other distributions
+// we may want to account for that; to achieve that, we only need to account for frequencies of last N symbols
+// rough way to do this is to have two tables disguised as one
+// all the increments go into main table; when N total symbols are reached in main table, it becomes secondary and stops receiving increments
+// if there was a secondary table at this point - it is wiped (1-init, or 0-init) and becomes new main
+// both main and secondary tables are counted when fetching frequency of a particular symbol
+// will it harm/improve general case? will it improve focused case?
+// also limiting N to small-ish numbers may allow us to reduce bit width of symbol_frequency, which is good for cpu cache
+
 typedef enum {
   FTABLE_INCLUDE_EOF = 1 << 0,
   FTABLE_EXCLUDE_EOF = (1 << 1),
