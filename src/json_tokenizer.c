@@ -10,6 +10,9 @@
 #include <stdint.h>
 
 // TODO: reduce this number, it doesn't need to be that long
+/** Length of internal buffer of tokenizer.
+If it ever fills - tokenizer will start to fail to ingest more bytes,
+which indicates invalid JSON. */
 #define JTOK_MAX_CHARS_LENGTH 64
 
 /** Types of state in which JSON tokens may appear.
@@ -418,19 +421,19 @@ _jtok_success_state _jtok_try_produce_number(json_tokenizer *t, size_t end_offse
     byte c = t->chars[i];
     switch (state) {
     case _JTOK_NUMBER_STATE_START:
-      if (c == '-') {
-        if (state_digits != 0) {
-          // 1- is invalid
-          return _JTOK_PASS;
-        }
-        sign = c;
-      } else if (c >= '0' && c <= '9') {
+      if (c >= '0' && c <= '9') {
         byte new_digit = c - '0';
         if (_jtok_uint64_will_overflow(integer_part, new_digit)) {
           return _JTOK_PASS;
         }
         integer_part = (integer_part * 10) + new_digit;
         state_digits++;
+      } else if (c == '-') {
+        if (state_digits != 0) {
+          // 1- is invalid
+          return _JTOK_PASS;
+        }
+        sign = c;
       } else if (c == '.') {
         if (state_digits == 0) {
           // .123 is invalid
@@ -473,19 +476,19 @@ _jtok_success_state _jtok_try_produce_number(json_tokenizer *t, size_t end_offse
       // _JTOK_NUMBER_STATE_EXPONENT
       // llvm-cov doesn't recognize exhaustive switches over enum values
       // so the last branch must be default to have 100% coverage
-      if (c == '-' || c == '+') {
-        if (state_digits != 0) {
-          // 1e1+ is invalid
-          return _JTOK_PASS;
-        }
-        exponent_sign = c;
-      } else if (c >= '0' && c <= '9') {
+      if (c >= '0' && c <= '9') {
         byte new_digit = c - '0';
         if (_jtok_uint64_will_overflow(exponent_part, new_digit)) {
           return _JTOK_PASS;
         }
         exponent_part = (exponent_part * 10) + new_digit;
         state_digits++;
+      } else if (c == '-' || c == '+') {
+        if (state_digits != 0) {
+          // 1e1+ is invalid
+          return _JTOK_PASS;
+        }
+        exponent_sign = c;
       } else {
         return _JTOK_PASS;
       }
@@ -663,40 +666,41 @@ _jtok_success_state _jtok_try_tokenize(json_tokenizer *t) {
     return result;
 
   case JSON_STATE_OBJECT_KV_SEPARATOR:
-    if (t->last_nonws_read_token_kind != JSON_TOKEN_COLON) {
-      result = _jtok_try_colon(t);
-      if (result == _JTOK_OK) {
-        return _jtok_push_state(t, JSON_STATE_VALUE);
-      }
-    }
-    if (result == _JTOK_PASS) {
+    result = _jtok_try_colon(t);
+    if (result == _JTOK_OK) {
+      return _jtok_push_state(t, JSON_STATE_VALUE);
+    } else if (result == _JTOK_PASS) {
       result = _jtok_try_whitespace(t);
     }
     return result;
 
   case JSON_STATE_ARRAY:
-    result = _jtok_try_whitespace(t);
+    if (t->last_nonws_read_token_kind != JSON_TOKEN_ARRAY_OPEN) {
+      result = _jtok_try_comma(t);
+      if (result == _JTOK_OK) {
+        return _jtok_push_state(t, JSON_STATE_VALUE);
+      }
+    }
+
     if (result == _JTOK_PASS) {
       result = _jtok_try_end_array(t);
+    }
+    if (result == _JTOK_PASS) {
+      result = _jtok_try_whitespace(t);
     }
     if (result != _JTOK_PASS) {
       return result;
     }
 
-    if (t->last_nonws_read_token_kind != JSON_TOKEN_ARRAY_OPEN && t->last_nonws_read_token_kind != JSON_TOKEN_COMMA) {
-      result = _jtok_try_comma(t);
-      if (result == _JTOK_OK) {
-        return _jtok_push_state(t, JSON_STATE_VALUE);
+    if (t->last_nonws_read_token_kind == JSON_TOKEN_ARRAY_OPEN) {
+      // it's not comma, or whitespace, or array end, which means it can only be a value
+      // this state is only reachable if the array has just started, otherwise value state would be pushed by the branch that processes comma
+      if (_jtok_push_state(t, JSON_STATE_VALUE) != _JTOK_OK) {
+        return _JTOK_ERROR;
       }
-      return result;
+      return _jtok_try_tokenize(t);
     }
-
-    // it's not comma, or whitespace, or array end, which means it can only be a value
-    if (_jtok_push_state(t, JSON_STATE_VALUE) != _JTOK_OK) {
-      return _JTOK_ERROR;
-    }
-
-    return _jtok_try_tokenize(t);
+    return _JTOK_PASS; // invalid json
 
   case JSON_STATE_STRING:
   case JSON_STATE_OBJECT_KEY:
@@ -706,7 +710,8 @@ _jtok_success_state _jtok_try_tokenize(json_tokenizer *t) {
     }
     return result;
 
-  case JSON_STATE_NUMBER:
+  default:
+    // JSON_STATE_NUMBER. as `default` for code coverage reasons
     result = _jtok_try_update_number(t);
     if (result == _JTOK_OK) {
       result = _jtok_try_tokenize(t);
