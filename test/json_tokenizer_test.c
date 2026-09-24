@@ -1,6 +1,7 @@
 #pragma once
 #include "../src/json_tokenizer.c"
 #include "test_utils.c"
+#include <stdio.h>
 
 bool test_json_tokenizer_push_string(json_tokenizer *t, const char *str) {
   for (int i = 0; str[i] != 0; i++) {
@@ -48,6 +49,35 @@ const char *test_json_tokenizer_string() {
   TEST_ASSERT(json_tokenizer_consume(&t) == NULL);
   TEST_ASSERT(test_json_tokenizer_reinit(&t));
 
+  // correct escaped codepoint
+  TEST_ASSERT(test_json_tokenizer_push_string(&t, "\"\\u12aB\""));
+  TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_QUOTES);
+  k = json_tokenizer_consume(&t);
+  uint64_t merged_code = 0;
+  merged_code = (merged_code << 8) | 'B';
+  merged_code = (merged_code << 8) | 'a';
+  merged_code = (merged_code << 8) | '2';
+  merged_code = (merged_code << 8) | '1';
+  TEST_ASSERT(k->kind == JSON_TOKEN_ESCAPED_CHARCODE && k->int_token.value == merged_code);
+  TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_QUOTES);
+  TEST_ASSERT(test_json_tokenizer_reinit(&t));
+
+  // incorrect escaped codepoint
+  TEST_ASSERT(test_json_tokenizer_push_string(&t, "\"\\uGg//\""));
+  TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_QUOTES);
+  TEST_ASSERT(json_tokenizer_consume(&t) == NULL);
+  TEST_ASSERT(test_json_tokenizer_reinit_nonempty(&t));
+
+  // incorrect escaped codepoints in all four positions
+  const char *bad_escaped_codepoints[4] = {"\"\\uxfff", "\"\\ufxff", "\"\\uffxf", "\"\\ufffx"};
+  for (size_t i = 0; i < 4; i++) {
+    TEST_ASSERT(test_json_tokenizer_push_string(&t, bad_escaped_codepoints[i]));
+    TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_QUOTES);
+    TEST_ASSERT(json_tokenizer_consume(&t) == NULL);
+    TEST_ASSERT(test_json_tokenizer_reinit_nonempty(&t));
+  }
+
+  // other escapings
   TEST_ASSERT(test_json_tokenizer_push_string(&t, "\"\\r\\\\\\n\\t\\\"\\/\\b\\f\""));
   TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_QUOTES);
   k = json_tokenizer_consume(&t);
@@ -68,6 +98,55 @@ const char *test_json_tokenizer_string() {
   TEST_ASSERT(k->kind == JSON_TOKEN_ESCAPED_CHARACTER && k->char_token.character == 'f');
   TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_QUOTES);
   TEST_ASSERT(test_json_tokenizer_reinit(&t));
+
+  // correct unicode
+  TEST_ASSERT(test_json_tokenizer_push_string(&t, "\"Привет, мир!\""));
+  TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_QUOTES);
+  k = json_tokenizer_consume(&t);
+  TEST_ASSERT(k->kind == JSON_TOKEN_CHARACTER && k->int_token.value == (0xD0 | (0x9F << 8)));
+  k = json_tokenizer_consume(&t);
+  TEST_ASSERT(k->kind == JSON_TOKEN_CHARACTER && k->int_token.value == (0xD1 | (0x80 << 8)));
+  k = json_tokenizer_consume(&t);
+  TEST_ASSERT(k->kind == JSON_TOKEN_CHARACTER && k->int_token.value == (0xD0 | (0xB8 << 8)));
+  k = json_tokenizer_consume(&t);
+  TEST_ASSERT(k->kind == JSON_TOKEN_CHARACTER && k->int_token.value == (0xD0 | (0xB2 << 8)));
+  k = json_tokenizer_consume(&t);
+  TEST_ASSERT(k->kind == JSON_TOKEN_CHARACTER && k->int_token.value == (0xD0 | (0xB5 << 8)));
+  k = json_tokenizer_consume(&t);
+  TEST_ASSERT(k->kind == JSON_TOKEN_CHARACTER && k->int_token.value == (0xD1 | (0x82 << 8)));
+  k = json_tokenizer_consume(&t);
+  TEST_ASSERT(k->kind == JSON_TOKEN_CHARACTER && k->int_token.value == ',');
+  k = json_tokenizer_consume(&t);
+  TEST_ASSERT(k->kind == JSON_TOKEN_CHARACTER && k->int_token.value == ' ');
+  k = json_tokenizer_consume(&t);
+  TEST_ASSERT(k->kind == JSON_TOKEN_CHARACTER && k->int_token.value == (0xD0 | (0xBC << 8)));
+  k = json_tokenizer_consume(&t);
+  TEST_ASSERT(k->kind == JSON_TOKEN_CHARACTER && k->int_token.value == (0xD0 | (0xB8 << 8)));
+  k = json_tokenizer_consume(&t);
+  TEST_ASSERT(k->kind == JSON_TOKEN_CHARACTER && k->int_token.value == (0xD1 | (0x80 << 8)));
+  k = json_tokenizer_consume(&t);
+  TEST_ASSERT(k->kind == JSON_TOKEN_CHARACTER && k->int_token.value == '!');
+  TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_QUOTES);
+  TEST_ASSERT(test_json_tokenizer_reinit(&t));
+
+  // unicode with broken continuation bytes
+  const byte broken_continuation_bytes_unicode_pair[6] = {0xD0, 0xFF, 0xD0, 0xFF, 0xD0, 0xFF};
+  char *broken_continuation_bytes_unicode_str = malloc(64);
+  TEST_ASSERT(sprintf(broken_continuation_bytes_unicode_str, "\"%.*s\"", 6, broken_continuation_bytes_unicode_pair) < 64);
+  TEST_ASSERT(test_json_tokenizer_push_string(&t, broken_continuation_bytes_unicode_str));
+  free(broken_continuation_bytes_unicode_str);
+  TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_QUOTES);
+  TEST_ASSERT(json_tokenizer_consume(&t) == NULL);
+  TEST_ASSERT(test_json_tokenizer_reinit_nonempty(&t));
+
+  // unicode with broken continuation bytes in escape sequence
+  broken_continuation_bytes_unicode_str = malloc(64);
+  TEST_ASSERT(sprintf(broken_continuation_bytes_unicode_str, "\"\\%.*s\"", 6, broken_continuation_bytes_unicode_pair) < 64);
+  TEST_ASSERT(test_json_tokenizer_push_string(&t, broken_continuation_bytes_unicode_str));
+  free(broken_continuation_bytes_unicode_str);
+  TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_QUOTES);
+  TEST_ASSERT(json_tokenizer_consume(&t) == NULL);
+  TEST_ASSERT(test_json_tokenizer_reinit_nonempty(&t));
 
   json_tokenizer_deinit(&t);
   return NULL;

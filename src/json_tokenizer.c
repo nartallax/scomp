@@ -335,7 +335,7 @@ _jtok_success_state _jtok_try_parse_next_string_part(json_tokenizer *t) {
     }
     // 4 hex bytes are stored like that to preserve case
     // as we must not lose any data at all during tokenization
-    uint64_t code = (t->chars[0] << 0) | (t->chars[1] << 8) | (t->chars[2] << 16) | (t->chars[3] << 24);
+    uint64_t code = (t->chars[2] << 0) | (t->chars[3] << 8) | (t->chars[4] << 16) | (t->chars[5] << 24);
     return _jtok_push_int_token(t, JSON_TOKEN_ESCAPED_CHARCODE, code, 0);
   }
 
