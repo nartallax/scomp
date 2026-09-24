@@ -419,6 +419,10 @@ _jtok_success_state _jtok_try_produce_number(json_tokenizer *t, size_t end_offse
     switch (state) {
     case _JTOK_NUMBER_STATE_START:
       if (c == '-') {
+        if (state_digits != 0) {
+          // 1- is invalid
+          return _JTOK_PASS;
+        }
         sign = c;
       } else if (c >= '0' && c <= '9') {
         byte new_digit = c - '0';
@@ -435,7 +439,7 @@ _jtok_success_state _jtok_try_produce_number(json_tokenizer *t, size_t end_offse
         has_fraction_part = true;
         state = _JTOK_NUMBER_STATE_FRACTION;
         state_digits = 0;
-      } else if (c == 'e' || c == 'E') {
+      } else { // this can only be exponent. all other options are exhausted
         if (state_digits == 0) {
           // -e123 is invalid
           return _JTOK_PASS;
@@ -443,10 +447,8 @@ _jtok_success_state _jtok_try_produce_number(json_tokenizer *t, size_t end_offse
         exponent_symbol = c;
         state = _JTOK_NUMBER_STATE_EXPONENT;
         state_digits = 0;
-      } else {
-        return _JTOK_PASS;
       }
-      continue;
+      break;
     case _JTOK_NUMBER_STATE_FRACTION:
       if (c >= '0' && c <= '9') {
         byte new_digit = c - '0';
@@ -466,8 +468,11 @@ _jtok_success_state _jtok_try_produce_number(json_tokenizer *t, size_t end_offse
       } else {
         return _JTOK_PASS;
       }
-      continue;
-    case _JTOK_NUMBER_STATE_EXPONENT:
+      break;
+    default:
+      // _JTOK_NUMBER_STATE_EXPONENT
+      // llvm-cov doesn't recognize exhaustive switches over enum values
+      // so the last branch must be default to have 100% coverage
       if (c == '-' || c == '+') {
         if (state_digits != 0) {
           // 1e1+ is invalid
@@ -484,7 +489,7 @@ _jtok_success_state _jtok_try_produce_number(json_tokenizer *t, size_t end_offse
       } else {
         return _JTOK_PASS;
       }
-      continue;
+      break;
     }
   }
 
@@ -509,7 +514,7 @@ bool _jtok_is_a_number_starter(byte last_char) {
 _jtok_success_state _jtok_try_update_number(json_tokenizer *t) {
   byte last_char = t->chars[t->chars_length - 1];
   if ((last_char >= '0' && last_char <= '9') || last_char == 'e' || last_char == 'E' || last_char == '+' || last_char == '-' || last_char == '.') {
-    return _JTOK_PASS; // pass has slightly different value with numbers
+    return _JTOK_PASS; // wait for full number
   }
   _jtok_success_state result = _jtok_try_produce_number(t, 1);
   if (result != _JTOK_OK) {

@@ -2,6 +2,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 typedef uint8_t byte;
 /** "symbol", in this repo, means a minimal writeable unit on a level of entropy-compressed stream.

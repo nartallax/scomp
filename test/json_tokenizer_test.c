@@ -210,6 +210,51 @@ const char *test_json_tokenizer_numbers() {
               k->number_token.integer_part == 123 && k->number_token.exponent_sign == '+');
   TEST_ASSERT(test_json_tokenizer_reinit(&t));
 
+  TEST_ASSERT(test_json_tokenizer_push_string(&t, "123.456e+678"));
+  TEST_ASSERT(json_tokenizer_finalize(&t));
+  k = json_tokenizer_consume(&t);
+  TEST_ASSERT(k != NULL);
+  TEST_ASSERT(k->kind == JSON_TOKEN_NUMBER && k->number_token.has_fraction_part && k->number_token.fraction_part == 456 && k->number_token.exponent_symbol == 'e' &&
+              k->number_token.exponent_part == 678 && k->number_token.exponent_sign == '+' && k->number_token.integer_part == 123);
+  TEST_ASSERT(test_json_tokenizer_reinit(&t));
+
+  TEST_ASSERT(test_json_tokenizer_push_string(&t, "123.456E+678"));
+  TEST_ASSERT(json_tokenizer_finalize(&t));
+  k = json_tokenizer_consume(&t);
+  TEST_ASSERT(k != NULL);
+  TEST_ASSERT(k->kind == JSON_TOKEN_NUMBER && k->number_token.has_fraction_part && k->number_token.fraction_part == 456 && k->number_token.exponent_symbol == 'E' &&
+              k->number_token.exponent_part == 678 && k->number_token.exponent_sign == '+' && k->number_token.integer_part == 123);
+  TEST_ASSERT(test_json_tokenizer_reinit(&t));
+
+  // overflows
+  TEST_ASSERT(test_json_tokenizer_push_string(&t, "1844674407370955200000"));
+  TEST_ASSERT(json_tokenizer_finalize(&t));
+  TEST_ASSERT(json_tokenizer_consume(&t) == NULL);
+  TEST_ASSERT(test_json_tokenizer_reinit_nonempty(&t));
+
+  TEST_ASSERT(test_json_tokenizer_push_string(&t, "1e1844674407370955200000"));
+  TEST_ASSERT(json_tokenizer_finalize(&t));
+  TEST_ASSERT(json_tokenizer_consume(&t) == NULL);
+  TEST_ASSERT(test_json_tokenizer_reinit_nonempty(&t));
+
+  TEST_ASSERT(test_json_tokenizer_push_string(&t, "1.1844674407370955200000"));
+  TEST_ASSERT(json_tokenizer_finalize(&t));
+  TEST_ASSERT(json_tokenizer_consume(&t) == NULL);
+  TEST_ASSERT(test_json_tokenizer_reinit_nonempty(&t));
+
+  // invalid number-like values
+  const char *wrong_numbers[] = {"1.", ".1", "-.1", "e1", "-E1", "1.e5", "--", "1-", "1.-", "1e1+", "1ee", NULL};
+  for (int i = 0;; i++) {
+    const char *str = wrong_numbers[i];
+    if (!str) {
+      break;
+    }
+    TEST_ASSERT(test_json_tokenizer_push_string(&t, str));
+    TEST_ASSERT(json_tokenizer_finalize(&t));
+    TEST_ASSERT(json_tokenizer_consume(&t) == NULL);
+    TEST_ASSERT(test_json_tokenizer_reinit_nonempty(&t));
+  }
+
   json_tokenizer_deinit(&t);
   return NULL;
 }
