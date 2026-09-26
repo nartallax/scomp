@@ -504,7 +504,7 @@ _jtok_success_state _jtok_try_produce_number(json_tokenizer *t, size_t end_offse
       // llvm-cov doesn't recognize exhaustive switches over enum values
       // so the last branch must be default to have 100% coverage
       if (c >= '0' && c <= '9') {
-        if (c == 0 && exponent_part == 0) {
+        if (c == '0' && exponent_part == 0) {
           exponent_leading_zeroes++;
         } else {
           byte new_digit = c - '0';

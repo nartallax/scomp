@@ -235,6 +235,30 @@ const char *test_json_tokenizer_numbers() {
               k->number_token.integer_part == 123);
   TEST_ASSERT(test_json_tokenizer_reinit(&t));
 
+  TEST_ASSERT(test_json_tokenizer_push_string(&t, "1.01e02"));
+  TEST_ASSERT(json_tokenizer_finalize(&t));
+  k = json_tokenizer_consume(&t);
+  TEST_ASSERT(k != NULL);
+  TEST_ASSERT(k->kind == JSON_TOKEN_NUMBER && (k->number_token.flags & JSON_NUMBER_HAS_FRACTION) && k->number_token.fraction_part == 1 && k->number_token.fraction_leading_zeroes == 1 &&
+              k->number_token.exponent_leading_zeroes == 1 && k->number_token.exponent_part == 2);
+  TEST_ASSERT(test_json_tokenizer_reinit(&t));
+
+  TEST_ASSERT(test_json_tokenizer_push_string(&t, "1.0001e0002"));
+  TEST_ASSERT(json_tokenizer_finalize(&t));
+  k = json_tokenizer_consume(&t);
+  TEST_ASSERT(k != NULL);
+  TEST_ASSERT(k->kind == JSON_TOKEN_NUMBER && (k->number_token.flags & JSON_NUMBER_HAS_FRACTION) && k->number_token.fraction_part == 1 && k->number_token.fraction_leading_zeroes == 3 &&
+              k->number_token.exponent_leading_zeroes == 3 && k->number_token.exponent_part == 2);
+  TEST_ASSERT(test_json_tokenizer_reinit(&t));
+
+  TEST_ASSERT(test_json_tokenizer_push_string(&t, "1.000e000"));
+  TEST_ASSERT(json_tokenizer_finalize(&t));
+  k = json_tokenizer_consume(&t);
+  TEST_ASSERT(k != NULL);
+  TEST_ASSERT(k->kind == JSON_TOKEN_NUMBER && (k->number_token.flags & JSON_NUMBER_HAS_FRACTION) && k->number_token.fraction_part == 0 && k->number_token.fraction_leading_zeroes == 3 &&
+              k->number_token.exponent_leading_zeroes == 3 && k->number_token.exponent_part == 0);
+  TEST_ASSERT(test_json_tokenizer_reinit(&t));
+
   // overflows
   TEST_ASSERT(test_json_tokenizer_push_string(&t, "1844674407370955200000"));
   TEST_ASSERT(json_tokenizer_finalize(&t));
@@ -255,8 +279,6 @@ const char *test_json_tokenizer_numbers() {
   TEST_ASSERT(!test_json_tokenizer_push_string(&t, too_long_number));
   free(too_long_number);
   TEST_ASSERT(test_json_tokenizer_reinit_nonempty(&t));
-
-  // TODO: tests for leading zeroes in fraction and exponent
 
   // invalid number-like values
   const char *wrong_numbers[] = {"1.", ".1", "-.1", "e1", "-E1", "1.e5", "--", "1-", "1.-", "1e1+", "1ee", NULL};
