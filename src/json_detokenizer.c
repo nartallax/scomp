@@ -60,7 +60,8 @@ bool json_detokenizer_write(writer *w, json_token *token) {
     byte d = (chars >> 24) & 0xff;
     return writer_write_byte(w, '\\') && writer_write_byte(w, 'u') && writer_write_byte(w, a) && writer_write_byte(w, b) && writer_write_byte(w, c) && writer_write_byte(w, d);
   }
-  case JSON_TOKEN_NUMBER:
+  default:
+    // case JSON_TOKEN_NUMBER: as default for code coverage reasons
     // integer part
     if (token->number_token.flags & JSON_NUMBER_IS_NEGATIVE) {
       if (!writer_write_byte(w, '-')) {

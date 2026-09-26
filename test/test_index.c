@@ -2,6 +2,7 @@
 #include "./arithmetic_coding_test.c"
 #include "./fenwick_tree_test.c"
 #include "./frequency_table_test.c"
+#include "./json_detokenizer_test.c"
 #include "./json_test_suite.c"
 #include "./json_tokenizer_test.c"
 #include "./queue_test.c"
@@ -62,6 +63,7 @@ int main() {
       MAKE_TEST(test_json_tokenizer_bom),
       MAKE_TEST(test_json_tokenizer_allocation_failures),
       MAKE_TEST(test_jsons_of_test_suite),
+      MAKE_TEST(test_json_detokenizer_allocation_failures)
       // tests go here
   };
 
