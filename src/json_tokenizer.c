@@ -372,7 +372,7 @@ _jtok_success_state _jtok_try_parse_next_string_part(json_tokenizer *t) {
   uint64_t result = first;
   for (size_t i = 1; i < codepoint_length; i++) {
     // note that it's utf-8 bytes compressed into uint64_t, not a decoded codepoint
-    result |= t->chars[i] << (8 * i);
+    result |= ((uint64_t)t->chars[i]) << (8 * i);
   }
   return _jtok_push_int_token(t, JSON_TOKEN_CHARACTER, result, codepoint_length);
 }
@@ -475,6 +475,7 @@ _jtok_success_state _jtok_try_produce_number(json_tokenizer *t, size_t end_offse
         return _JTOK_PASS;
       }
       break;
+
     case _JTOK_NUMBER_STATE_FRACTION:
       if (c >= '0' && c <= '9') {
         if (c == '0' && fraction_part == 0) {
@@ -499,6 +500,7 @@ _jtok_success_state _jtok_try_produce_number(json_tokenizer *t, size_t end_offse
         return _JTOK_PASS;
       }
       break;
+
     default:
       // _JTOK_NUMBER_STATE_EXPONENT
       // llvm-cov doesn't recognize exhaustive switches over enum values
@@ -659,14 +661,14 @@ _jtok_success_state _jtok_try_tokenize(json_tokenizer *t) {
   switch (*state_slot) {
   case JSON_STATE_ROOT:
     // note that JSON_TOKEN_WHITESPACE is the default value for that field; it's impossible to have this situation otherwise
-    // so this condition is "only proceed if we just red the BOM, or if this is very beginning of the stream"
+    // so this condition is "only proceed if we are at the very beginning of the stream"
     // this condition exists because two JSON values in a row are not a valid JSON
-    if (t->last_nonws_read_token_kind != JSON_TOKEN_BOM && t->last_nonws_read_token_kind != JSON_TOKEN_WHITESPACE) {
+    if (t->last_nonws_read_token_kind != JSON_TOKEN_WHITESPACE) {
       // after some value was consumed - only trailing whitespaces are valid
       return _jtok_try_whitespace(t);
     }
 
-    if (t->last_nonws_read_token_kind != JSON_TOKEN_BOM && utf8_can_bytes_be_bom_start(t->chars, t->chars_length)) {
+    if (utf8_can_bytes_be_bom_start(t->chars, t->chars_length)) {
       result = _jtok_try_bom(t);
       if (result != _JTOK_OK) {
         return result;

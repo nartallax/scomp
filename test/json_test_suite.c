@@ -179,6 +179,8 @@ void test_file_from_json_suite(const char *path) {
     }
     break;
   }
+
+  free(result_buffer.data);
 }
 
 #include "json_tokenizer_test.c"
