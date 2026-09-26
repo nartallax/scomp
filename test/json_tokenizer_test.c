@@ -471,7 +471,7 @@ const char *test_json_tokenizer_whitespaces() {
   return NULL;
 }
 
-const char *test_json_try_bom() {
+const char *test_json_tokenizer_bom() {
   json_tokenizer t;
   TEST_ASSERT(json_tokenizer_init(&t, test_context));
   TEST_ASSERT(json_tokenizer_push(&t, utf8_bom[0]));
