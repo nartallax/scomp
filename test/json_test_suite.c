@@ -193,13 +193,13 @@ const char *test_json_tokenizer_random_crap() {
     if (!token) {
       break;
     }
-    if (token->kind == JSON_TOKEN_NUMBER) {
-      printf("number: %zu %c %zu %c %c %zu\n", token->number_token.integer_part, token->number_token.has_fraction_part ? '.' : ' ',
-             token->number_token.has_fraction_part ? token->number_token.fraction_part : 0, token->number_token.exponent_symbol ? token->number_token.exponent_symbol : ' ',
-             token->number_token.exponent_sign ? token->number_token.exponent_sign : ' ', token->number_token.exponent_symbol ? token->number_token.exponent_part : 0);
-    } else {
-      printf("kind id: %i\n", token->kind);
-    }
+    // if (token->kind == JSON_TOKEN_NUMBER) {
+    //   printf("number: %zu %c %zu %c %c %zu\n", token->number_token.integer_part, token->number_token.has_fraction_part ? '.' : ' ',
+    //          token->number_token.has_fraction_part ? token->number_token.fraction_part : 0, token->number_token.exponent_symbol ? token->number_token.exponent_symbol : ' ',
+    //          token->number_token.exponent_sign ? token->number_token.exponent_sign : ' ', token->number_token.exponent_symbol ? token->number_token.exponent_part : 0);
+    // } else {
+    printf("kind id: %i\n", token->kind);
+    // }
   }
   printf("is empty: %s\n", json_tokenizer_is_empty(&t) ? "true" : "false");
   json_tokenizer_deinit(&t);

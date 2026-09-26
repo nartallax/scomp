@@ -161,69 +161,78 @@ const char *test_json_tokenizer_numbers() {
   TEST_ASSERT(json_tokenizer_finalize(&t));
   k = json_tokenizer_consume(&t);
   TEST_ASSERT(k != NULL);
-  TEST_ASSERT(k->kind == JSON_TOKEN_NUMBER && !k->number_token.has_fraction_part && k->number_token.exponent_symbol == 0 && k->number_token.integer_part == 12345 && k->number_token.sign == 0);
+  TEST_ASSERT(k->kind == JSON_TOKEN_NUMBER && !(k->number_token.flags & JSON_NUMBER_HAS_FRACTION) && !(k->number_token.flags & JSON_NUMBER_HAS_EXPONENT) && k->number_token.integer_part == 12345 &&
+              !(k->number_token.flags & JSON_NUMBER_IS_NEGATIVE));
   TEST_ASSERT(test_json_tokenizer_reinit(&t));
 
   TEST_ASSERT(test_json_tokenizer_push_string(&t, "-12345"));
   TEST_ASSERT(json_tokenizer_finalize(&t));
   k = json_tokenizer_consume(&t);
   TEST_ASSERT(k != NULL);
-  TEST_ASSERT(k->kind == JSON_TOKEN_NUMBER && !k->number_token.has_fraction_part && k->number_token.exponent_symbol == 0 && k->number_token.integer_part == 12345 && k->number_token.sign == '-');
+  TEST_ASSERT(k->kind == JSON_TOKEN_NUMBER && !(k->number_token.flags & JSON_NUMBER_HAS_FRACTION) && !(k->number_token.flags & JSON_NUMBER_HAS_EXPONENT) && k->number_token.integer_part == 12345 &&
+              k->number_token.flags & JSON_NUMBER_IS_NEGATIVE);
   TEST_ASSERT(test_json_tokenizer_reinit(&t));
 
   TEST_ASSERT(test_json_tokenizer_push_string(&t, "123.456"));
   TEST_ASSERT(json_tokenizer_finalize(&t));
   k = json_tokenizer_consume(&t);
   TEST_ASSERT(k != NULL);
-  TEST_ASSERT(k->kind == JSON_TOKEN_NUMBER && k->number_token.has_fraction_part && k->number_token.fraction_part == 456 && k->number_token.exponent_symbol == 0 && k->number_token.integer_part == 123);
+  TEST_ASSERT(k->kind == JSON_TOKEN_NUMBER && (k->number_token.flags & JSON_NUMBER_HAS_FRACTION) && k->number_token.fraction_part == 456 && !(k->number_token.flags & JSON_NUMBER_HAS_EXPONENT) &&
+              k->number_token.integer_part == 123);
   TEST_ASSERT(test_json_tokenizer_reinit(&t));
 
   TEST_ASSERT(test_json_tokenizer_push_string(&t, "123e456"));
   TEST_ASSERT(json_tokenizer_finalize(&t));
   k = json_tokenizer_consume(&t);
   TEST_ASSERT(k != NULL);
-  TEST_ASSERT(k->kind == JSON_TOKEN_NUMBER && !k->number_token.has_fraction_part && k->number_token.exponent_symbol == 'e' && k->number_token.exponent_part == 456 &&
-              k->number_token.integer_part == 123 && k->number_token.exponent_sign == 0);
+  TEST_ASSERT(k->kind == JSON_TOKEN_NUMBER && !(k->number_token.flags & JSON_NUMBER_HAS_FRACTION) && k->number_token.flags & JSON_NUMBER_HAS_EXPONENT &&
+              !(k->number_token.flags & JSON_NUMBER_EXPONENT_UPPERCASE) && k->number_token.exponent_part == 456 && k->number_token.integer_part == 123 &&
+              !(k->number_token.flags & (JSON_NUMBER_EXPONENT_IS_NEGATIVE | JSON_NUMBER_EXPONENT_HAS_PLUS)));
   TEST_ASSERT(test_json_tokenizer_reinit(&t));
 
   TEST_ASSERT(test_json_tokenizer_push_string(&t, "123e-456"));
   TEST_ASSERT(json_tokenizer_finalize(&t));
   k = json_tokenizer_consume(&t);
   TEST_ASSERT(k != NULL);
-  TEST_ASSERT(k->kind == JSON_TOKEN_NUMBER && !k->number_token.has_fraction_part && k->number_token.exponent_symbol == 'e' && k->number_token.exponent_part == 456 &&
-              k->number_token.integer_part == 123 && k->number_token.exponent_sign == '-');
+  TEST_ASSERT(k->kind == JSON_TOKEN_NUMBER && !(k->number_token.flags & JSON_NUMBER_HAS_FRACTION) && k->number_token.flags & JSON_NUMBER_HAS_EXPONENT &&
+              !(k->number_token.flags & JSON_NUMBER_EXPONENT_UPPERCASE) && k->number_token.exponent_part == 456 && k->number_token.integer_part == 123 &&
+              k->number_token.flags & JSON_NUMBER_EXPONENT_IS_NEGATIVE);
   TEST_ASSERT(test_json_tokenizer_reinit(&t));
 
   TEST_ASSERT(test_json_tokenizer_push_string(&t, "123e+456"));
   TEST_ASSERT(json_tokenizer_finalize(&t));
   k = json_tokenizer_consume(&t);
   TEST_ASSERT(k != NULL);
-  TEST_ASSERT(k->kind == JSON_TOKEN_NUMBER && !k->number_token.has_fraction_part && k->number_token.exponent_symbol == 'e' && k->number_token.exponent_part == 456 &&
-              k->number_token.integer_part == 123 && k->number_token.exponent_sign == '+');
+  TEST_ASSERT(k->kind == JSON_TOKEN_NUMBER && !(k->number_token.flags & JSON_NUMBER_HAS_FRACTION) && k->number_token.flags & JSON_NUMBER_HAS_EXPONENT &&
+              !(k->number_token.flags & JSON_NUMBER_EXPONENT_UPPERCASE) && k->number_token.exponent_part == 456 && k->number_token.integer_part == 123 &&
+              k->number_token.flags & JSON_NUMBER_EXPONENT_HAS_PLUS);
   TEST_ASSERT(test_json_tokenizer_reinit(&t));
 
   TEST_ASSERT(test_json_tokenizer_push_string(&t, "123E+456"));
   TEST_ASSERT(json_tokenizer_finalize(&t));
   k = json_tokenizer_consume(&t);
   TEST_ASSERT(k != NULL);
-  TEST_ASSERT(k->kind == JSON_TOKEN_NUMBER && !k->number_token.has_fraction_part && k->number_token.exponent_symbol == 'E' && k->number_token.exponent_part == 456 &&
-              k->number_token.integer_part == 123 && k->number_token.exponent_sign == '+');
+  TEST_ASSERT(k->kind == JSON_TOKEN_NUMBER && !(k->number_token.flags & JSON_NUMBER_HAS_FRACTION) && k->number_token.flags & JSON_NUMBER_HAS_EXPONENT &&
+              k->number_token.flags & JSON_NUMBER_EXPONENT_UPPERCASE && k->number_token.exponent_part == 456 && k->number_token.integer_part == 123 &&
+              k->number_token.flags & JSON_NUMBER_EXPONENT_HAS_PLUS);
   TEST_ASSERT(test_json_tokenizer_reinit(&t));
 
   TEST_ASSERT(test_json_tokenizer_push_string(&t, "123.456e+678"));
   TEST_ASSERT(json_tokenizer_finalize(&t));
   k = json_tokenizer_consume(&t);
   TEST_ASSERT(k != NULL);
-  TEST_ASSERT(k->kind == JSON_TOKEN_NUMBER && k->number_token.has_fraction_part && k->number_token.fraction_part == 456 && k->number_token.exponent_symbol == 'e' &&
-              k->number_token.exponent_part == 678 && k->number_token.exponent_sign == '+' && k->number_token.integer_part == 123);
+  TEST_ASSERT(k->kind == JSON_TOKEN_NUMBER && (k->number_token.flags & JSON_NUMBER_HAS_FRACTION) && k->number_token.fraction_part == 456 && k->number_token.flags & JSON_NUMBER_HAS_EXPONENT &&
+              !(k->number_token.flags & JSON_NUMBER_EXPONENT_UPPERCASE) && k->number_token.exponent_part == 678 && k->number_token.flags & JSON_NUMBER_EXPONENT_HAS_PLUS &&
+              k->number_token.integer_part == 123);
   TEST_ASSERT(test_json_tokenizer_reinit(&t));
 
   TEST_ASSERT(test_json_tokenizer_push_string(&t, "123.456E+678"));
   TEST_ASSERT(json_tokenizer_finalize(&t));
   k = json_tokenizer_consume(&t);
   TEST_ASSERT(k != NULL);
-  TEST_ASSERT(k->kind == JSON_TOKEN_NUMBER && k->number_token.has_fraction_part && k->number_token.fraction_part == 456 && k->number_token.exponent_symbol == 'E' &&
-              k->number_token.exponent_part == 678 && k->number_token.exponent_sign == '+' && k->number_token.integer_part == 123);
+  TEST_ASSERT(k->kind == JSON_TOKEN_NUMBER && (k->number_token.flags & JSON_NUMBER_HAS_FRACTION) && k->number_token.fraction_part == 456 && k->number_token.flags & JSON_NUMBER_HAS_EXPONENT &&
+              k->number_token.flags & JSON_NUMBER_EXPONENT_UPPERCASE && k->number_token.exponent_part == 678 && k->number_token.flags & JSON_NUMBER_EXPONENT_HAS_PLUS &&
+              k->number_token.integer_part == 123);
   TEST_ASSERT(test_json_tokenizer_reinit(&t));
 
   // overflows

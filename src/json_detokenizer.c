@@ -62,8 +62,8 @@ bool json_detokenizer_write(writer *w, json_token *token) {
   }
   case JSON_TOKEN_NUMBER:
     // integer part
-    if (token->number_token.sign != 0) {
-      if (!writer_write_byte(w, token->number_token.sign)) {
+    if (token->number_token.flags & JSON_NUMBER_IS_NEGATIVE) {
+      if (!writer_write_byte(w, '-')) {
         return false;
       }
     }
@@ -72,24 +72,41 @@ bool json_detokenizer_write(writer *w, json_token *token) {
     }
 
     // fraction part
-    if (token->number_token.has_fraction_part) {
-      if (!writer_write_byte(w, '.') || !_jdet_write_int(w, token->number_token.fraction_part)) {
+    if (token->number_token.flags & JSON_NUMBER_HAS_FRACTION) {
+      if (!writer_write_byte(w, '.')) {
         return false;
+      }
+      for (byte i = 0; i < token->number_token.fraction_leading_zeroes; i++) {
+        if (!writer_write_byte(w, '0')) {
+          return false;
+        }
+      }
+      if (token->number_token.fraction_part != 0) {
+        if (!_jdet_write_int(w, token->number_token.fraction_part)) {
+          return false;
+        }
       }
     }
 
     // exponent part
-    if (token->number_token.exponent_symbol != 0) {
-      if (!writer_write_byte(w, token->number_token.exponent_symbol)) {
+    if (token->number_token.flags & JSON_NUMBER_HAS_EXPONENT) {
+      if (!writer_write_byte(w, (token->number_token.flags & JSON_NUMBER_EXPONENT_UPPERCASE) ? 'E' : 'e')) {
         return false;
       }
-      if (token->number_token.exponent_sign != 0) {
-        if (!writer_write_byte(w, token->number_token.exponent_sign)) {
+      if (token->number_token.flags & (JSON_NUMBER_EXPONENT_HAS_PLUS | JSON_NUMBER_EXPONENT_IS_NEGATIVE)) {
+        if (!writer_write_byte(w, (token->number_token.flags & JSON_NUMBER_EXPONENT_HAS_PLUS) ? '+' : '-')) {
           return false;
         }
       }
-      if (!_jdet_write_int(w, token->number_token.exponent_part)) {
-        return false;
+      for (byte i = 0; i < token->number_token.exponent_leading_zeroes; i++) {
+        if (!writer_write_byte(w, '0')) {
+          return false;
+        }
+      }
+      if (token->number_token.exponent_part != 0) {
+        if (!_jdet_write_int(w, token->number_token.exponent_part)) {
+          return false;
+        }
       }
     }
 
