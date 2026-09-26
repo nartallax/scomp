@@ -9,11 +9,10 @@
 #include <inttypes.h>
 #include <stdint.h>
 
-// TODO: reduce this number, it doesn't need to be that long
 /** Length of internal buffer of tokenizer.
 If it ever fills - tokenizer will start to fail to ingest more bytes,
 which indicates invalid JSON. */
-#define JTOK_MAX_CHARS_LENGTH 64
+#define JTOK_MAX_CHARS_LENGTH 128
 
 /** Types of state in which JSON tokens may appear.
 Different types of states may contain different types of tokens
@@ -354,6 +353,11 @@ _jtok_success_state _jtok_try_parse_next_string_part(json_tokenizer *t) {
     return _JTOK_PASS;
   }
 
+  if (codepoint_length == 1 && first <= 0x1f) {
+    // unescaped control characters are not valid in JSON
+    return _JTOK_PASS;
+  }
+
   if (!utf8_are_continuation_bytes_valid(t->chars, codepoint_length)) {
     return _JTOK_PASS;
   }
@@ -422,6 +426,10 @@ _jtok_success_state _jtok_try_produce_number(json_tokenizer *t, size_t end_offse
     switch (state) {
     case _JTOK_NUMBER_STATE_START:
       if (c >= '0' && c <= '9') {
+        if (state_digits > 0 && integer_part == 0) {
+          // 01 is not a valid number
+          return _JTOK_PASS;
+        }
         byte new_digit = c - '0';
         if (_jtok_uint64_will_overflow(integer_part, new_digit)) {
           return _JTOK_PASS;
@@ -429,8 +437,8 @@ _jtok_success_state _jtok_try_produce_number(json_tokenizer *t, size_t end_offse
         integer_part = (integer_part * 10) + new_digit;
         state_digits++;
       } else if (c == '-') {
-        if (state_digits != 0) {
-          // 1- is invalid
+        if (state_digits != 0 || sign != 0) {
+          // 1- is invalid; --1 is invalid too
           return _JTOK_PASS;
         }
         sign = c;
@@ -442,7 +450,7 @@ _jtok_success_state _jtok_try_produce_number(json_tokenizer *t, size_t end_offse
         has_fraction_part = true;
         state = _JTOK_NUMBER_STATE_FRACTION;
         state_digits = 0;
-      } else { // this can only be exponent. all other options are exhausted
+      } else if (c == 'e' || c == 'E') {
         if (state_digits == 0) {
           // -e123 is invalid
           return _JTOK_PASS;
@@ -450,6 +458,10 @@ _jtok_success_state _jtok_try_produce_number(json_tokenizer *t, size_t end_offse
         exponent_symbol = c;
         state = _JTOK_NUMBER_STATE_EXPONENT;
         state_digits = 0;
+      } else {
+        // this can only be +
+        // 1+2 is invalid number
+        return _JTOK_PASS;
       }
       break;
     case _JTOK_NUMBER_STATE_FRACTION:
@@ -484,8 +496,8 @@ _jtok_success_state _jtok_try_produce_number(json_tokenizer *t, size_t end_offse
         exponent_part = (exponent_part * 10) + new_digit;
         state_digits++;
       } else if (c == '-' || c == '+') {
-        if (state_digits != 0) {
-          // 1e1+ is invalid
+        if (state_digits != 0 || exponent_sign != 0) {
+          // 1e1+ is invalid; 1e+-1 is invalid
           return _JTOK_PASS;
         }
         exponent_sign = c;
@@ -631,11 +643,18 @@ _jtok_success_state _jtok_try_tokenize(json_tokenizer *t) {
     // so this condition is "only proceed if we just red the BOM, or if this is very beginning of the stream"
     // this condition exists because two JSON values in a row are not a valid JSON
     if (t->last_nonws_read_token_kind != JSON_TOKEN_BOM && t->last_nonws_read_token_kind != JSON_TOKEN_WHITESPACE) {
-      return _JTOK_PASS;
+      // after some value was consumed - only trailing whitespaces are valid
+      return _jtok_try_whitespace(t);
     }
 
     if (t->last_nonws_read_token_kind != JSON_TOKEN_BOM && utf8_can_bytes_be_bom_start(t->chars, t->chars_length)) {
-      return _jtok_try_bom(t);
+      result = _jtok_try_bom(t);
+      if (result != _JTOK_OK) {
+        return result;
+      }
+      // pushing here because lone BOM is invalid JSON
+      // and we need to have some state on top of root to indicate that
+      return _jtok_push_state(t, JSON_STATE_VALUE);
     }
 
     if (_jtok_push_state(t, JSON_STATE_VALUE) != _JTOK_OK) {
@@ -650,17 +669,20 @@ _jtok_success_state _jtok_try_tokenize(json_tokenizer *t) {
     }
     return result;
 
+  // TODO: I think we need more states here
+  // "expecting key" and "expecting comma"
+  // same for arrays
   case JSON_STATE_OBJECT:
     if (t->last_nonws_read_token_kind != JSON_TOKEN_OBJECT_OPEN && t->last_nonws_read_token_kind != JSON_TOKEN_COMMA) {
       result = _jtok_try_comma(t);
     }
     if (result == _JTOK_PASS) {
       result = _jtok_try_start_string(t, JSON_STATE_OBJECT_KEY);
-      if (result == _JTOK_PASS) {
+      if (result == _JTOK_PASS && t->last_nonws_read_token_kind != JSON_TOKEN_COMMA) {
         result = _jtok_try_end_object(t);
-        if (result == _JTOK_PASS) {
-          result = _jtok_try_whitespace(t);
-        }
+      }
+      if (result == _JTOK_PASS) {
+        result = _jtok_try_whitespace(t);
       }
     }
     return result;

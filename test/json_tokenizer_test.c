@@ -247,6 +247,8 @@ const char *test_json_tokenizer_numbers() {
   free(too_long_number);
   TEST_ASSERT(test_json_tokenizer_reinit_nonempty(&t));
 
+  // TODO: tests for leading zeroes in fraction and exponent
+
   // invalid number-like values
   const char *wrong_numbers[] = {"1.", ".1", "-.1", "e1", "-E1", "1.e5", "--", "1-", "1.-", "1e1+", "1ee", NULL};
   for (int i = 0;; i++) {
