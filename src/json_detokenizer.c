@@ -38,12 +38,12 @@ bool json_detokenizer_write(writer *w, json_token *token) {
   case JSON_TOKEN_COLON:
     return writer_write_byte(w, ':');
   case JSON_TOKEN_WHITESPACE:
-    return writer_write_byte(w, token->char_token.character);
+    return writer_write_byte(w, token->character.character);
   case JSON_TOKEN_ESCAPED_CHARACTER:
-    return writer_write_byte(w, '\\') && writer_write_byte(w, token->char_token.character);
+    return writer_write_byte(w, '\\') && writer_write_byte(w, token->character.character);
   case JSON_TOKEN_CHARACTER: {
-    uint64_t chars = token->int_token.value;
-    for (size_t i = 0; i < token->int_token.mod; i++) {
+    uint64_t chars = token->unicode_character.value;
+    for (size_t i = 0; i < token->unicode_character.length; i++) {
       byte c = chars & 0xff;
       if (!writer_write_byte(w, c)) {
         return false;
@@ -53,7 +53,7 @@ bool json_detokenizer_write(writer *w, json_token *token) {
     return true;
   }
   case JSON_TOKEN_ESCAPED_CHARCODE: {
-    uint64_t chars = token->int_token.value;
+    uint64_t chars = token->unicode_character.value;
     byte a = (chars >> 0) & 0xff;
     byte b = (chars >> 8) & 0xff;
     byte c = (chars >> 16) & 0xff;
@@ -63,49 +63,49 @@ bool json_detokenizer_write(writer *w, json_token *token) {
   default:
     // case JSON_TOKEN_NUMBER: as default for code coverage reasons
     // integer part
-    if (token->number_token.flags & JSON_NUMBER_IS_NEGATIVE) {
+    if (token->number.flags & JSON_NUMBER_IS_NEGATIVE) {
       if (!writer_write_byte(w, '-')) {
         return false;
       }
     }
-    if (!_jdet_write_int(w, token->number_token.integer_part)) {
+    if (!_jdet_write_int(w, token->number.integer_part)) {
       return false;
     }
 
     // fraction part
-    if (token->number_token.flags & JSON_NUMBER_HAS_FRACTION) {
+    if (token->number.flags & JSON_NUMBER_HAS_FRACTION) {
       if (!writer_write_byte(w, '.')) {
         return false;
       }
-      for (byte i = 0; i < token->number_token.fraction_leading_zeroes; i++) {
+      for (byte i = 0; i < token->number.fraction_leading_zeroes; i++) {
         if (!writer_write_byte(w, '0')) {
           return false;
         }
       }
-      if (token->number_token.fraction_part != 0) {
-        if (!_jdet_write_int(w, token->number_token.fraction_part)) {
+      if (token->number.fraction_part != 0) {
+        if (!_jdet_write_int(w, token->number.fraction_part)) {
           return false;
         }
       }
     }
 
     // exponent part
-    if (token->number_token.flags & JSON_NUMBER_HAS_EXPONENT) {
-      if (!writer_write_byte(w, (token->number_token.flags & JSON_NUMBER_EXPONENT_UPPERCASE) ? 'E' : 'e')) {
+    if (token->number.flags & JSON_NUMBER_HAS_EXPONENT) {
+      if (!writer_write_byte(w, (token->number.flags & JSON_NUMBER_EXPONENT_UPPERCASE) ? 'E' : 'e')) {
         return false;
       }
-      if (token->number_token.flags & (JSON_NUMBER_EXPONENT_HAS_PLUS | JSON_NUMBER_EXPONENT_IS_NEGATIVE)) {
-        if (!writer_write_byte(w, (token->number_token.flags & JSON_NUMBER_EXPONENT_HAS_PLUS) ? '+' : '-')) {
+      if (token->number.flags & (JSON_NUMBER_EXPONENT_HAS_PLUS | JSON_NUMBER_EXPONENT_IS_NEGATIVE)) {
+        if (!writer_write_byte(w, (token->number.flags & JSON_NUMBER_EXPONENT_HAS_PLUS) ? '+' : '-')) {
           return false;
         }
       }
-      for (byte i = 0; i < token->number_token.exponent_leading_zeroes; i++) {
+      for (byte i = 0; i < token->number.exponent_leading_zeroes; i++) {
         if (!writer_write_byte(w, '0')) {
           return false;
         }
       }
-      if (token->number_token.exponent_part != 0) {
-        if (!_jdet_write_int(w, token->number_token.exponent_part)) {
+      if (token->number.exponent_part != 0) {
+        if (!_jdet_write_int(w, token->number.exponent_part)) {
           return false;
         }
       }

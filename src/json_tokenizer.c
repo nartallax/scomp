@@ -9,9 +9,10 @@
 #include <inttypes.h>
 #include <stdint.h>
 
-/** Length of internal buffer of tokenizer.
-If it ever fills - tokenizer will start to fail to ingest more bytes,
-which indicates invalid JSON. */
+/** Length of internal buffer of a tokenizer.
+If it ever fills - tokenizer will start to fail to ingest more bytes, which indicates invalid JSON.
+Technically it's possible to have longer numbers, especially when they are tiny fractions like 0.00...256 zeroes...005
+But it's very unlikely */
 #define JTOK_MAX_CHARS_LENGTH 128
 
 /** Types of state in which JSON tokens may appear.
@@ -65,11 +66,11 @@ typedef struct {
   byte character;
 } json_character_token;
 
-/** Tokens that store 64 bits of information with them */
+/** Tokens that are describing a unicode character, or a part of it, depeding on kind */
 typedef struct {
   uint64_t value;
-  byte mod; // for numbers: '+', '-' or 0 (for "no sign"). for utf-8: byte length.
-} json_integer_token;
+  byte length; // for utf-8: byte length.
+} json_unicode_token;
 
 /** Various booleans about JSON numbers packed into a bitmap */
 typedef enum {
@@ -96,9 +97,9 @@ typedef struct {
   json_token_kind kind;
 
   union {
-    json_character_token char_token;
-    json_integer_token int_token;
-    json_number_token number_token;
+    json_character_token character;
+    json_unicode_token unicode_character;
+    json_number_token number;
   };
 } json_token;
 
@@ -176,13 +177,13 @@ _jtok_success_state _jtok_push_simple_token(json_tokenizer *t, json_token_kind k
   return _JTOK_OK;
 }
 
-_jtok_success_state _jtok_push_char_token(json_tokenizer *t, json_token_kind kind, byte character) {
+_jtok_success_state _jtok_push_character_token(json_tokenizer *t, json_token_kind kind, byte character) {
   json_token *slot = queue_push(&t->token_queue);
   if (!slot) {
     return _JTOK_ERROR;
   }
   slot->kind = kind;
-  slot->char_token.character = character;
+  slot->character.character = character;
   t->chars_length = 0;
   if (kind != JSON_TOKEN_WHITESPACE) {
     t->last_nonws_read_token_kind = kind;
@@ -190,14 +191,14 @@ _jtok_success_state _jtok_push_char_token(json_tokenizer *t, json_token_kind kin
   return _JTOK_OK;
 }
 
-_jtok_success_state _jtok_push_int_token(json_tokenizer *t, json_token_kind kind, uint64_t value, byte sign) {
+_jtok_success_state _jtok_push_unicode_token(json_tokenizer *t, json_token_kind kind, uint64_t value, byte length) {
   json_token *slot = queue_push(&t->token_queue);
   if (!slot) {
     return _JTOK_ERROR;
   }
   slot->kind = kind;
-  slot->int_token.value = value;
-  slot->int_token.mod = sign;
+  slot->unicode_character.value = value;
+  slot->unicode_character.length = length;
   t->chars_length = 0;
   t->last_nonws_read_token_kind = kind;
   return _JTOK_OK;
@@ -211,12 +212,12 @@ _jtok_success_state _jtok_push_number_token(json_tokenizer *t, uint64_t integer_
   }
 
   slot->kind = JSON_TOKEN_NUMBER;
-  slot->number_token.integer_part = integer_part;
-  slot->number_token.fraction_part = fraction_part;
-  slot->number_token.fraction_leading_zeroes = fraction_leading_zeroes;
-  slot->number_token.exponent_part = exponent_part;
-  slot->number_token.exponent_leading_zeroes = exponent_leading_zeroes;
-  slot->number_token.flags = flags;
+  slot->number.integer_part = integer_part;
+  slot->number.fraction_part = fraction_part;
+  slot->number.fraction_leading_zeroes = fraction_leading_zeroes;
+  slot->number.exponent_part = exponent_part;
+  slot->number.exponent_leading_zeroes = exponent_leading_zeroes;
+  slot->number.flags = flags;
 
   t->chars_length = 0;
   t->last_nonws_read_token_kind = JSON_TOKEN_NUMBER;
@@ -304,7 +305,7 @@ _jtok_success_state _jtok_try_quotes(json_tokenizer *t) {
 _jtok_success_state _jtok_try_whitespace(json_tokenizer *t) {
   byte first = t->chars[0];
   if (first == ' ' || first == '\n' || first == '\r' || first == '\t') {
-    return _jtok_push_char_token(t, JSON_TOKEN_WHITESPACE, t->chars[0]);
+    return _jtok_push_character_token(t, JSON_TOKEN_WHITESPACE, t->chars[0]);
   }
   return _JTOK_PASS;
 }
@@ -330,7 +331,7 @@ _jtok_success_state _jtok_try_parse_next_string_part(json_tokenizer *t) {
     byte c = t->chars[1];
     // we are free to return here, as backslash cannot be followed just by any random character, only those selected few
     if (c == '\\' || c == '"' || c == '/' || c == 'b' || c == 'f' || c == 'n' || c == 'r' || c == 't') {
-      return _jtok_push_char_token(t, JSON_TOKEN_ESCAPED_CHARACTER, c);
+      return _jtok_push_character_token(t, JSON_TOKEN_ESCAPED_CHARACTER, c);
     }
     return _JTOK_PASS;
   } else if (t->chars_length == 6 && first == '\\' && t->chars[1] == 'u') {
@@ -345,7 +346,7 @@ _jtok_success_state _jtok_try_parse_next_string_part(json_tokenizer *t) {
     // 4 hex bytes are stored like that to preserve case
     // as we must not lose any data at all during tokenization
     uint64_t code = (t->chars[2] << 0) | (t->chars[3] << 8) | (t->chars[4] << 16) | (t->chars[5] << 24);
-    return _jtok_push_int_token(t, JSON_TOKEN_ESCAPED_CHARCODE, code, 0);
+    return _jtok_push_unicode_token(t, JSON_TOKEN_ESCAPED_CHARCODE, code, 4);
   }
 
   // trying to parse normal utf-8 byte sequence
@@ -374,7 +375,7 @@ _jtok_success_state _jtok_try_parse_next_string_part(json_tokenizer *t) {
     // note that it's utf-8 bytes compressed into uint64_t, not a decoded codepoint
     result |= ((uint64_t)t->chars[i]) << (8 * i);
   }
-  return _jtok_push_int_token(t, JSON_TOKEN_CHARACTER, result, codepoint_length);
+  return _jtok_push_unicode_token(t, JSON_TOKEN_CHARACTER, result, codepoint_length);
 }
 
 _jtok_success_state _jtok_push_state(json_tokenizer *t, json_state_type state) {

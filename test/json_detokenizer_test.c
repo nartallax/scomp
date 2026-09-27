@@ -35,7 +35,7 @@ const char *test_json_detokenizer_allocation_failures() {
   writer *w = NULL;
 
   TEST_ASSERT(test_setup_detokeniser_writer_for_failure(&w, 2));
-  TEST_ASSERT(!json_detokenizer_write(w, &((json_token){.kind = JSON_TOKEN_NUMBER, .number_token = (json_number_token){.integer_part = 12345}})));
+  TEST_ASSERT(!json_detokenizer_write(w, &((json_token){.kind = JSON_TOKEN_NUMBER, .number = (json_number_token){.integer_part = 12345}})));
 
   const char *number_with_everything_str = "-12345.00123E-0065";
   size_t number_with_everything_strlen = strlen(number_with_everything_str);
@@ -75,19 +75,19 @@ const char *test_json_detokenizer_allocation_failures() {
 
   for (int i = 1; i <= 2; i++) {
     TEST_ASSERT(test_setup_detokeniser_writer_for_failure(&w, i));
-    TEST_ASSERT(!json_detokenizer_write(w, &((json_token){.kind = JSON_TOKEN_ESCAPED_CHARACTER, .char_token = (json_character_token){.character = 'n'}})));
+    TEST_ASSERT(!json_detokenizer_write(w, &((json_token){.kind = JSON_TOKEN_ESCAPED_CHARACTER, .character = (json_character_token){.character = 'n'}})));
   }
 
   for (int i = 1; i <= 3; i++) {
     uint64_t utf8_bytes = (0xE2 << 0) | (0x82 << 8) | (0xAC << 16);
     TEST_ASSERT(test_setup_detokeniser_writer_for_failure(&w, i));
-    TEST_ASSERT(!json_detokenizer_write(w, &((json_token){.kind = JSON_TOKEN_CHARACTER, .int_token = (json_integer_token){.value = utf8_bytes, .mod = 3}})));
+    TEST_ASSERT(!json_detokenizer_write(w, &((json_token){.kind = JSON_TOKEN_CHARACTER, .unicode_character = (json_unicode_token){.value = utf8_bytes, .length = 3}})));
   }
 
   for (int i = 1; i <= 6; i++) {
     uint64_t charcode = ('1' << 0) | ('2' << 8) | ('3' << 16) | ('4' << 14);
     TEST_ASSERT(test_setup_detokeniser_writer_for_failure(&w, i));
-    TEST_ASSERT(!json_detokenizer_write(w, &((json_token){.kind = JSON_TOKEN_ESCAPED_CHARCODE, .int_token = (json_integer_token){.value = charcode}})));
+    TEST_ASSERT(!json_detokenizer_write(w, &((json_token){.kind = JSON_TOKEN_ESCAPED_CHARCODE, .unicode_character = (json_unicode_token){.value = charcode}})));
   }
 
   writer_delete(w);
