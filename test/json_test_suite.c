@@ -183,31 +183,6 @@ void test_file_from_json_suite(const char *path) {
   free(result_buffer.data);
 }
 
-#include "json_tokenizer_test.c"
-const char *test_json_tokenizer_random_crap() {
-  const char *random_crap = "[\"a\"]\n";
-  json_tokenizer t;
-  TEST_ASSERT(json_tokenizer_init(&t, test_context));
-  TEST_ASSERT(test_json_tokenizer_push_string(&t, random_crap));
-  json_token *token;
-  while (true) {
-    token = json_tokenizer_consume(&t);
-    if (!token) {
-      break;
-    }
-    // if (token->kind == JSON_TOKEN_NUMBER) {
-    //   printf("number: %zu %c %zu %c %c %zu\n", token->number_token.integer_part, token->number_token.has_fraction_part ? '.' : ' ',
-    //          token->number_token.has_fraction_part ? token->number_token.fraction_part : 0, token->number_token.exponent_symbol ? token->number_token.exponent_symbol : ' ',
-    //          token->number_token.exponent_sign ? token->number_token.exponent_sign : ' ', token->number_token.exponent_symbol ? token->number_token.exponent_part : 0);
-    // } else {
-    printf("kind id: %i\n", token->kind);
-    // }
-  }
-  printf("is empty: %s\n", json_tokenizer_is_empty(&t) ? "true" : "false");
-  json_tokenizer_deinit(&t);
-  return NULL;
-}
-
 const char *test_jsons_of_test_suite() {
   json_test_suite_has_errors = false;
   json_test_suite_successes = 0;
@@ -220,5 +195,4 @@ const char *test_jsons_of_test_suite() {
     return "There were some errors running JSON test suite.";
   }
   return NULL;
-  // return test_json_tokenizer_random_crap();
 }

@@ -2,6 +2,7 @@
 #include "../src/context.c"
 #include <dirent.h>
 #include <limits.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -131,26 +132,6 @@ bool foreach_file_in_directory(const char *directory_path, void (*do_with_file)(
     }
 
     do_with_file(file_path);
-
-    /*
-      // char buffer[4096];
-        FILE *file = fopen(file_path, "r");
-        if (file == NULL) {
-          is_full_success = false;
-          continue;
-        }
-
-        size_t bytes_read;
-        while ((bytes_read = fread(buffer, 1, sizeof(buffer), file)) > 0) {
-          fwrite(buffer, 1, bytes_read, stdout);
-        }
-
-        if (ferror(file)) {
-          is_full_success = false;
-        }
-
-        fclose(file);
-        */
   }
 
   closedir(directory);
