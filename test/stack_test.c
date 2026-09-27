@@ -15,7 +15,7 @@ bool _test_stack_strcmp(const char **slot, const char *value) {
 
 const char *test_stack_simple() {
   stack *s = malloc(sizeof(stack));
-  stack_init(s, test_context, sizeof(const char *));
+  TEST_ASSERT(stack_init(s, test_context, sizeof(const char *)));
   TEST_ASSERT(stack_get_count(s) == 0);
 
   _test_stack_push(s, "first");
@@ -56,7 +56,7 @@ typedef struct {
 
 const char *test_stack_non_pointer() {
   stack *s = malloc(sizeof(stack));
-  stack_init(s, test_context, sizeof(test_stack_obj));
+  TEST_ASSERT(stack_init(s, test_context, sizeof(test_stack_obj)));
   test_stack_obj *o = stack_push(s);
   TEST_ASSERT(stack_get_count(s) == 1);
   o->x = 1;
@@ -101,7 +101,7 @@ const char *test_stack_allocation_failures() {
   TEST_ASSERT(context_is_errored(test_context));
 
   setup_test_context(1);
-  stack_init(s, test_context, sizeof(const char *));
+  TEST_ASSERT(stack_init(s, test_context, sizeof(const char *)));
   for (size_t i = 0; i < STACK_DEFAULT_LENGTH - 1; i++) {
     stack_push(s);
   }

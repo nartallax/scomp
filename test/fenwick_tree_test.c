@@ -7,7 +7,7 @@
 
 const char *test_fenwick_tree_simple() {
   ftree tree;
-  ftree_init(&tree, test_context, 256 + 1);
+  TEST_ASSERT(ftree_init(&tree, test_context, 256 + 1));
   ftree_add(tree, 15, 1);
   ftree_add(tree, 37, 1);
   ftree_add(tree, 64, 1);
@@ -19,7 +19,7 @@ const char *test_fenwick_tree_simple() {
   uint64_t *source_array = malloc(sizeof(uint64_t) * (256 + 1));
   ftree_to_source_array(tree, source_array);
   ftree tree_from_source;
-  ftree_init(&tree_from_source, test_context, 256 + 1);
+  TEST_ASSERT(ftree_init(&tree_from_source, test_context, 256 + 1));
   ftree_fill_from_source_frequencies(tree_from_source, source_array, 0);
 
   int expected_cumulatives[][2] = {{0, 1}, {15, 3}, {21, 4}, {37, 5}, {64, 6}, {256, 7}};
@@ -55,7 +55,7 @@ const char *test_fenwick_tree_simple() {
 const char *test_fenwick_tree_max_range() {
   for (int64_t size = 1; size < 1024; size++) {
     ftree tree;
-    ftree_init(&tree, test_context, size);
+    TEST_ASSERT(ftree_init(&tree, test_context, size));
     TEST_ASSERT(ftree_length(tree) == size);
     ftree_add(tree, 0, 1);
     ftree_add(tree, size - 1, 1);
@@ -68,7 +68,7 @@ const char *test_fenwick_tree_max_range() {
 
 const char *test_fenwick_tree_range_sum_cornercase() {
   ftree tree;
-  ftree_init(&tree, test_context, 5);
+  TEST_ASSERT(ftree_init(&tree, test_context, 5));
   ftree_add(tree, 1, 1);
   TEST_ASSERT(ftree_range_sum(tree, 2, 1) == 0);
   ftree_deinit(tree, test_context);

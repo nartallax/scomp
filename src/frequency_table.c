@@ -87,7 +87,7 @@ void ftable_delete(ftable *table) {
   context_free(table->context, table);
 }
 
-ftable *ftable_new(context *context, symbol length, ftable_flags init_flags) {
+NODISCARD ftable *ftable_new(context *context, symbol length, ftable_flags init_flags) {
   symbol eof_padding = _ftable_get_eof_length_padding(init_flags);
 
   ftable *table = context_allocate(context, 1, sizeof(ftable));

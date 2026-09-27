@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#define NODISCARD [[nodiscard]]
+
 typedef uint8_t byte;
 /** "symbol", in this repo, means a minimal writeable unit on a level of entropy-compressed stream.
 i.e. entropy compression algo accepts a symbol and emits bits. */

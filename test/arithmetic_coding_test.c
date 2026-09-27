@@ -22,12 +22,18 @@ buffer encode_bytes(size_t length, byte *data) {
 
   for (size_t i = 0; i < length; i++) {
     symbol symbol = data[i];
-    acod_encoder_write(encoder, encoding_frequencies, symbol);
+    if (!acod_encoder_write(encoder, encoding_frequencies, symbol)) {
+      return EMPTY_BUFFER;
+    }
     ftable_increment(encoding_frequencies, symbol);
   }
-  acod_encoder_write(encoder, encoding_frequencies, ftable_get_eof_symbol(encoding_frequencies));
+  if (!acod_encoder_write(encoder, encoding_frequencies, ftable_get_eof_symbol(encoding_frequencies))) {
+    return EMPTY_BUFFER;
+  }
 
-  acod_encoder_delete(encoder);
+  if (!acod_encoder_delete(encoder)) {
+    return EMPTY_BUFFER;
+  }
   buffer result = writer_consume_all_buffers(writer);
   writer_delete(writer);
   ftable_delete(encoding_frequencies);
@@ -183,10 +189,13 @@ const char *test_acod_simple() {
   return NULL;
 }
 
-void _acod_test_fill_writer_bits(writer *w, size_t bit_count) {
+NODISCARD bool _acod_test_fill_writer_bits(writer *w, size_t bit_count) {
   for (size_t i = 0; i < bit_count; i++) {
-    writer_write_bit(w, 0);
+    if (!writer_write_bit(w, 0)) {
+      return false;
+    }
   }
+  return true;
 }
 
 const char *test_acod_allocation_failures() {
@@ -210,14 +219,14 @@ const char *test_acod_allocation_failures() {
     encoder = acod_encoder_new(test_context, w);
     TEST_ASSERT(context_is_errored(test_context) == false);
 
-    _acod_test_fill_writer_bits(w, 15);
+    TEST_ASSERT(_acod_test_fill_writer_bits(w, 15));
     update_test_context_for_alloc_failure(0);
     TEST_ASSERT(!acod_encoder_write(encoder, bit_table, 0));
     TEST_ASSERT(context_is_errored(test_context) == true);
 
     ftable_delete(bit_table);
     writer_delete(w);
-    acod_encoder_delete(encoder);
+    TEST_ASSERT(!acod_encoder_delete(encoder));
   }
 
   // this tests for error on underflow bit write
@@ -231,14 +240,14 @@ const char *test_acod_allocation_failures() {
     // this feels slightly like cheating, because I couldn't pick the right input data to make it underflow
     // but I won't compromise 100% code coverage just because of that
     encoder->underflows++;
-    _acod_test_fill_writer_bits(w, 14);
+    TEST_ASSERT(_acod_test_fill_writer_bits(w, 14));
     update_test_context_for_alloc_failure(0);
     TEST_ASSERT(!acod_encoder_write(encoder, bit_table, 0));
     TEST_ASSERT(context_is_errored(test_context) == true);
 
     ftable_delete(bit_table);
     writer_delete(w);
-    acod_encoder_delete(encoder);
+    TEST_ASSERT(!acod_encoder_delete(encoder));
   }
 
   // this tests for error on closing bit writes
@@ -252,7 +261,7 @@ const char *test_acod_allocation_failures() {
     // this feels slightly like cheating, because I couldn't pick the right input data to make it underflow
     // but I won't compromise 100% code coverage just because of that
     encoder->underflows++;
-    _acod_test_fill_writer_bits(w, 13);
+    TEST_ASSERT(_acod_test_fill_writer_bits(w, 13));
     update_test_context_for_alloc_failure(0);
     TEST_ASSERT(acod_encoder_write(encoder, bit_table, 0));
     TEST_ASSERT(context_is_errored(test_context) == false);

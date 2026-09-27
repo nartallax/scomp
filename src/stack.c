@@ -16,7 +16,7 @@ typedef struct {
   size_t count;
 } stack;
 
-bool stack_init(stack *stack, context *context, size_t value_size) {
+NODISCARD bool stack_init(stack *stack, context *context, size_t value_size) {
   stack->context = context;
   stack->value_size = value_size;
   stack->length = STACK_DEFAULT_LENGTH;
@@ -34,7 +34,7 @@ void stack_deinit(stack *stack) {
   context_free(stack->context, stack->values);
 }
 
-bool _stack_maybe_grow(stack *stack) {
+NODISCARD bool _stack_maybe_grow(stack *stack) {
   if (stack->count < stack->length) {
     return true;
   }

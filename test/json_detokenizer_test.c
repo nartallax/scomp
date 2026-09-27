@@ -25,7 +25,9 @@ json_token test_string_to_single_json_token(const char *str) {
   json_tokenizer t;
   json_tokenizer_init(&t, test_context);
   test_json_tokenizer_push_string(&t, str);
-  json_tokenizer_finalize(&t);
+  if (!json_tokenizer_finalize(&t)) {
+    return (json_token){0};
+  }
   json_token token = *json_tokenizer_consume(&t);
   json_tokenizer_deinit(&t);
   return token;

@@ -14,7 +14,7 @@ typedef struct {
   int allocations_count;
 } arena;
 
-bool arena_init(arena *arena, context *context) {
+NODISCARD bool arena_init(arena *arena, context *context) {
   arena->offset = 0;
   arena->length = ARENA_DEFAULT_LENGTH;
   arena->context = context;

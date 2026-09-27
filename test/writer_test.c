@@ -9,8 +9,8 @@ const char *test_writer_bytes() {
   TEST_ASSERT(writer_consume_full_buffer(writer).length == 0);
   TEST_ASSERT(writer_consume_nonempty_buffer(writer).length == 0);
 
-  writer_write_byte(writer, 5);
-  writer_write_byte(writer, 4);
+  TEST_ASSERT(writer_write_byte(writer, 5));
+  TEST_ASSERT(writer_write_byte(writer, 4));
   TEST_ASSERT(writer_get_bytes_stored(writer) == 2);
   buffer b = writer_consume_full_buffer(writer);
   TEST_ASSERT(writer_get_bytes_stored(writer) == 0);
@@ -18,7 +18,7 @@ const char *test_writer_bytes() {
   TEST_ASSERT(b.data[0] == 5 && b.data[1] == 4);
   free(b.data);
 
-  writer_write_byte(writer, 3);
+  TEST_ASSERT(writer_write_byte(writer, 3));
   TEST_ASSERT(writer_get_bytes_stored(writer) == 1);
   TEST_ASSERT(writer_consume_full_buffer(writer).length == 0);
   b = writer_consume_nonempty_buffer(writer);
@@ -27,15 +27,15 @@ const char *test_writer_bytes() {
   TEST_ASSERT(b.data[0] == 3);
   free(b.data);
 
-  writer_write_byte(writer, 2);
+  TEST_ASSERT(writer_write_byte(writer, 2));
   TEST_ASSERT(writer_get_bytes_stored(writer) == 1);
   TEST_ASSERT(writer_consume_full_buffer(writer).length == 0);
 
-  writer_write_byte(writer, 6);
-  writer_write_byte(writer, 7);
-  writer_write_byte(writer, 8);
-  writer_write_byte(writer, 9);
-  writer_write_byte(writer, 10);
+  TEST_ASSERT(writer_write_byte(writer, 6));
+  TEST_ASSERT(writer_write_byte(writer, 7));
+  TEST_ASSERT(writer_write_byte(writer, 8));
+  TEST_ASSERT(writer_write_byte(writer, 9));
+  TEST_ASSERT(writer_write_byte(writer, 10));
   TEST_ASSERT(writer_get_bytes_stored(writer) == 6);
   // this is supposed to check if nonempty_consume can also return full buffer, not just the tail one
   b = writer_consume_nonempty_buffer(writer);
@@ -55,11 +55,14 @@ const char *test_writer_bytes() {
   return NULL;
 }
 
-void _write_byte_as_bits(writer *writer, byte value) {
+NODISCARD bool _write_byte_as_bits(writer *writer, byte value) {
   for (int i = 0; i < 8; i++) {
     byte bit = value & (1 << i) ? 1 : 0;
-    writer_write_bit(writer, bit);
+    if (!writer_write_bit(writer, bit)) {
+      return false;
+    }
   }
+  return true;
 }
 
 const char *test_writer_bits() {
@@ -67,21 +70,21 @@ const char *test_writer_bits() {
   buffer b;
   TEST_ASSERT(writer_get_bytes_stored(writer) == 0);
 
-  writer_write_bit(writer, 1);
+  TEST_ASSERT(writer_write_bit(writer, 1));
   TEST_ASSERT(writer_get_bytes_stored(writer) == 1);
 
-  writer_write_bit(writer, 1);
-  writer_write_bit(writer, 0);
-  writer_write_bit(writer, 0);
-  writer_write_bit(writer, 1);
-  writer_write_bit(writer, 0);
-  writer_write_bit(writer, 1);
+  TEST_ASSERT(writer_write_bit(writer, 1));
+  TEST_ASSERT(writer_write_bit(writer, 0));
+  TEST_ASSERT(writer_write_bit(writer, 0));
+  TEST_ASSERT(writer_write_bit(writer, 1));
+  TEST_ASSERT(writer_write_bit(writer, 0));
+  TEST_ASSERT(writer_write_bit(writer, 1));
   TEST_ASSERT(writer_get_bytes_stored(writer) == 1);
 
-  writer_write_bit(writer, 0);
+  TEST_ASSERT(writer_write_bit(writer, 0));
   TEST_ASSERT(writer_get_bytes_stored(writer) == 1);
 
-  writer_write_bit(writer, 1);
+  TEST_ASSERT(writer_write_bit(writer, 1));
   TEST_ASSERT(writer_get_bytes_stored(writer) == 2);
 
   TEST_ASSERT(writer_consume_full_buffer(writer).length == 0);
@@ -91,11 +94,11 @@ const char *test_writer_bits() {
   TEST_ASSERT(b.data[0] == 0b01010011 && b.data[1] == 0b00000001);
   free(b.data);
 
-  _write_byte_as_bits(writer, 0b00110101);
-  _write_byte_as_bits(writer, 0b11001010);
-  writer_write_bit(writer, 1);
-  writer_write_bit(writer, 0);
-  writer_write_bit(writer, 1);
+  TEST_ASSERT(_write_byte_as_bits(writer, 0b00110101));
+  TEST_ASSERT(_write_byte_as_bits(writer, 0b11001010));
+  TEST_ASSERT(writer_write_bit(writer, 1));
+  TEST_ASSERT(writer_write_bit(writer, 0));
+  TEST_ASSERT(writer_write_bit(writer, 1));
   TEST_ASSERT(writer_get_bytes_stored(writer) == 3);
   b = writer_consume_all_buffers(writer);
   TEST_ASSERT(writer_get_bytes_stored(writer) == 0);
@@ -110,9 +113,9 @@ const char *test_writer_bits() {
 const char *test_writer_early_close() {
   writer *writer = writer_new(test_context, 2);
   TEST_ASSERT(context_is_errored(test_context) == false);
-  writer_write_byte(writer, 1);
-  writer_write_byte(writer, 2);
-  writer_write_byte(writer, 3);
+  TEST_ASSERT(writer_write_byte(writer, 1));
+  TEST_ASSERT(writer_write_byte(writer, 2));
+  TEST_ASSERT(writer_write_byte(writer, 3));
   TEST_ASSERT(context_is_errored(test_context) == false);
   writer_delete(writer);
   TEST_ASSERT(context_is_errored(test_context) == true);
@@ -124,17 +127,17 @@ const char *test_writer_buffer_reuse() {
   writer *writer = writer_new(test_context, 2);
   buffer b;
 
-  writer_write_byte(writer, 2);
-  writer_write_byte(writer, 3);
-  writer_write_byte(writer, 4);
+  TEST_ASSERT(writer_write_byte(writer, 2));
+  TEST_ASSERT(writer_write_byte(writer, 3));
+  TEST_ASSERT(writer_write_byte(writer, 4));
   b = writer_consume_full_buffer(writer);
   TEST_ASSERT(b.data[0] == 2 && b.data[1] == 3);
   byte *reused_array = b.data;
 
   writer_supply_dirty_buffer(writer, b.data);
-  writer_write_byte(writer, 5);
-  writer_write_byte(writer, 6);
-  _write_byte_as_bits(writer, 0b10000000);
+  TEST_ASSERT(writer_write_byte(writer, 5));
+  TEST_ASSERT(writer_write_byte(writer, 6));
+  TEST_ASSERT(_write_byte_as_bits(writer, 0b10000000));
   b = writer_consume_full_buffer(writer);
   TEST_ASSERT(b.data[0] == 4 && b.data[1] == 5);
   free(b.data);
@@ -161,7 +164,7 @@ const char *test_writer_allocation_failure() {
 
   setup_test_context(4);
   writer = writer_new(test_context, 2);
-  writer_write_byte(writer, 1);
+  TEST_ASSERT(writer_write_byte(writer, 1));
   buffer b = writer_consume_all_buffers(writer);
   TEST_ASSERT(b.length == 0);
   writer_delete(writer);
@@ -181,6 +184,12 @@ const char *test_writer_allocation_failure() {
   TEST_ASSERT(writer_write_byte(writer, 1));
   TEST_ASSERT(!writer_write_byte(writer, 2));
   writer_delete(writer);
+
+  setup_test_context_default();
+  writer = writer_new(test_context, 2);
+  update_test_context_for_alloc_failure(1);
+  b = writer_consume_nonempty_buffer(writer);
+  TEST_ASSERT(b.data == NULL && b.length == 0);
 
   return NULL;
 }

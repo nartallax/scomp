@@ -1,5 +1,6 @@
 #pragma once
-#include "./context.c"
+#include "commons.c"
+#include "context.c"
 #include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -14,7 +15,7 @@ typedef struct {
   uint64_t *data;
 } ftree;
 
-bool ftree_init(ftree *tree, context *context, int64_t size) {
+NODISCARD bool ftree_init(ftree *tree, context *context, int64_t size) {
   // +1 because fenwick trees' indices are inherently 1-based
   tree->size = size + 1;
   tree->data = context_allocate_zero_init(context, tree->size, sizeof(uint64_t));

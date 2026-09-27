@@ -135,7 +135,7 @@ acod_encoder *acod_encoder_new(context *context, writer *writer) {
   return encoder;
 }
 
-bool _acod_encoder_write_shift_bit(acod_encoder *encoder, byte bit) {
+NODISCARD bool _acod_encoder_write_shift_bit(acod_encoder *encoder, byte bit) {
   if (!writer_write_bit(encoder->writer, bit)) {
     return false;
   }
@@ -151,7 +151,7 @@ bool _acod_encoder_write_shift_bit(acod_encoder *encoder, byte bit) {
   return true;
 }
 
-bool _acod_encoder_finalize(acod_encoder *encoder) {
+NODISCARD bool _acod_encoder_finalize(acod_encoder *encoder) {
   // This makes the final interval unambiguous.
   encoder->underflows++;
 
@@ -162,7 +162,7 @@ bool _acod_encoder_finalize(acod_encoder *encoder) {
 /** Flush remaining state, and delete the encoder.
 Must be called before deleting underlying writer.
 Returns true if finalized successfully. */
-bool acod_encoder_delete(acod_encoder *encoder) {
+NODISCARD bool acod_encoder_delete(acod_encoder *encoder) {
   bool result = false;
   if (!context_is_errored(encoder->context)) {
     // if context is errored - we must not attempt to write more stuff into the writer
@@ -175,7 +175,7 @@ bool acod_encoder_delete(acod_encoder *encoder) {
 
 /** Writes a single symbol with the encoder.
 Returns true if the write was successful. */
-bool acod_encoder_write(acod_encoder *encoder, ftable *frequencies, symbol symbol) {
+NODISCARD bool acod_encoder_write(acod_encoder *encoder, ftable *frequencies, symbol symbol) {
   // TODO: consider moving those halvings outside of the encoder and decoder
   // encoder/decoder never modify frequency tables, and therefore should never trigger halvings
   // and also we need a test for this halving behavior

@@ -80,7 +80,10 @@ buffer test_feed_file_into_tokenizer_detokenizer(const char *path, const char *f
     }
   }
 
-  json_tokenizer_finalize(&t);
+  if (!json_tokenizer_finalize(&t)) {
+    return EMPTY_BUFFER;
+  }
+
   while (true) {
     token = json_tokenizer_consume(&t);
     if (!token) {

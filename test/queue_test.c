@@ -17,7 +17,7 @@ const char *_str(const char **slot) {
 
 const char *test_queue_simple() {
   queue *q = malloc(sizeof(queue));
-  queue_init(q, test_context, sizeof(const char *));
+  TEST_ASSERT(queue_init(q, test_context, sizeof(const char *)));
   TEST_ASSERT(queue_get_count(q) == 0);
 
   _test_queue_push(q, "first");
@@ -45,7 +45,7 @@ const char *test_queue_simple() {
 
 const char *test_queue_overflow_while_wrapping() {
   queue *q = malloc(sizeof(queue));
-  queue_init(q, test_context, sizeof(const char *));
+  TEST_ASSERT(queue_init(q, test_context, sizeof(const char *)));
 
   for (size_t i = 0; i < QUEUE_DEFAULT_LENGTH - 1; i++) {
     _test_queue_push(q, "a");
@@ -90,7 +90,7 @@ const char *test_queue_overflow_while_wrapping() {
 
 const char *test_queue_overflow_while_not_wrapping() {
   queue *q = malloc(sizeof(queue));
-  queue_init(q, test_context, sizeof(const char *));
+  TEST_ASSERT(queue_init(q, test_context, sizeof(const char *)));
 
   TEST_ASSERT(q->length == QUEUE_DEFAULT_LENGTH);
   for (size_t i = 0; i < QUEUE_DEFAULT_LENGTH * 2 + 5; i++) {
@@ -116,7 +116,7 @@ typedef struct {
 
 const char *test_queue_non_pointer_values() {
   queue *q = malloc(sizeof(queue));
-  queue_init(q, test_context, sizeof(test_xyz));
+  TEST_ASSERT(queue_init(q, test_context, sizeof(test_xyz)));
 
   test_xyz *slot1 = queue_push(q);
   slot1->x = 1;
@@ -159,7 +159,7 @@ const char *test_queue_allocation_failures() {
   TEST_ASSERT(!queue_init(&q, test_context, sizeof(const char *)));
 
   setup_test_context(1);
-  queue_init(&q, test_context, sizeof(const char *));
+  TEST_ASSERT(queue_init(&q, test_context, sizeof(const char *)));
   TEST_ASSERT(context_is_errored(test_context) == false);
   for (size_t i = 0; i < QUEUE_DEFAULT_LENGTH - 1; i++) {
     _test_queue_push(&q, "a");

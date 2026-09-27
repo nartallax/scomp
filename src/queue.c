@@ -25,7 +25,7 @@ typedef struct {
   size_t tail;
 } queue;
 
-bool queue_init(queue *queue, context *context, size_t value_size) {
+NODISCARD bool queue_init(queue *queue, context *context, size_t value_size) {
   queue->length = QUEUE_DEFAULT_LENGTH;
   queue->head = 0;
   queue->tail = 0;
@@ -53,7 +53,7 @@ size_t _queue_increment(queue *queue, size_t i) {
   return (i + 1) & (queue->length - 1);
 }
 
-bool _queue_maybe_grow(queue *queue) {
+NODISCARD bool _queue_maybe_grow(queue *queue) {
   size_t count = queue_get_count(queue);
   if (count < queue->length - 1) {
     return true;

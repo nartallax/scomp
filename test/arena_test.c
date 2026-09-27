@@ -4,7 +4,7 @@
 
 const char *test_arena_simple() {
   arena a;
-  arena_init(&a, test_context);
+  TEST_ASSERT(arena_init(&a, test_context));
 
   size_t first_offset = arena_allocate(&a, sizeof(byte) * 5);
   size_t second_offset = arena_allocate(&a, sizeof(byte) * 5);
@@ -56,7 +56,7 @@ const char *test_arena_simple() {
 
 const char *test_arena_one_big_allocation() {
   arena a;
-  arena_init(&a, test_context);
+  TEST_ASSERT(arena_init(&a, test_context));
 
   size_t really_big_buffer_offset = arena_allocate(&a, ARENA_DEFAULT_LENGTH * 10);
   byte *buffer = arena_offset_to_pointer(&a, really_big_buffer_offset);
@@ -74,7 +74,7 @@ const char *test_arena_allocation_failures() {
   TEST_ASSERT(context_is_errored(test_context));
 
   setup_test_context(1);
-  arena_init(&a, test_context);
+  TEST_ASSERT(arena_init(&a, test_context));
   size_t first_offset = arena_allocate(&a, 15);
   TEST_ASSERT(first_offset != 0);
   TEST_ASSERT(arena_allocate(&a, ARENA_DEFAULT_LENGTH) == 0);

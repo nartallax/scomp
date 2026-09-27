@@ -2,7 +2,7 @@
 #include "json_tokenizer.c"
 #include "writer.c"
 
-bool _jdet_write_int(writer *w, uint64_t value) {
+NODISCARD bool _jdet_write_int(writer *w, uint64_t value) {
   uint64_t rem = value % 10;
   value = value / 10;
   if (value) {
@@ -13,7 +13,7 @@ bool _jdet_write_int(writer *w, uint64_t value) {
   return writer_write_byte(w, '0' + rem);
 }
 
-bool json_detokenizer_write(writer *w, json_token *token) {
+NODISCARD bool json_detokenizer_write(writer *w, json_token *token) {
   switch (token->kind) {
   case JSON_TOKEN_OBJECT_OPEN:
     return writer_write_byte(w, '{');

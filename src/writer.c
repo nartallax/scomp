@@ -28,7 +28,7 @@ typedef struct {
 
 const buffer EMPTY_BUFFER = (buffer){.data = NULL, .length = 0};
 
-bool _writer_allocate_next_buffer(writer *writer) {
+NODISCARD bool _writer_allocate_next_buffer(writer *writer) {
   byte *buffer;
   if (queue_get_count(&writer->free_buffers) > 0) {
     byte **existing_buffer_slot = queue_pop(&writer->free_buffers);
@@ -51,7 +51,7 @@ bool _writer_allocate_next_buffer(writer *writer) {
   return true;
 }
 
-bool _writer_maybe_allocate_next_buffer(writer *writer) {
+NODISCARD bool _writer_maybe_allocate_next_buffer(writer *writer) {
   if ((writer->current_bit_index >> 3) >= writer->size) {
     return _writer_allocate_next_buffer(writer);
   }
@@ -90,7 +90,7 @@ void writer_delete(writer *writer) {
   context_free(writer->context, writer);
 }
 
-writer *writer_new(context *context, size_t size) {
+NODISCARD writer *writer_new(context *context, size_t size) {
   writer *w = context_allocate(context, 1, sizeof(writer));
   if (!w) {
     return NULL;
@@ -121,7 +121,7 @@ writer *writer_new(context *context, size_t size) {
 Returns buffer of length zero if there's no full buffer.
 Writer won't track this array of bytes anymore. It's up for caller to `free()` it.
 Can only return completely full buffers. Won't return partially full buffers, see `writer_consume_nonempty_buffer()` */
-buffer writer_consume_full_buffer(writer *writer) {
+NODISCARD buffer writer_consume_full_buffer(writer *writer) {
   if (queue_get_count(&writer->buffers) < 2) {
     // there always should be at least 1 non-full buffer in the buffer queue
     // if there's only 1 buffer - it's not full, so we must not return it
@@ -136,7 +136,7 @@ Returns buffer of length zero if no bytes are left to be consumed.
 Only use this function if you are sure this writer will receive no more writes.
 If this writer is used to write individual bits - last byte of the buffer may be partially written.
 This is okay if you are closing the writer, but if more bits are to be written in this writer - next byte would be corrupted. */
-buffer writer_consume_nonempty_buffer(writer *writer) {
+NODISCARD buffer writer_consume_nonempty_buffer(writer *writer) {
   buffer full_buffer = writer_consume_full_buffer(writer);
   if (full_buffer.length > 0) {
     return full_buffer;
@@ -146,7 +146,12 @@ buffer writer_consume_nonempty_buffer(writer *writer) {
   }
   byte **slot = queue_pop(&writer->buffers);
   buffer result = {.data = *slot, .length = (writer->current_bit_index + 7) >> 3};
-  _writer_allocate_next_buffer(writer);
+  if (!_writer_allocate_next_buffer(writer)) {
+    // this feels weird, to discard already ready-to-use buffer
+    // but then, we have no other relatively-robust way of signaling that an error happened
+    context_free(writer->context, result.data);
+    return EMPTY_BUFFER;
+  }
   return result;
 }
 
@@ -154,7 +159,7 @@ buffer writer_consume_nonempty_buffer(writer *writer) {
 Returns buffer of length zero if no bytes are left to be consumed, of if there was an allocation problem.
 Writer won't track byte array returned, it's up for caller to `free()` it. Internal buffers (not returned from this function) are freed by the writer.
 Restriction about partially-written bytes apply, see comments to `writer_consume_nonempty_buffer` */
-buffer writer_consume_all_buffers(writer *writer) {
+NODISCARD buffer writer_consume_all_buffers(writer *writer) {
   size_t length = writer_get_bytes_stored(writer);
   size_t index = 0;
   byte *bytes = context_allocate(writer->context, length, sizeof(byte));
@@ -182,7 +187,7 @@ buffer writer_consume_all_buffers(writer *writer) {
   return (buffer){.length = index, .data = bytes};
 }
 
-bool writer_write_bit(writer *writer, byte bit) {
+NODISCARD bool writer_write_bit(writer *writer, byte bit) {
   assert(bit == 1 || bit == 0);
   byte **slot = queue_peek_tail(&writer->buffers);
   byte *tail_buffer = *slot;
@@ -191,7 +196,7 @@ bool writer_write_bit(writer *writer, byte bit) {
   return _writer_maybe_allocate_next_buffer(writer);
 }
 
-bool writer_write_byte(writer *writer, byte value) {
+NODISCARD bool writer_write_byte(writer *writer, byte value) {
   assert((writer->current_bit_index & 7) == 0 && "Cannot mix bit- and byte-level writes in a single writer instance.");
   byte **slot = queue_peek_tail(&writer->buffers);
   byte *tail_buffer = *slot;
