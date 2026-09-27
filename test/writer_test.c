@@ -190,6 +190,7 @@ const char *test_writer_allocation_failure() {
   update_test_context_for_alloc_failure(1);
   b = writer_consume_nonempty_buffer(writer);
   TEST_ASSERT(b.data == NULL && b.length == 0);
+  writer_delete(writer);
 
   return NULL;
 }
