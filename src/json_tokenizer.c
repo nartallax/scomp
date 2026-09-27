@@ -50,7 +50,7 @@ typedef enum {
 
   // character tokens
   JSON_TOKEN_WHITESPACE,        // ' ', '\n', '\r', '\t' between elements and commas
-  JSON_TOKEN_ESCAPED_CHARACTER, // \n, \r, \\ and other single-character escape sequences
+  JSON_TOKEN_ESCAPED_CHARACTER, // \n, \r, \\ and other single-character escape sequences within a string
 
   // integer tokens
   JSON_TOKEN_CHARACTER,        // normal, non-escaped element of a string. one unicode codepoint; `int_token->value` contains sequence of utf-8 bytes merged into one uint64, not decoded codepoint

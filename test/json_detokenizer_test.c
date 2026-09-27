@@ -8,6 +8,7 @@
 bool test_setup_detokeniser_writer_for_failure(writer **w, int fail_after_characters) {
   if (*w) {
     writer_delete(*w);
+    *w = NULL;
   }
 
   setup_test_context_default();
@@ -31,7 +32,7 @@ json_token test_string_to_single_json_token(const char *str) {
 }
 
 const char *test_json_detokenizer_allocation_failures() {
-  writer *w;
+  writer *w = NULL;
 
   TEST_ASSERT(test_setup_detokeniser_writer_for_failure(&w, 2));
   TEST_ASSERT(!json_detokenizer_write(w, &((json_token){.kind = JSON_TOKEN_NUMBER, .number_token = (json_number_token){.integer_part = 12345}})));
