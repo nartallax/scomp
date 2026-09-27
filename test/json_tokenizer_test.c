@@ -605,6 +605,33 @@ bool test_json_tokenizer_setup_for_queue_failure(json_tokenizer *t, size_t offse
   return true;
 }
 
+const char *test_json_tokenizer_stack_limitations() {
+  json_tokenizer t;
+  setup_test_context_default();
+  TEST_ASSERT(json_tokenizer_init(&t, test_context));
+  char *long_string_with_repeats = string_repeat("[", 1, JTOK_MAX_STATE_STACK_LENGTH * 2);
+  TEST_ASSERT(!test_json_tokenizer_push_string(&t, long_string_with_repeats));
+  free(long_string_with_repeats);
+  json_tokenizer_deinit(&t);
+
+  setup_test_context_default();
+  TEST_ASSERT(json_tokenizer_init(&t, test_context));
+  long_string_with_repeats = string_repeat("[", 1, (JTOK_MAX_STATE_STACK_LENGTH / 2) - 1);
+  TEST_ASSERT(test_json_tokenizer_push_string(&t, long_string_with_repeats));
+  while (true) {
+    json_token *token = json_tokenizer_consume(&t);
+    if (!token) {
+      break;
+    }
+  }
+  free(long_string_with_repeats);
+  TEST_ASSERT(test_json_tokenizer_push_string(&t, "\""));
+  TEST_ASSERT(json_tokenizer_consume(&t) == NULL);
+  json_tokenizer_deinit(&t);
+
+  return NULL;
+}
+
 const char *test_json_tokenizer_allocation_failures() {
   json_tokenizer t;
   char *long_string_with_repeats;
@@ -652,8 +679,8 @@ const char *test_json_tokenizer_allocation_failures() {
   json_tokenizer_deinit(&t);
 
   // some bullshit for code coverage
-  // it's not normally possible for code to attempt memory allocation when in root state
-  // because there's guaranteed to be some free slots in the state stack
+  // it's not normally possible for code to attempt memory allocations in places this test is testing
+  // because it's guaranteed to be some free slots in the state stack
   // but I also don't feel comfortable to not check something that must always be checked
   setup_test_context_default();
   TEST_ASSERT(json_tokenizer_init(&t, test_context));
@@ -663,14 +690,6 @@ const char *test_json_tokenizer_allocation_failures() {
   }
   update_test_context_for_alloc_failure(0);
   TEST_ASSERT(!test_json_tokenizer_push_string(&t, "["));
-  json_tokenizer_deinit(&t);
-
-  // this is not allocation failure, but explicit limitation, but let's test it here anyway
-  setup_test_context_default();
-  TEST_ASSERT(json_tokenizer_init(&t, test_context));
-  char *lots_of_array_open = string_repeat("[", 1, JTOK_MAX_STATE_STACK_LENGTH * 2);
-  TEST_ASSERT(!test_json_tokenizer_push_string(&t, lots_of_array_open));
-  free(lots_of_array_open);
   json_tokenizer_deinit(&t);
 
   return NULL;

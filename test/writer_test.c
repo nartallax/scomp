@@ -186,8 +186,9 @@ const char *test_writer_allocation_failure() {
   writer_delete(writer);
 
   setup_test_context_default();
-  writer = writer_new(test_context, 2);
-  update_test_context_for_alloc_failure(1);
+  writer = writer_new(test_context, 3);
+  TEST_ASSERT(writer_write_byte(writer, 1));
+  update_test_context_for_alloc_failure(0);
   b = writer_consume_nonempty_buffer(writer);
   TEST_ASSERT(b.data == NULL && b.length == 0);
   writer_delete(writer);

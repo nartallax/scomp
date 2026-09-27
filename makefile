@@ -12,6 +12,11 @@ build_test:
 	@make clear
 	@$(CC) -O3 -g -o ./build/test test/test_index.c
 
+.PHONY: build_test_for_debug
+build_test_for_debug:
+	@make clear
+	@$(CC) -O0 -g -o ./build/test test/test_index.c
+
 .PHONY: build_test_for_coverage
 build_test_for_coverage:
 	@make clear

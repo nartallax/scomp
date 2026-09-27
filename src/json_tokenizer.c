@@ -362,7 +362,7 @@ NODISCARD _jtok_success_state _jtok_push_state(json_tokenizer *t, json_state_typ
   return _JTOK_OK;
 }
 
-NODISCARD _jtok_success_state _jtok_pop_state(json_tokenizer *t) {
+void _jtok_pop_state(json_tokenizer *t) {
   json_state_type *old_state_slot = stack_pop(&t->state_stack);
   json_state_type old_state = *old_state_slot;
   json_state_type *base_state_slot = stack_peek(&t->state_stack);
@@ -372,19 +372,23 @@ NODISCARD _jtok_success_state _jtok_pop_state(json_tokenizer *t) {
   switch (base_state) {
   case JSON_STATE_OBJECT:
     if (old_state == JSON_STATE_OBJECT_KEY) {
-      return _jtok_push_state(t, JSON_STATE_OBJECT_KV_SEPARATOR);
+      // voiding the result.
+      // we have just popped the state, there's absolutely no way for push to fail in this case
+      (void)_jtok_push_state(t, JSON_STATE_OBJECT_KV_SEPARATOR);
     }
-    return _JTOK_OK;
+    return;
   case JSON_STATE_OBJECT_KV_SEPARATOR:
     // this pops to JSON_STATE_OBJECT after reading a value
-    return _jtok_pop_state(t);
+    _jtok_pop_state(t);
+    return;
   case JSON_STATE_VALUE:
     // after a composite value, like object, string, array or number, is finished reading - its state is popped
     // and Value state is exposed. but Value must not immediately follow another Value
     // therefore, we must pop this state to expose underlying state
-    return _jtok_pop_state(t);
+    _jtok_pop_state(t);
+    return;
   default:
-    return _JTOK_OK;
+    return;
   }
 }
 
@@ -514,7 +518,8 @@ NODISCARD _jtok_success_state _jtok_try_produce_number(json_tokenizer *t, size_t
     return result;
   }
 
-  return _jtok_pop_state(t);
+  _jtok_pop_state(t);
+  return _JTOK_OK;
 }
 
 bool _jtok_is_a_number_starter(byte last_char) {
@@ -551,11 +556,8 @@ NODISCARD _jtok_success_state _jtok_try_start_string(json_tokenizer *t, json_sta
 
 NODISCARD _jtok_success_state _jtok_try_end_string(json_tokenizer *t) {
   if (t->chars[0] == '"') {
-    _jtok_success_state result = _jtok_pop_state(t);
-    if (result == _JTOK_OK) {
-      return _jtok_push_simple_token(t, JSON_TOKEN_QUOTES);
-    }
-    return result;
+    _jtok_pop_state(t);
+    return _jtok_push_simple_token(t, JSON_TOKEN_QUOTES);
   }
   return _JTOK_PASS;
 }
@@ -573,11 +575,8 @@ NODISCARD _jtok_success_state _jtok_try_start_object(json_tokenizer *t) {
 
 NODISCARD _jtok_success_state _jtok_try_end_object(json_tokenizer *t) {
   if (t->chars[0] == '}') {
-    _jtok_success_state result = _jtok_pop_state(t);
-    if (result == _JTOK_OK) {
-      return _jtok_push_simple_token(t, JSON_TOKEN_OBJECT_CLOSE);
-    }
-    return result;
+    _jtok_pop_state(t);
+    return _jtok_push_simple_token(t, JSON_TOKEN_OBJECT_CLOSE);
   }
   return _JTOK_PASS;
 }
@@ -595,11 +594,8 @@ NODISCARD _jtok_success_state _jtok_try_start_array(json_tokenizer *t) {
 
 NODISCARD _jtok_success_state _jtok_try_end_array(json_tokenizer *t) {
   if (t->chars[0] == ']') {
-    _jtok_success_state result = _jtok_pop_state(t);
-    if (result == _JTOK_OK) {
-      return _jtok_push_simple_token(t, JSON_TOKEN_ARRAY_CLOSE);
-    }
-    return result;
+    _jtok_pop_state(t);
+    return _jtok_push_simple_token(t, JSON_TOKEN_ARRAY_CLOSE);
   }
   return _JTOK_PASS;
 }
@@ -623,7 +619,8 @@ NODISCARD _jtok_success_state _jtok_try_const_value(json_tokenizer *t) {
     }
   }
   if (result == _JTOK_OK) {
-    return _jtok_pop_state(t);
+    _jtok_pop_state(t);
+    return _JTOK_OK;
   }
   return result;
 }

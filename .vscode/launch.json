@@ -1,0 +1,15 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug C with LLDB",
+            "preLaunchTask": "build_c_project_for_debug",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/test",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "stopOnEntry": false
+        }
+    ]
+}
