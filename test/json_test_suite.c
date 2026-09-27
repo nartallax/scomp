@@ -105,7 +105,7 @@ buffer test_feed_file_into_tokenizer_detokenizer(const char *path, const char *f
 
   is_success = is_success && json_tokenizer_is_empty(&t);
 
-  buffer result_buffer = is_success ? writer_consume_all_buffers(w) : EMPTY_BUFFER;
+  buffer result_buffer = is_success ? writer_consume_all_buffers(w).buffer : EMPTY_BUFFER;
 
   writer_delete(w);
   json_tokenizer_deinit(&t);

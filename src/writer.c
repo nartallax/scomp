@@ -28,6 +28,14 @@ typedef struct {
 
 const buffer EMPTY_BUFFER = (buffer){.data = NULL, .length = 0};
 
+typedef struct {
+  bool is_error;
+  buffer buffer;
+} buffer_or_error;
+
+const buffer_or_error ERROR_ERROR_BUFFER = (buffer_or_error){.is_error = true, .buffer = EMPTY_BUFFER};
+const buffer_or_error EMPTY_ERROR_BUFFER = (buffer_or_error){.is_error = false, .buffer = EMPTY_BUFFER};
+
 NODISCARD bool _writer_allocate_next_buffer(writer *writer) {
   byte *buffer;
   if (queue_get_count(&writer->free_buffers) > 0) {
@@ -136,35 +144,35 @@ Returns buffer of length zero if no bytes are left to be consumed.
 Only use this function if you are sure this writer will receive no more writes.
 If this writer is used to write individual bits - last byte of the buffer may be partially written.
 This is okay if you are closing the writer, but if more bits are to be written in this writer - next byte would be corrupted. */
-NODISCARD buffer writer_consume_nonempty_buffer(writer *writer) {
+NODISCARD buffer_or_error writer_consume_nonempty_buffer(writer *writer) {
   buffer full_buffer = writer_consume_full_buffer(writer);
   if (full_buffer.length > 0) {
-    return full_buffer;
+    return (buffer_or_error){.is_error = false, .buffer = full_buffer};
   }
+
   if (writer->current_bit_index == 0) {
-    return EMPTY_BUFFER;
+    return EMPTY_ERROR_BUFFER;
+  }
+  size_t bit_index = writer->current_bit_index;
+  // allocating before pop, to avoid losing data
+  if (!_writer_allocate_next_buffer(writer)) {
+    return ERROR_ERROR_BUFFER;
   }
   byte **slot = queue_pop(&writer->buffers);
-  buffer result = {.data = *slot, .length = (writer->current_bit_index + 7) >> 3};
-  if (!_writer_allocate_next_buffer(writer)) {
-    // this feels weird, to discard already ready-to-use buffer
-    // but then, we have no other relatively-robust way of signaling that an error happened
-    context_free(writer->context, result.data);
-    return EMPTY_BUFFER;
-  }
-  return result;
+  buffer result_buffer = {.data = *slot, .length = (bit_index + 7) >> 3};
+  return (buffer_or_error){.is_error = false, .buffer = result_buffer};
 }
 
 /** Allocates new array of bytes. All the bytes contained in the writer are written into the array and consumed.
 Returns buffer of length zero if no bytes are left to be consumed, of if there was an allocation problem.
 Writer won't track byte array returned, it's up for caller to `free()` it. Internal buffers (not returned from this function) are freed by the writer.
 Restriction about partially-written bytes apply, see comments to `writer_consume_nonempty_buffer` */
-NODISCARD buffer writer_consume_all_buffers(writer *writer) {
+NODISCARD buffer_or_error writer_consume_all_buffers(writer *writer) {
   size_t length = writer_get_bytes_stored(writer);
   size_t index = 0;
   byte *bytes = context_allocate(writer->context, length, sizeof(byte));
   if (!bytes) {
-    return EMPTY_BUFFER;
+    return ERROR_ERROR_BUFFER;
   }
 
   while (true) {
@@ -177,14 +185,19 @@ NODISCARD buffer writer_consume_all_buffers(writer *writer) {
     index += full_buffer.length;
   }
 
-  buffer last_buffer = writer_consume_nonempty_buffer(writer);
-  if (last_buffer.length > 0) {
-    memcpy(bytes + index, last_buffer.data, last_buffer.length);
-    context_free(writer->context, last_buffer.data);
-    index += last_buffer.length;
+  buffer_or_error last_buffer = writer_consume_nonempty_buffer(writer);
+  if (last_buffer.is_error) {
+    free(bytes);
+    return last_buffer;
   }
 
-  return (buffer){.length = index, .data = bytes};
+  if (last_buffer.buffer.length > 0) {
+    memcpy(bytes + index, last_buffer.buffer.data, last_buffer.buffer.length);
+    context_free(writer->context, last_buffer.buffer.data);
+    index += last_buffer.buffer.length;
+  }
+
+  return (buffer_or_error){.is_error = false, .buffer = (buffer){.length = index, .data = bytes}};
 }
 
 NODISCARD bool writer_write_bit(writer *writer, byte bit) {

@@ -34,11 +34,11 @@ buffer encode_bytes(size_t length, byte *data) {
   if (!acod_encoder_delete(encoder)) {
     return EMPTY_BUFFER;
   }
-  buffer result = writer_consume_all_buffers(writer);
+  buffer_or_error result = writer_consume_all_buffers(writer);
   writer_delete(writer);
   ftable_delete(encoding_frequencies);
 
-  return result;
+  return result.buffer;
 }
 
 const char *_test_acod(size_t length, byte *data) {
