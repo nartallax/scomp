@@ -665,5 +665,13 @@ const char *test_json_tokenizer_allocation_failures() {
   TEST_ASSERT(!test_json_tokenizer_push_string(&t, "["));
   json_tokenizer_deinit(&t);
 
+  // this is not allocation failure, but explicit limitation, but let's test it here anyway
+  setup_test_context_default();
+  TEST_ASSERT(json_tokenizer_init(&t, test_context));
+  char *lots_of_array_open = string_repeat("[", 1, JTOK_MAX_STATE_STACK_LENGTH * 2);
+  TEST_ASSERT(!test_json_tokenizer_push_string(&t, lots_of_array_open));
+  free(lots_of_array_open);
+  json_tokenizer_deinit(&t);
+
   return NULL;
 }

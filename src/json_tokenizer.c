@@ -15,6 +15,10 @@ Technically it's possible to have longer numbers, especially when they are tiny 
 But it's very unlikely */
 #define JTOK_MAX_CHARS_LENGTH 128
 
+/** Max length of state stack. Limits nesting.
+Exists to prevent memory overflow in case when the input is infinite number of '[' */
+#define JTOK_MAX_STATE_STACK_LENGTH 1024
+
 // TODO: consider making this single-byte long and check the performance
 /** Types of state in which JSON tokens may appear.
 Different types of states may contain different types of tokens
@@ -146,8 +150,6 @@ bool json_tokenizer_init(json_tokenizer *tokenizer, context *context) {
   tokenizer->chars_length = 0;
   tokenizer->last_nonws_read_token_kind = JSON_TOKEN_WHITESPACE;
 
-  // TODO: make sure that here (and in other places) overflow isn't possible
-  // as in, a million '[' should be treated as invalid json instead of allocating million states
   json_state_type *slot = stack_push(&tokenizer->state_stack);
   // this push would never fail, as stack have already allocated memory for some values
   *slot = JSON_STATE_ROOT;
@@ -236,34 +238,6 @@ NODISCARD _jtok_success_state _jtok_try_bom(json_tokenizer *t) {
   return _JTOK_PASS;
 }
 
-NODISCARD _jtok_success_state _jtok_try_object_open(json_tokenizer *t) {
-  if (t->chars[0] == '{') {
-    return _jtok_push_simple_token(t, JSON_TOKEN_OBJECT_OPEN);
-  }
-  return _JTOK_PASS;
-}
-
-NODISCARD _jtok_success_state _jtok_try_object_close(json_tokenizer *t) {
-  if (t->chars[0] == '}') {
-    return _jtok_push_simple_token(t, JSON_TOKEN_OBJECT_CLOSE);
-  }
-  return _JTOK_PASS;
-}
-
-NODISCARD _jtok_success_state _jtok_try_array_open(json_tokenizer *t) {
-  if (t->chars[0] == '[') {
-    return _jtok_push_simple_token(t, JSON_TOKEN_ARRAY_OPEN);
-  }
-  return _JTOK_PASS;
-}
-
-NODISCARD _jtok_success_state _jtok_try_array_close(json_tokenizer *t) {
-  if (t->chars[0] == ']') {
-    return _jtok_push_simple_token(t, JSON_TOKEN_ARRAY_CLOSE);
-  }
-  return _JTOK_PASS;
-}
-
 NODISCARD _jtok_success_state _jtok_try_true(json_tokenizer *t) {
   if (t->chars_length == 4 && t->chars[0] == 't' && t->chars[1] == 'r' && t->chars[2] == 'u' && t->chars[3] == 'e') {
     return _jtok_push_simple_token(t, JSON_TOKEN_TRUE);
@@ -295,13 +269,6 @@ NODISCARD _jtok_success_state _jtok_try_comma(json_tokenizer *t) {
 NODISCARD _jtok_success_state _jtok_try_colon(json_tokenizer *t) {
   if (t->chars[0] == ':') {
     return _jtok_push_simple_token(t, JSON_TOKEN_COLON);
-  }
-  return _JTOK_PASS;
-}
-
-NODISCARD _jtok_success_state _jtok_try_quotes(json_tokenizer *t) {
-  if (t->chars[0] == '"') {
-    return _jtok_push_simple_token(t, JSON_TOKEN_QUOTES);
   }
   return _JTOK_PASS;
 }
@@ -383,6 +350,9 @@ NODISCARD _jtok_success_state _jtok_try_parse_next_string_part(json_tokenizer *t
 }
 
 NODISCARD _jtok_success_state _jtok_push_state(json_tokenizer *t, json_state_type state) {
+  if (stack_get_count(&t->state_stack) >= JTOK_MAX_STATE_STACK_LENGTH) {
+    return _JTOK_PASS;
+  }
   // printf("push state: %i\n", state);
   json_state_type *slot = stack_push(&t->state_stack);
   if (!slot) {
@@ -569,51 +539,69 @@ NODISCARD _jtok_success_state _jtok_try_update_number(json_tokenizer *t) {
 }
 
 NODISCARD _jtok_success_state _jtok_try_start_string(json_tokenizer *t, json_state_type state) {
-  _jtok_success_state result = _jtok_try_quotes(t);
-  if (result == _JTOK_OK) {
-    return _jtok_push_state(t, state);
+  if (t->chars[0] == '"') {
+    _jtok_success_state result = _jtok_push_state(t, state);
+    if (result == _JTOK_OK) {
+      return _jtok_push_simple_token(t, JSON_TOKEN_QUOTES);
+    }
+    return result;
   }
-  return result;
+  return _JTOK_PASS;
 }
 
 NODISCARD _jtok_success_state _jtok_try_end_string(json_tokenizer *t) {
-  _jtok_success_state result = _jtok_try_quotes(t);
-  if (result == _JTOK_OK) {
-    return _jtok_pop_state(t);
+  if (t->chars[0] == '"') {
+    _jtok_success_state result = _jtok_pop_state(t);
+    if (result == _JTOK_OK) {
+      return _jtok_push_simple_token(t, JSON_TOKEN_QUOTES);
+    }
+    return result;
   }
-  return result;
+  return _JTOK_PASS;
 }
 
 NODISCARD _jtok_success_state _jtok_try_start_object(json_tokenizer *t) {
-  _jtok_success_state result = _jtok_try_object_open(t);
-  if (result == _JTOK_OK) {
-    return _jtok_push_state(t, JSON_STATE_OBJECT);
+  if (t->chars[0] == '{') {
+    _jtok_success_state result = _jtok_push_state(t, JSON_STATE_OBJECT);
+    if (result == _JTOK_OK) {
+      return _jtok_push_simple_token(t, JSON_TOKEN_OBJECT_OPEN);
+    }
+    return result;
   }
-  return result;
+  return _JTOK_PASS;
 }
 
 NODISCARD _jtok_success_state _jtok_try_end_object(json_tokenizer *t) {
-  _jtok_success_state result = _jtok_try_object_close(t);
-  if (result == _JTOK_OK) {
-    return _jtok_pop_state(t);
+  if (t->chars[0] == '}') {
+    _jtok_success_state result = _jtok_pop_state(t);
+    if (result == _JTOK_OK) {
+      return _jtok_push_simple_token(t, JSON_TOKEN_OBJECT_CLOSE);
+    }
+    return result;
   }
-  return result;
+  return _JTOK_PASS;
 }
 
 NODISCARD _jtok_success_state _jtok_try_start_array(json_tokenizer *t) {
-  _jtok_success_state result = _jtok_try_array_open(t);
-  if (result == _JTOK_OK) {
-    return _jtok_push_state(t, JSON_STATE_ARRAY);
+  if (t->chars[0] == '[') {
+    _jtok_success_state result = _jtok_push_state(t, JSON_STATE_ARRAY);
+    if (result == _JTOK_OK) {
+      return _jtok_push_simple_token(t, JSON_TOKEN_ARRAY_OPEN);
+    }
+    return result;
   }
-  return result;
+  return _JTOK_PASS;
 }
 
 NODISCARD _jtok_success_state _jtok_try_end_array(json_tokenizer *t) {
-  _jtok_success_state result = _jtok_try_array_close(t);
-  if (result == _JTOK_OK) {
-    return _jtok_pop_state(t);
+  if (t->chars[0] == ']') {
+    _jtok_success_state result = _jtok_pop_state(t);
+    if (result == _JTOK_OK) {
+      return _jtok_push_simple_token(t, JSON_TOKEN_ARRAY_CLOSE);
+    }
+    return result;
   }
-  return result;
+  return _JTOK_PASS;
 }
 
 NODISCARD _jtok_success_state _jtok_try_start_number(json_tokenizer *t) {
@@ -739,9 +727,10 @@ NODISCARD _jtok_success_state _jtok_try_tokenize(json_tokenizer *t) {
 
     if (t->last_nonws_read_token_kind == JSON_TOKEN_ARRAY_OPEN) {
       // it's not comma, or whitespace, or array end, which means it can only be a value
-      // this state is only reachable if the array has just started, otherwise value state would be pushed by the branch that processes comma
-      if (_jtok_push_state(t, JSON_STATE_VALUE) != _JTOK_OK) {
-        return _JTOK_ERROR;
+      // this state is only reachable if the array is just started, otherwise value state would be pushed by the branch that processes comma
+      result = _jtok_push_state(t, JSON_STATE_VALUE);
+      if (result != _JTOK_OK) {
+        return result;
       }
       return _jtok_try_tokenize(t);
     }
