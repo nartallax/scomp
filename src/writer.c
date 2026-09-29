@@ -243,3 +243,5 @@ void writer_supply_dirty_buffer(writer *writer, byte *buffer) {
 // 2 means "2 unicode bytes". likewise, only write meaningful bits of first byte as a symbol, and second byte as a symbol, using two more freq tables for that
 // 3, 4 - likewise. only meaningful bits for the first byte, the rest of them as-is, using separate unicode tables
 // wonder if it will be significantly worse on non-unicode streams
+// this also implies doing something about byte stream matcher in stream compression pipeline
+// as it may match up to the middle of the utf-8 sequence, breaking it, and caller would need to handle this situation

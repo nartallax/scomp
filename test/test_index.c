@@ -1,15 +1,16 @@
-#include "./arena_test.c"
-#include "./arithmetic_coding_test.c"
-#include "./fenwick_tree_test.c"
-#include "./frequency_table_test.c"
-#include "./json_detokenizer_test.c"
-#include "./json_test_suite.c"
-#include "./json_tokenizer_test.c"
-#include "./queue_test.c"
-#include "./stack_test.c"
-#include "./test_utils.c"
-#include "./utf8_test.c"
-#include "./writer_test.c"
+#include "arena_test.c"
+#include "arithmetic_coding_test.c"
+#include "fenwick_tree_test.c"
+#include "frequency_table_test.c"
+#include "json_detokenizer_test.c"
+#include "json_test_suite.c"
+#include "json_tokenizer_test.c"
+#include "queue_test.c"
+#include "ring_buffer_test.c"
+#include "stack_test.c"
+#include "test_utils.c"
+#include "utf8_test.c"
+#include "writer_test.c"
 #include <stdio.h>
 
 #define MAKE_TEST(fn) ((test){.tester = (fn), .name = #fn})
@@ -64,7 +65,9 @@ int main() {
       MAKE_TEST(test_json_tokenizer_stack_limitations),
       MAKE_TEST(test_json_tokenizer_allocation_failures),
       MAKE_TEST(test_jsons_of_test_suite),
-      MAKE_TEST(test_json_detokenizer_allocation_failures)
+      MAKE_TEST(test_json_detokenizer_allocation_failures),
+      MAKE_TEST(test_ring_buffer_simple),
+      MAKE_TEST(test_ring_buffer_allocation_fail)
       // tests go here
   };
 
