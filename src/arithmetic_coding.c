@@ -1,26 +1,11 @@
 #pragma once
-#include "./commons.c"
-#include "./frequency_table.c"
-#include "./writer.c"
+#include "commons.c"
+#include "constants.c"
+#include "frequency_table.c"
+#include "writer.c"
 #include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
-
-// size of arithmetic coding state, [2, 62]
-// this is tweakable, but in my experiments it didn't ever improve the outcome
-// extreme values (close to 2 or 62) can make compression worse, and/or degrade speed, and also may cause overflows
-// midline value 32 works great for anything I tested with
-const int ACOD_STATE_SIZE_BITS = 32;
-const symbol_frequency ACOD_FULL_RANGE = 1L << ACOD_STATE_SIZE_BITS;
-// non-zero
-const symbol_frequency ACOD_HALF_RANGE = ACOD_FULL_RANGE >> 1;
-// can be zero
-const symbol_frequency ACOD_QUARTER_RANGE = ACOD_HALF_RANGE >> 1;
-// at least 2
-const symbol_frequency ACOD_MIN_RANGE = ACOD_QUARTER_RANGE + 2L;
-const symbol_frequency ACOD_MAX_TOTAL_UNCAPPED = UINT64_MAX / ACOD_FULL_RANGE;
-const symbol_frequency ACOD_MAX_TOTAL = ACOD_MAX_TOTAL_UNCAPPED > ACOD_MIN_RANGE ? ACOD_MIN_RANGE : ACOD_MAX_TOTAL_UNCAPPED;
-const symbol_frequency ACOD_STATE_MASK = ACOD_FULL_RANGE - 1L;
 
 typedef enum {
   ACOD_STAGE_SHIFT = 1,
@@ -176,10 +161,6 @@ NODISCARD bool acod_encoder_delete(acod_encoder *encoder) {
 /** Writes a single symbol with the encoder.
 Returns true if the write was successful. */
 NODISCARD bool acod_encoder_write(acod_encoder *encoder, ftable *frequencies, symbol symbol) {
-  // TODO: consider moving those halvings outside of the encoder and decoder
-  // encoder/decoder never modify frequency tables, and therefore should never trigger halvings
-  // and also we need a test for this halving behavior
-  ftable_halve_until_total_below_limit(frequencies, ACOD_MAX_TOTAL);
   _acod_perform_update_start(&encoder->state, frequencies, symbol);
 
   while (encoder->state.stage == ACOD_STAGE_SHIFT) {
@@ -255,9 +236,6 @@ bool acod_decoder_has_symbol(acod_decoder *decoder) {
 /** Returns a symbol from internal state.
 Only makes sense to call when `acod_decoder_has_symbol(decoder) == true` */
 symbol acod_decoder_read(acod_decoder *decoder, ftable *frequencies) {
-  // TODO: as in encoder - move it out
-  ftable_halve_until_total_below_limit(frequencies, ACOD_MAX_TOTAL);
-
   assert(decoder->state.low <= decoder->code);
   assert(decoder->code <= decoder->state.high);
 

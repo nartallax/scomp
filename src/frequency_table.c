@@ -1,7 +1,8 @@
 #pragma once
-#include "./context.c"
-#include "./fenwick_tree.c"
 #include "commons.c"
+#include "constants.c"
+#include "context.c"
+#include "fenwick_tree.c"
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -75,7 +76,11 @@ void ftable_halve_until_total_below_limit(ftable *table, symbol limit) {
 // will it be faster? can it be faster if we abolish fenwick trees and instead go with raw arrays?
 // how much compression ratio will be harmed?
 void ftable_increment(ftable *table, symbol symbol) {
-  ftable_halve_until_total_below_limit(table, UINT64_MAX - 1);
+  // TODO: test this
+  // this ensures that the table never overflows
+  // technically this table can be used for other stuff rather than just arithmetic compression
+  // but we won't use it for anything else, hence the arithmetic compression-related constant
+  ftable_halve_until_total_below_limit(table, ACOD_MAX_TOTAL);
 
   table->total += 1;
   ftree_add(table->frequencies, symbol, 1);
