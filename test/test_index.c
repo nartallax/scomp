@@ -1,5 +1,6 @@
 #include "arena_test.c"
 #include "arithmetic_coding_test.c"
+#include "byte_stream_matcher_test.c"
 #include "fenwick_tree_test.c"
 #include "frequency_table_test.c"
 #include "json_detokenizer_test.c"
@@ -40,6 +41,8 @@ int main() {
       MAKE_TEST(test_arena_simple),
       MAKE_TEST(test_arena_one_big_allocation),
       MAKE_TEST(test_arena_allocation_failures),
+      MAKE_TEST(test_ring_buffer_simple),
+      MAKE_TEST(test_ring_buffer_allocation_fail),
       MAKE_TEST(test_writer_bytes),
       MAKE_TEST(test_writer_bits),
       MAKE_TEST(test_writer_early_close),
@@ -66,8 +69,9 @@ int main() {
       MAKE_TEST(test_json_tokenizer_allocation_failures),
       MAKE_TEST(test_jsons_of_test_suite),
       MAKE_TEST(test_json_detokenizer_allocation_failures),
-      MAKE_TEST(test_ring_buffer_simple),
-      MAKE_TEST(test_ring_buffer_allocation_fail)
+      MAKE_TEST(test_bsm_basic),
+      MAKE_TEST(test_bsm_allocation_failures),
+      MAKE_TEST(test_bsm_wraps),
       // tests go here
   };
 

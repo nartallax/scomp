@@ -23,6 +23,11 @@ void ring_buffer_deinit(ring_buffer *rb) {
   context_free(rb->context, rb->content);
 }
 
+/** Get index of next free byte in the buffer */
+size_t ring_buffer_get_index(ring_buffer *rb) {
+  return rb->content_position;
+}
+
 void ring_buffer_push(ring_buffer *rb, byte b) {
   rb->content[rb->content_position] = b;
   rb->content_position = (rb->content_position + 1) & rb->length_mask;
