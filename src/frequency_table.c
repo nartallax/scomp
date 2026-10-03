@@ -86,31 +86,25 @@ void ftable_increment(ftable *table, symbol symbol) {
   ftree_add(table->frequencies, symbol, 1);
 }
 
-void ftable_delete(ftable *table) {
+void ftable_deinit(ftable *table) {
   ftree_deinit(table->frequencies, table->context);
   context_free(table->context, table->compaction_buffer);
-  context_free(table->context, table);
 }
 
-NODISCARD ftable *ftable_new(context *context, symbol length, ftable_flags init_flags) {
+NODISCARD bool ftable_init(ftable *table, context *context, symbol length, ftable_flags init_flags) {
   symbol eof_padding = _ftable_get_eof_length_padding(init_flags);
-
-  ftable *table = context_allocate(context, 1, sizeof(ftable));
-  if (!table) {
-    return NULL;
-  }
 
   table->compaction_buffer = NULL; // just to zero-init
   table->context = context;
   if (!ftree_init(&table->frequencies, context, length + eof_padding)) {
-    ftable_delete(table);
-    return NULL;
+    ftable_deinit(table);
+    return false;
   }
 
   table->compaction_buffer = context_allocate(context, ftree_length(table->frequencies), sizeof(symbol_frequency));
   if (!table->compaction_buffer) {
-    ftable_delete(table);
-    return NULL;
+    ftable_deinit(table);
+    return false;
   }
 
   table->total = 0;
@@ -126,7 +120,7 @@ NODISCARD ftable *ftable_new(context *context, symbol length, ftable_flags init_
     }
   }
 
-  return table;
+  return true;
 }
 
 /** Returns the number of symbols in this frequency table. Includes EOF marker, if present. */

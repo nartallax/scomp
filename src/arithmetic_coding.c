@@ -20,6 +20,7 @@ typedef struct {
   acod_stage stage;
 } acod_state;
 
+// TODO: init here
 acod_state _acod_state_new() {
   acod_state state;
   state.low = 0;

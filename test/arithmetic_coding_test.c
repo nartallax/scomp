@@ -1,7 +1,7 @@
 #pragma once
 #include "../src/arithmetic_coding.c"
 #include "../src/writer.c"
-#include "./test_utils.c"
+#include "test_utils.c"
 #include <limits.h>
 #include <stdlib.h>
 
@@ -18,16 +18,19 @@ byte *get_random_bytes(size_t length) {
 buffer encode_bytes(size_t length, byte *data) {
   writer *writer = writer_new(test_context, writer_buffer_size);
   acod_encoder *encoder = acod_encoder_new(test_context, writer);
-  ftable *encoding_frequencies = ftable_new(test_context, 256, FTABLE_INCLUDE_EOF | FTABLE_INIT_ONE);
+  ftable encoding_frequencies;
+  if (!ftable_init(&encoding_frequencies, test_context, 256, FTABLE_INCLUDE_EOF | FTABLE_INIT_ONE)) {
+    return EMPTY_BUFFER;
+  }
 
   for (size_t i = 0; i < length; i++) {
     symbol symbol = data[i];
-    if (!acod_encoder_write(encoder, encoding_frequencies, symbol)) {
+    if (!acod_encoder_write(encoder, &encoding_frequencies, symbol)) {
       return EMPTY_BUFFER;
     }
-    ftable_increment(encoding_frequencies, symbol);
+    ftable_increment(&encoding_frequencies, symbol);
   }
-  if (!acod_encoder_write(encoder, encoding_frequencies, ftable_get_eof_symbol(encoding_frequencies))) {
+  if (!acod_encoder_write(encoder, &encoding_frequencies, ftable_get_eof_symbol(&encoding_frequencies))) {
     return EMPTY_BUFFER;
   }
 
@@ -36,7 +39,7 @@ buffer encode_bytes(size_t length, byte *data) {
   }
   buffer_or_error result = writer_consume_all_buffers(writer);
   writer_delete(writer);
-  ftable_delete(encoding_frequencies);
+  ftable_deinit(&encoding_frequencies);
 
   return result.buffer;
 }
@@ -44,12 +47,13 @@ buffer encode_bytes(size_t length, byte *data) {
 const char *_test_acod(size_t length, byte *data) {
   buffer encoded_bytes = encode_bytes(length, data);
 
-  ftable *decoding_frequencies = ftable_new(test_context, 256, FTABLE_INCLUDE_EOF | FTABLE_INIT_ONE);
+  ftable decoding_frequencies;
+  TEST_ASSERT(ftable_init(&decoding_frequencies, test_context, 256, FTABLE_INCLUDE_EOF | FTABLE_INIT_ONE));
   acod_decoder *decoder = acod_decoder_new(test_context);
 
   size_t symbol_index = 0;
   symbol last_symbol = 0;
-  symbol eof = ftable_get_eof_symbol(decoding_frequencies);
+  symbol eof = ftable_get_eof_symbol(&decoding_frequencies);
   size_t bit_index = 0;
   while (last_symbol != eof) {
     size_t current_byte_index = bit_index >> 3;
@@ -59,12 +63,12 @@ const char *_test_acod(size_t length, byte *data) {
     acod_decoder_update(decoder, current_bit);
 
     while (acod_decoder_has_symbol(decoder)) {
-      last_symbol = acod_decoder_read(decoder, decoding_frequencies);
+      last_symbol = acod_decoder_read(decoder, &decoding_frequencies);
       if (last_symbol == eof) {
         break;
       }
 
-      ftable_increment(decoding_frequencies, last_symbol);
+      ftable_increment(&decoding_frequencies, last_symbol);
       TEST_ASSERT(last_symbol == data[symbol_index]);
       TEST_ASSERT(symbol_index < length);
       symbol_index++;
@@ -72,7 +76,7 @@ const char *_test_acod(size_t length, byte *data) {
   }
 
   acod_decoder_delete(decoder);
-  ftable_delete(decoding_frequencies);
+  ftable_deinit(&decoding_frequencies);
   free(encoded_bytes.data);
 
   return NULL;
@@ -214,17 +218,18 @@ const char *test_acod_allocation_failures() {
   // this tests for error on shift bit write
   {
     setup_test_context_default();
-    ftable *bit_table = ftable_new(test_context, 2, FTABLE_EXCLUDE_EOF | FTABLE_INIT_ONE);
+    ftable bit_table;
+    TEST_ASSERT(ftable_init(&bit_table, test_context, 2, FTABLE_EXCLUDE_EOF | FTABLE_INIT_ONE));
     writer *w = writer_new(test_context, 2);
     encoder = acod_encoder_new(test_context, w);
     TEST_ASSERT(context_is_errored(test_context) == false);
 
     TEST_ASSERT(_acod_test_fill_writer_bits(w, 15));
     update_test_context_for_alloc_failure(0);
-    TEST_ASSERT(!acod_encoder_write(encoder, bit_table, 0));
+    TEST_ASSERT(!acod_encoder_write(encoder, &bit_table, 0));
     TEST_ASSERT(context_is_errored(test_context) == true);
 
-    ftable_delete(bit_table);
+    ftable_deinit(&bit_table);
     writer_delete(w);
     TEST_ASSERT(!acod_encoder_delete(encoder));
   }
@@ -232,7 +237,8 @@ const char *test_acod_allocation_failures() {
   // this tests for error on underflow bit write
   {
     setup_test_context_default();
-    ftable *bit_table = ftable_new(test_context, 2, FTABLE_EXCLUDE_EOF | FTABLE_INIT_ONE);
+    ftable bit_table;
+    TEST_ASSERT(ftable_init(&bit_table, test_context, 2, FTABLE_EXCLUDE_EOF | FTABLE_INIT_ONE));
     writer *w = writer_new(test_context, 2);
     encoder = acod_encoder_new(test_context, w);
     TEST_ASSERT(context_is_errored(test_context) == false);
@@ -242,10 +248,10 @@ const char *test_acod_allocation_failures() {
     encoder->underflows++;
     TEST_ASSERT(_acod_test_fill_writer_bits(w, 14));
     update_test_context_for_alloc_failure(0);
-    TEST_ASSERT(!acod_encoder_write(encoder, bit_table, 0));
+    TEST_ASSERT(!acod_encoder_write(encoder, &bit_table, 0));
     TEST_ASSERT(context_is_errored(test_context) == true);
 
-    ftable_delete(bit_table);
+    ftable_deinit(&bit_table);
     writer_delete(w);
     TEST_ASSERT(!acod_encoder_delete(encoder));
   }
@@ -253,7 +259,8 @@ const char *test_acod_allocation_failures() {
   // this tests for error on closing bit writes
   {
     setup_test_context_default();
-    ftable *bit_table = ftable_new(test_context, 2, FTABLE_EXCLUDE_EOF | FTABLE_INIT_ONE);
+    ftable bit_table;
+    TEST_ASSERT(ftable_init(&bit_table, test_context, 2, FTABLE_EXCLUDE_EOF | FTABLE_INIT_ONE));
     writer *w = writer_new(test_context, 2);
     encoder = acod_encoder_new(test_context, w);
     TEST_ASSERT(context_is_errored(test_context) == false);
@@ -263,10 +270,10 @@ const char *test_acod_allocation_failures() {
     encoder->underflows++;
     TEST_ASSERT(_acod_test_fill_writer_bits(w, 13));
     update_test_context_for_alloc_failure(0);
-    TEST_ASSERT(acod_encoder_write(encoder, bit_table, 0));
+    TEST_ASSERT(acod_encoder_write(encoder, &bit_table, 0));
     TEST_ASSERT(context_is_errored(test_context) == false);
 
-    ftable_delete(bit_table);
+    ftable_deinit(&bit_table);
     writer_delete(w);
     TEST_ASSERT(!acod_encoder_delete(encoder));
   }

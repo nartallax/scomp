@@ -98,6 +98,7 @@ void writer_delete(writer *writer) {
   context_free(writer->context, writer);
 }
 
+// TODO: init here
 NODISCARD writer *writer_new(context *context, size_t size) {
   writer *w = context_allocate(context, 1, sizeof(writer));
   if (!w) {
