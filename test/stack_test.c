@@ -44,7 +44,7 @@ const char *test_stack_simple() {
   }
   TEST_ASSERT(stack_get_count(s) == 2);
 
-  stack_deinit(s);
+  stack_deinit(s, test_context);
   free(s);
   return NULL;
 }
@@ -88,7 +88,7 @@ const char *test_stack_non_pointer() {
   }
   TEST_ASSERT(stack_get_count(s) == 2);
 
-  stack_deinit(s);
+  stack_deinit(s, test_context);
   free(s);
   return NULL;
 }
@@ -108,7 +108,7 @@ const char *test_stack_allocation_failures() {
   TEST_ASSERT(stack_push(s) == NULL);
   TEST_ASSERT(context_is_errored(test_context));
 
-  stack_deinit(s);
+  stack_deinit(s, test_context);
   free(s);
   return NULL;
 }

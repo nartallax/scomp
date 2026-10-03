@@ -7,7 +7,7 @@
 
 bool test_setup_detokeniser_writer_for_failure(writer **w, int fail_after_characters) {
   if (*w) {
-    writer_deinit(*w);
+    writer_deinit(*w, test_context);
     free(*w);
     *w = NULL;
   }
@@ -30,7 +30,7 @@ json_token test_string_to_single_json_token(const char *str) {
     return (json_token){0};
   }
   json_token token = *json_tokenizer_consume(&t);
-  json_tokenizer_deinit(&t);
+  json_tokenizer_deinit(&t, test_context);
   return token;
 }
 
@@ -93,7 +93,7 @@ const char *test_json_detokenizer_allocation_failures() {
     TEST_ASSERT(!json_detokenizer_write(w, &((json_token){.kind = JSON_TOKEN_ESCAPED_CHARCODE, .unicode_character = (json_unicode_token){.value = charcode}})));
   }
 
-  writer_deinit(w);
+  writer_deinit(w, test_context);
   free(w);
   return NULL;
 }

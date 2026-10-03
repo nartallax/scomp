@@ -27,7 +27,6 @@ typedef enum {
 Each symbol has a frequency, which is a non-negative integer.
 Frequency table objects are primarily used for getting cumulative symbol frequencies. */
 typedef struct {
-  context *context;
   ftree frequencies;
   // sum of all frequencies
   symbol_frequency total;
@@ -86,9 +85,9 @@ void ftable_increment(ftable *table, symbol symbol) {
   ftree_add(table->frequencies, symbol, 1);
 }
 
-void ftable_deinit(ftable *table) {
-  ftree_deinit(table->frequencies, table->context);
-  context_free(table->context, table->compaction_buffer);
+void ftable_deinit(ftable *table, context *context) {
+  ftree_deinit(table->frequencies, context);
+  context_free(context, table->compaction_buffer);
 }
 
 NODISCARD bool ftable_init(ftable *table, context *context, symbol length, ftable_flags init_flags) {
@@ -96,16 +95,14 @@ NODISCARD bool ftable_init(ftable *table, context *context, symbol length, ftabl
 
   symbol eof_padding = _ftable_get_eof_length_padding(init_flags);
 
-  table->compaction_buffer = NULL; // just to zero-init
-  table->context = context;
   if (!ftree_init(&table->frequencies, context, length + eof_padding)) {
-    ftable_deinit(table);
+    ftable_deinit(table, context);
     return false;
   }
 
   table->compaction_buffer = context_allocate(context, ftree_length(table->frequencies), sizeof(symbol_frequency));
   if (!table->compaction_buffer) {
-    ftable_deinit(table);
+    ftable_deinit(table, context);
     return false;
   }
 

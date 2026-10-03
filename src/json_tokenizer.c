@@ -119,7 +119,6 @@ typedef enum {
 
 /** Json tokenizer is a state machine that converts bytes of encoded JSON into tokens that describe contents of the JSON */
 typedef struct {
-  context *context;
   /** Parsed tokens ready for consumption */
   queue token_queue;
   stack state_stack;
@@ -131,24 +130,24 @@ typedef struct {
   json_token_kind last_nonws_read_token_kind;
 } json_tokenizer;
 
-void json_tokenizer_deinit(json_tokenizer *tokenizer) {
-  queue_deinit(&tokenizer->token_queue);
-  stack_deinit(&tokenizer->state_stack);
+void json_tokenizer_deinit(json_tokenizer *tokenizer, context *context) {
+  queue_deinit(&tokenizer->token_queue, context);
+  stack_deinit(&tokenizer->state_stack, context);
 }
 
 bool json_tokenizer_init(json_tokenizer *tokenizer, context *context) {
   *tokenizer = (json_tokenizer){0};
 
   if (!queue_init(&tokenizer->token_queue, context, sizeof(json_token))) {
+    json_tokenizer_deinit(tokenizer, context);
     return false;
   }
 
   if (!stack_init(&tokenizer->state_stack, context, sizeof(json_state_type))) {
-    queue_deinit(&tokenizer->token_queue);
+    json_tokenizer_deinit(tokenizer, context);
     return false;
   }
 
-  tokenizer->context = context;
   tokenizer->chars_length = 0;
   tokenizer->last_nonws_read_token_kind = JSON_TOKEN_WHITESPACE;
 

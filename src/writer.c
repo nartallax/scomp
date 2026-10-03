@@ -77,18 +77,18 @@ size_t writer_get_bytes_stored(writer *writer) {
   return (buffer_count * writer->size) + ((writer->current_bit_index + 7) >> 3);
 }
 
-void writer_deinit(writer *w) {
+void writer_deinit(writer *w, context *context) {
   while (queue_get_count(&w->buffers) > 0) {
     byte **slot = queue_pop(&w->buffers);
-    context_free(w->context, *slot);
+    context_free(context, *slot);
   }
-  queue_deinit(&w->buffers);
+  queue_deinit(&w->buffers, context);
 
   while (queue_get_count(&w->free_buffers) > 0) {
     byte **slot = queue_pop(&w->free_buffers);
-    context_free(w->context, *slot);
+    context_free(context, *slot);
   }
-  queue_deinit(&w->free_buffers);
+  queue_deinit(&w->free_buffers, context);
 }
 
 NODISCARD bool writer_init(writer *w, context *context, size_t size) {
@@ -99,17 +99,17 @@ NODISCARD bool writer_init(writer *w, context *context, size_t size) {
   w->current_bit_index = 0;
 
   if (!queue_init(&w->buffers, context, sizeof(byte *))) {
-    writer_deinit(w);
+    writer_deinit(w, context);
     return false;
   }
 
   if (!queue_init(&w->free_buffers, context, sizeof(byte *))) {
-    writer_deinit(w);
+    writer_deinit(w, context);
     return false;
   }
 
   if (!_writer_allocate_next_buffer(w)) {
-    writer_deinit(w);
+    writer_deinit(w, context);
     return false;
   }
 

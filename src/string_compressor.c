@@ -12,29 +12,26 @@ const symbol _strcomp_bit_terminator_symbol = 2;
 const size_t _strcomp_min_backreference_length = 5;
 
 typedef struct {
-  // TODO: don't store context if possible, pass it into deinit everywhere
-  context *context;
   ftable main_symbol_table;
   ftable raw_bit_with_terminator_table;
 } string_compression_base;
 
-void _strcomp_deinit_base(string_compression_base *base) {
-  ftable_deinit(&base->main_symbol_table);
-  ftable_deinit(&base->raw_bit_with_terminator_table);
+void _strcomp_deinit_base(string_compression_base *base, context *context) {
+  ftable_deinit(&base->main_symbol_table, context);
+  ftable_deinit(&base->raw_bit_with_terminator_table, context);
 }
 
 NODISCARD bool _strcomp_init_base(string_compression_base *base, context *context) {
   *base = (string_compression_base){0};
 
-  base->context = context;
   if (!ftable_init(&base->main_symbol_table, context, 257, FTABLE_INIT_ONE | FTABLE_INCLUDE_EOF)) {
     // TODO: go over inits everywhere and call deinit instead of repeating all the fields
-    _strcomp_deinit_base(base);
+    _strcomp_deinit_base(base, context);
     return false;
   }
 
   if (!ftable_init(&base->raw_bit_with_terminator_table, context, 3, FTABLE_INIT_ONE | FTABLE_EXCLUDE_EOF)) {
-    _strcomp_deinit_base(base);
+    _strcomp_deinit_base(base, context);
     return false;
   }
 
@@ -50,10 +47,10 @@ typedef struct {
 } string_compressor;
 
 /** Don't forget to flush the compressor before calling this */
-void strcomp_compressor_deinit(string_compressor *compressor) {
-  bsm_deinit(&compressor->bsm);
-  ring_buffer_deinit(&compressor->buffer);
-  _strcomp_deinit_base(&compressor->base);
+void strcomp_compressor_deinit(string_compressor *compressor, context *context) {
+  bsm_deinit(&compressor->bsm, context);
+  ring_buffer_deinit(&compressor->buffer, context);
+  _strcomp_deinit_base(&compressor->base, context);
 }
 
 NODISCARD bool strcomp_compressor_init(string_compressor *compressor, context *context, acod_encoder *encoder, ftable *table, size_t buffer_size) {
@@ -65,12 +62,12 @@ NODISCARD bool strcomp_compressor_init(string_compressor *compressor, context *c
 
   compressor->encoder = encoder;
   if (!ring_buffer_init(&compressor->buffer, context, _BSM_MATCH_LENGTH_SHIFT)) {
-    strcomp_compressor_deinit(compressor);
+    strcomp_compressor_deinit(compressor, context);
     return false;
   }
 
   if (!bsm_init(&compressor->bsm, context)) {
-    strcomp_compressor_deinit(compressor);
+    strcomp_compressor_deinit(compressor, context);
     return false;
   }
 

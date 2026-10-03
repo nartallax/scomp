@@ -28,8 +28,8 @@ NODISCARD bool arena_init(arena *a, context *context) {
   return true;
 }
 
-void arena_deinit(arena *arena) {
-  context_free(arena->context, arena->data);
+void arena_deinit(arena *arena, context *context) {
+  context_free(context, arena->data);
 }
 
 /** Allocates some memory in the arena.

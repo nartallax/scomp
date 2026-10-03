@@ -4,7 +4,6 @@
 #include <stdbool.h>
 
 typedef struct {
-  context *context;
   byte *content;
   size_t content_position;
   size_t length_mask;
@@ -13,7 +12,6 @@ typedef struct {
 NODISCARD bool ring_buffer_init(ring_buffer *rb, context *context, size_t length_shift) {
   *rb = (ring_buffer){0};
 
-  rb->context = context;
   size_t length = (size_t)1 << length_shift;
   rb->length_mask = length - 1;
   rb->content_position = 0;
@@ -21,8 +19,8 @@ NODISCARD bool ring_buffer_init(ring_buffer *rb, context *context, size_t length
   return !!rb->content;
 }
 
-void ring_buffer_deinit(ring_buffer *rb) {
-  context_free(rb->context, rb->content);
+void ring_buffer_deinit(ring_buffer *rb, context *context) {
+  context_free(context, rb->content);
 }
 
 /** Get index of next free byte in the buffer */

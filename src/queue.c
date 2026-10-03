@@ -42,8 +42,8 @@ NODISCARD bool queue_init(queue *q, context *context, size_t value_size) {
 }
 
 /** If the items in the queue are heap-allocated, delete them manually first */
-void queue_deinit(queue *queue) {
-  context_free(queue->context, queue->values);
+void queue_deinit(queue *queue, context *context) {
+  context_free(context, queue->values);
 }
 
 /** Returns amount of items in queue. */

@@ -42,11 +42,6 @@ void context_init(context *c, malloc_fn custom_malloc, calloc_fn custom_calloc, 
 }
 
 void context_free(context *context, void *pointer) {
-  if (context == NULL) {
-    // this can happen if allocation error happened during init of a complex structure
-    // TODO: convert deinits to accept context and remove this condition
-    return;
-  }
   context->free(pointer);
 }
 

@@ -27,7 +27,7 @@ const char *test_ring_buffer_simple() {
   TEST_ASSERT(ring_buffer_get(&rb, 9) == 10);
   TEST_ASSERT(ring_buffer_get(&rb, 14) == 7);
   TEST_ASSERT(ring_buffer_get(&rb, 19) == 8);
-  ring_buffer_deinit(&rb);
+  ring_buffer_deinit(&rb, test_context);
   return NULL;
 }
 

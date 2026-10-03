@@ -16,8 +16,6 @@ const size_t _BSM_HASH_LENGTH_BYTES = 4;
 
 /** A structure that stores last N bytes of a stream and helps to search it */
 typedef struct {
-  context *context;
-
   // .content is a ring buffer that receives new bytes
   ring_buffer content;
 
@@ -41,7 +39,6 @@ const bsm_match empty_bsm_match = {0};
 NODISCARD bool bsm_init(byte_stream_matcher *bsm, context *context) {
   *bsm = (byte_stream_matcher){0};
 
-  bsm->context = context;
   bsm->rolling_hash = 0;
 
   bsm->hash_head = context_allocate_zero_init(context, _BSM_LENGTH, sizeof(uint16_t));
@@ -64,10 +61,10 @@ NODISCARD bool bsm_init(byte_stream_matcher *bsm, context *context) {
   return true;
 }
 
-void bsm_deinit(byte_stream_matcher *bsm) {
-  context_free(bsm->context, bsm->hash_head);
-  context_free(bsm->context, bsm->hash_prev);
-  ring_buffer_deinit(&bsm->content);
+void bsm_deinit(byte_stream_matcher *bsm, context *context) {
+  context_free(context, bsm->hash_head);
+  context_free(context, bsm->hash_prev);
+  ring_buffer_deinit(&bsm->content, context);
 }
 
 // TODO: experiment with different hash functions here

@@ -38,8 +38,8 @@ const char *test_bsm_basic() {
   match = bsm_find_match(&bsm, &src, 6);
   TEST_ASSERT(match.length == 6 && match.offset == 15);
 
-  bsm_deinit(&bsm);
-  ring_buffer_deinit(&src);
+  bsm_deinit(&bsm, test_context);
+  ring_buffer_deinit(&src, test_context);
   return NULL;
 }
 
@@ -77,7 +77,7 @@ const char *test_bsm_wraps() {
   match = bsm_find_match(&bsm, &src, 6);
   TEST_ASSERT(match.length == 7 && match.offset == 7);
 
-  ring_buffer_deinit(&src);
+  ring_buffer_deinit(&src, test_context);
   TEST_ASSERT(ring_buffer_init(&src, test_context, 16));
 
   for (size_t i = 0; i < _BSM_MATCH_LENGTH_LIMIT + 5; i++) {
@@ -89,8 +89,8 @@ const char *test_bsm_wraps() {
   // I don't expect this to happen outside synthetic tests like this one
   TEST_ASSERT(match.length == _BSM_MATCH_LENGTH_LIMIT && match.offset == 5);
 
-  bsm_deinit(&bsm);
-  ring_buffer_deinit(&src);
+  bsm_deinit(&bsm, test_context);
+  ring_buffer_deinit(&src, test_context);
   return NULL;
 }
 
@@ -104,6 +104,6 @@ const char *test_bsm_allocation_failures() {
   TEST_ASSERT(!bsm_init(&bsm, test_context));
   setup_test_context(3);
   TEST_ASSERT(bsm_init(&bsm, test_context));
-  bsm_deinit(&bsm);
+  bsm_deinit(&bsm, test_context);
   return NULL;
 }

@@ -37,7 +37,7 @@ const char *test_queue_simple() {
   TEST_ASSERT(strcmp(_str(queue_pop(q)), "forth") == 0);
   TEST_ASSERT(queue_get_count(q) == 0);
 
-  queue_deinit(q);
+  queue_deinit(q, test_context);
   free(q);
 
   return NULL;
@@ -83,7 +83,7 @@ const char *test_queue_overflow_while_wrapping() {
     TEST_ASSERT(strcmp(_str(queue_pop(q)), "c") == 0);
   }
 
-  queue_deinit(q);
+  queue_deinit(q, test_context);
   free(q);
   return NULL;
 }
@@ -103,7 +103,7 @@ const char *test_queue_overflow_while_not_wrapping() {
     TEST_ASSERT(strcmp(_str(queue_pop(q)), "a") == 0);
   }
 
-  queue_deinit(q);
+  queue_deinit(q, test_context);
   free(q);
   return NULL;
 }
@@ -147,7 +147,7 @@ const char *test_queue_non_pointer_values() {
     TEST_ASSERT(slot->x == i && slot->y == i + 1 && slot->z == i + 2);
   }
 
-  queue_deinit(q);
+  queue_deinit(q, test_context);
   free(q);
   return NULL;
 }
@@ -168,7 +168,7 @@ const char *test_queue_allocation_failures() {
   TEST_ASSERT(queue_push(&q) == NULL);
   TEST_ASSERT(context_is_errored(test_context) == true);
 
-  queue_deinit(&q);
+  queue_deinit(&q, test_context);
 
   return NULL;
 }

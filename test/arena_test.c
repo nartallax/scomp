@@ -50,7 +50,7 @@ const char *test_arena_simple() {
   big_buffer[ARENA_DEFAULT_LENGTH - 1] = 0xff;
   even_bigger_buffer[ARENA_DEFAULT_LENGTH * 2 - 1] = 0xff; // test write to trigger valgrind
 
-  arena_deinit(&a);
+  arena_deinit(&a, test_context);
   return NULL;
 }
 
@@ -63,7 +63,7 @@ const char *test_arena_one_big_allocation() {
   buffer[0] = 0;
   buffer[ARENA_DEFAULT_LENGTH * 10 - 1] = 0xff; // test writes to trigger valgrind
 
-  arena_deinit(&a);
+  arena_deinit(&a, test_context);
   return NULL;
 }
 
@@ -80,7 +80,7 @@ const char *test_arena_allocation_failures() {
   TEST_ASSERT(arena_allocate(&a, ARENA_DEFAULT_LENGTH) == 0);
   TEST_ASSERT(context_is_errored(test_context));
 
-  arena_deinit(&a);
+  arena_deinit(&a, test_context);
 
   return NULL;
 }

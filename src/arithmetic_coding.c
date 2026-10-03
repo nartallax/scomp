@@ -100,7 +100,6 @@ void _acod_perform_underflow(acod_state *state) {
 }
 
 typedef struct {
-  context *context;
   acod_state state;
   // Number of saved underflow bits. This value can grow without bound, so a truly correct implementation would use a BigInteger.
   // (of course, it's very unlikely and can potentially happen only to very, very long sequences of input symbols)
@@ -108,13 +107,12 @@ typedef struct {
   writer *writer;
 } acod_encoder;
 
-void acod_encoder_init(acod_encoder *encoder, context *context, writer *writer) {
+void acod_encoder_init(acod_encoder *encoder, writer *writer) {
   *encoder = (acod_encoder){0};
 
   _acod_state_init(&encoder->state);
   encoder->underflows = 0;
   encoder->writer = writer;
-  encoder->context = context;
 }
 
 NODISCARD bool _acod_encoder_write_shift_bit(acod_encoder *encoder, byte bit) {
@@ -144,8 +142,8 @@ NODISCARD bool _acod_encoder_finalize(acod_encoder *encoder) {
 /** Flush remaining state, and delete the encoder.
 Must be called before deleting underlying writer.
 Returns true if finalized successfully. */
-NODISCARD bool acod_encoder_deinit(acod_encoder *encoder) {
-  if (context_is_errored(encoder->context)) {
+NODISCARD bool acod_encoder_deinit(acod_encoder *encoder, context *context) {
+  if (context_is_errored(context)) {
     // if context is errored - we must not attempt to write more stuff into the writer
     // as it may be in the broken state
     return false;

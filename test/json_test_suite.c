@@ -110,9 +110,9 @@ buffer test_feed_file_into_tokenizer_detokenizer(const char *path, const char *f
 
   buffer result_buffer = is_success ? writer_consume_all_buffers(w).buffer : EMPTY_BUFFER;
 
-  writer_deinit(w);
+  writer_deinit(w, test_context);
   free(w);
-  json_tokenizer_deinit(&t);
+  json_tokenizer_deinit(&t, test_context);
 
   return result_buffer;
 }
