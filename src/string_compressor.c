@@ -3,6 +3,7 @@
 #include "byte_stream_matcher.c"
 #include "commons.c"
 #include "context.c"
+#include "frequency_table.c"
 #include "ring_buffer.c"
 
 const symbol _strcomp_backreference_symbol = 256;
@@ -11,32 +12,64 @@ const symbol _strcomp_bit_terminator_symbol = 2;
 const size_t _strcomp_min_backreference_length = 5;
 
 typedef struct {
+  // TODO: don't store context if possible, pass it into deinit everywhere
   context *context;
-  acod_encoder *encoder;
   ftable *main_symbol_table;
   ftable *raw_bit_with_terminator_table;
+} string_compression_base;
+
+void _strcomp_deinit_base(string_compression_base *base) {
+  if (base->main_symbol_table != NULL) {
+    ftable_delete(base->main_symbol_table);
+  }
+  if (base->raw_bit_with_terminator_table != NULL) {
+    ftable_delete(base->raw_bit_with_terminator_table);
+  }
+}
+
+NODISCARD bool _strcomp_init_base(string_compression_base *base, context *context) {
+  // TODO: do this in every init ever
+  *base = (string_compression_base){0};
+  base->context = context;
+
+  // TODO: convert ftables to init/deinit
+  base->main_symbol_table = ftable_new(context, 257, FTABLE_INIT_ONE | FTABLE_INCLUDE_EOF);
+  if (!base->main_symbol_table) {
+    _strcomp_deinit_base(base);
+    return false;
+  }
+
+  base->raw_bit_with_terminator_table = ftable_new(context, 3, FTABLE_INIT_ONE | FTABLE_EXCLUDE_EOF);
+  if (!base->raw_bit_with_terminator_table) {
+    _strcomp_deinit_base(base);
+    return false;
+  }
+
+  return true;
+}
+
+typedef struct {
+  string_compression_base base;
+  acod_encoder *encoder;
   int32_t bytes_in_buffer;
   ring_buffer buffer;
   byte_stream_matcher bsm;
 } string_compressor;
 
-/** Don't forget to flush the compressor */
+/** Don't forget to flush the compressor before calling this */
 void strcomp_compressor_deinit(string_compressor *compressor) {
   bsm_deinit(&compressor->bsm);
   ring_buffer_deinit(&compressor->buffer);
-  if (compressor->main_symbol_table != NULL) {
-    ftable_delete(compressor->main_symbol_table);
-  }
-  if (compressor->raw_bit_with_terminator_table != NULL) {
-    ftable_delete(compressor->raw_bit_with_terminator_table);
-  }
+  _strcomp_deinit_base(&compressor->base);
 }
 
 NODISCARD bool strcomp_compressor_init(string_compressor *compressor, context *context, acod_encoder *encoder, ftable *table, size_t buffer_size) {
-  compressor->encoder = encoder;
-  compressor->main_symbol_table = table;
-  compressor->context = context;
+  *compressor = (string_compressor){0};
+  if (!_strcomp_init_base(&compressor->base, context)) {
+    return false;
+  }
 
+  compressor->encoder = encoder;
   if (!ring_buffer_init(&compressor->buffer, context, _BSM_MATCH_LENGTH_SHIFT)) {
     strcomp_compressor_deinit(compressor);
     return false;
@@ -47,46 +80,32 @@ NODISCARD bool strcomp_compressor_init(string_compressor *compressor, context *c
     return false;
   }
 
-  // TODO: do we really need eof here?
-  // TODO: convert ftables to init/deinit
-  compressor->main_symbol_table = ftable_new(context, 256, FTABLE_INIT_ONE | FTABLE_INCLUDE_EOF);
-  if (!compressor->main_symbol_table) {
-    strcomp_compressor_deinit(compressor);
-    return false;
-  }
-
-  compressor->raw_bit_with_terminator_table = ftable_new(context, 3, FTABLE_INIT_ONE | FTABLE_EXCLUDE_EOF);
-  if (!compressor->raw_bit_with_terminator_table) {
-    strcomp_compressor_deinit(compressor);
-    return false;
-  }
-
   return true;
 }
 
 NODISCARD bool _strcomp_write_uint(string_compressor *compressor, uint64_t value) {
   while (value > 0) {
     byte bit = value & 1;
-    if (!acod_encoder_write(compressor->encoder, compressor->raw_bit_with_terminator_table, bit)) {
+    if (!acod_encoder_write(compressor->encoder, compressor->base.raw_bit_with_terminator_table, bit)) {
       return false;
     }
     // TODO: think about pre-initializing this table instead of learning on the actual stream
     // maybe it would be something like 8,8,1
     // using frequency tables like that should be very unefficient, unless we batch updates
-    ftable_increment(compressor->raw_bit_with_terminator_table, bit);
+    ftable_increment(compressor->base.raw_bit_with_terminator_table, bit);
     value = value >> 1;
   }
-  if (!acod_encoder_write(compressor->encoder, compressor->raw_bit_with_terminator_table, _strcomp_bit_terminator_symbol)) {
+  if (!acod_encoder_write(compressor->encoder, compressor->base.raw_bit_with_terminator_table, _strcomp_bit_terminator_symbol)) {
     return false;
   }
-  ftable_increment(compressor->raw_bit_with_terminator_table, _strcomp_bit_terminator_symbol);
+  ftable_increment(compressor->base.raw_bit_with_terminator_table, _strcomp_bit_terminator_symbol);
   return true;
 }
 
 // TODO: think about better ways of writing backreferences. this is very suboptimal
 // do it like deflate does it?
 NODISCARD bool _strcomp_write_backreference(string_compressor *compressor, uint64_t offset, uint64_t length) {
-  if (!acod_encoder_write(compressor->encoder, compressor->main_symbol_table, _strcomp_backreference_symbol)) {
+  if (!acod_encoder_write(compressor->encoder, compressor->base.main_symbol_table, _strcomp_backreference_symbol)) {
     return false;
   }
   if (!_strcomp_write_uint(compressor, offset)) {
@@ -115,7 +134,7 @@ NODISCARD bool _strcomp_compressor_flush_once(string_compressor *compressor) {
   }
 
   byte first_byte = ring_buffer_get(&compressor->buffer, buffer_start);
-  if (!acod_encoder_write(compressor->encoder, compressor->main_symbol_table, first_byte)) {
+  if (!acod_encoder_write(compressor->encoder, compressor->base.main_symbol_table, first_byte)) {
     return false;
   }
   compressor->bytes_in_buffer--;
@@ -137,12 +156,12 @@ NODISCARD bool strcomp_compressor_write(string_compressor *compressor, byte b) {
   return true;
 }
 
-/** Write out everything the compressor has in its buffer */
+/** Write out everything the compressor has in its buffer, and then write EOF marker */
 NODISCARD bool strcomp_compressor_flush(string_compressor *compressor) {
   while (compressor->bytes_in_buffer > 0) {
     if (!_strcomp_compressor_flush_once(compressor)) {
       return false;
     }
   }
-  return true;
+  return acod_encoder_write(compressor->encoder, compressor->base.main_symbol_table, ftable_get_eof_symbol(compressor->base.main_symbol_table));
 }
