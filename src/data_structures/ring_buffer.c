@@ -9,6 +9,10 @@ typedef struct {
   size_t length_mask;
 } ring_buffer;
 
+size_t ring_buffer_get_length(ring_buffer *rb) {
+  return rb->length_mask + 1;
+}
+
 NODISCARD bool ring_buffer_init(ring_buffer *rb, context *context, size_t length_shift) {
   *rb = (ring_buffer){0};
 
