@@ -54,7 +54,7 @@ void *test_realloc_with_counter(void *base, size_t size) {
 
 void free_test_context() {
   if (test_context) {
-    context_delete(test_context);
+    free(test_context);
     test_context = NULL;
   }
 }
@@ -77,7 +77,8 @@ void update_test_context_for_alloc_failure(int allocations_before_failure_count)
 
 void setup_test_context(int allocations_before_failure_count) {
   free_test_context();
-  test_context = context_new(malloc, calloc, realloc, free);
+  test_context = malloc(sizeof(context));
+  context_init(test_context, malloc, calloc, realloc, free);
   update_test_context_for_alloc_failure(allocations_before_failure_count);
 }
 

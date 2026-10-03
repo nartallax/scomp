@@ -31,15 +31,14 @@ typedef struct {
 
 // TODO: potentially this library can live without linking to anything at all in runtime
 // I need to test it with ldd, and if it does link to something - figure out what and why, and if I could help it
-context *context_new(malloc_fn custom_malloc, calloc_fn custom_calloc, realloc_fn custom_realloc, free_fn custom_free) {
-  context *result = custom_malloc(sizeof(context));
-  result->malloc = custom_malloc;
-  result->calloc = custom_calloc;
-  result->realloc = custom_realloc;
-  result->free = custom_free;
-  result->error.is_present = false;
-  result->error.message_length = 0;
-  return result;
+void context_init(context *c, malloc_fn custom_malloc, calloc_fn custom_calloc, realloc_fn custom_realloc, free_fn custom_free) {
+  *c = (context){0};
+  c->malloc = custom_malloc;
+  c->calloc = custom_calloc;
+  c->realloc = custom_realloc;
+  c->free = custom_free;
+  c->error.is_present = false;
+  c->error.message_length = 0;
 }
 
 void context_free(context *context, void *pointer) {
@@ -49,10 +48,6 @@ void context_free(context *context, void *pointer) {
     return;
   }
   context->free(pointer);
-}
-
-void context_delete(context *context) {
-  context_free(context, context);
 }
 
 bool context_is_errored(context *context) {
