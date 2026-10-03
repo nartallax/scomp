@@ -112,9 +112,6 @@ void *queue_peek(queue *queue) {
 }
 
 void *queue_peek_tail(queue *queue) {
-  if (queue_get_count(queue) == 0) {
-    printf("oops\n");
-  }
   assert(queue_get_count(queue) > 0 && "Queue should not underflow on tail peek");
   return queue->values + ((queue->tail - 1) * queue->value_size);
 }

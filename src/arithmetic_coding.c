@@ -108,16 +108,13 @@ typedef struct {
   writer *writer;
 } acod_encoder;
 
-acod_encoder *acod_encoder_new(context *context, writer *writer) {
-  acod_encoder *encoder = context_allocate(context, 1, sizeof(acod_encoder));
-  if (!encoder) {
-    return NULL;
-  }
+void acod_encoder_init(acod_encoder *encoder, context *context, writer *writer) {
+  *encoder = (acod_encoder){0};
+
   _acod_state_init(&encoder->state);
   encoder->underflows = 0;
   encoder->writer = writer;
   encoder->context = context;
-  return encoder;
 }
 
 NODISCARD bool _acod_encoder_write_shift_bit(acod_encoder *encoder, byte bit) {
@@ -147,15 +144,13 @@ NODISCARD bool _acod_encoder_finalize(acod_encoder *encoder) {
 /** Flush remaining state, and delete the encoder.
 Must be called before deleting underlying writer.
 Returns true if finalized successfully. */
-NODISCARD bool acod_encoder_delete(acod_encoder *encoder) {
-  bool result = false;
-  if (!context_is_errored(encoder->context)) {
+NODISCARD bool acod_encoder_deinit(acod_encoder *encoder) {
+  if (context_is_errored(encoder->context)) {
     // if context is errored - we must not attempt to write more stuff into the writer
     // as it may be in the broken state
-    result = _acod_encoder_finalize(encoder);
+    return false;
   }
-  context_free(encoder->context, encoder);
-  return result;
+  return _acod_encoder_finalize(encoder);
 }
 
 /** Writes a single symbol with the encoder.
@@ -180,28 +175,19 @@ NODISCARD bool acod_encoder_write(acod_encoder *encoder, ftable *frequencies, sy
 }
 
 typedef struct {
-  context *context;
   acod_state state;
   // The current raw code bits being buffered, which is always in the range [low, high].
   symbol_frequency code;
   int base_bits_received;
 } acod_decoder;
 
-acod_decoder *acod_decoder_new(context *context) {
-  acod_decoder *decoder = context_allocate(context, 1, sizeof(acod_decoder));
-  if (!decoder) {
-    return NULL;
-  }
+void acod_decoder_init(acod_decoder *decoder) {
+  *decoder = (acod_decoder){0};
+
   _acod_state_init(&decoder->state);
   decoder->state.stage = ACOD_STAGE_PREPARATION;
   decoder->code = 0;
   decoder->base_bits_received = 0;
-  decoder->context = context;
-  return decoder;
-}
-
-void acod_decoder_delete(acod_decoder *decoder) {
-  context_free(decoder->context, decoder);
 }
 
 /** When a bit is known (received from some reader) - update internal state of the decoder with that bit.

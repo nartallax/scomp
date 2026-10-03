@@ -21,7 +21,8 @@ buffer encode_bytes(size_t length, byte *data) {
     return EMPTY_BUFFER;
   }
 
-  acod_encoder *encoder = acod_encoder_new(test_context, w);
+  acod_encoder *encoder = malloc(sizeof(acod_encoder));
+  acod_encoder_init(encoder, test_context, w);
   ftable encoding_frequencies;
   if (!ftable_init(&encoding_frequencies, test_context, 256, FTABLE_INCLUDE_EOF | FTABLE_INIT_ONE)) {
     return EMPTY_BUFFER;
@@ -38,13 +39,14 @@ buffer encode_bytes(size_t length, byte *data) {
     return EMPTY_BUFFER;
   }
 
-  if (!acod_encoder_delete(encoder)) {
+  if (!acod_encoder_deinit(encoder)) {
     return EMPTY_BUFFER;
   }
   buffer_or_error result = writer_consume_all_buffers(w);
   writer_deinit(w);
   free(w);
   ftable_deinit(&encoding_frequencies);
+  free(encoder);
 
   return result.buffer;
 }
@@ -54,7 +56,8 @@ const char *_test_acod(size_t length, byte *data) {
 
   ftable decoding_frequencies;
   TEST_ASSERT(ftable_init(&decoding_frequencies, test_context, 256, FTABLE_INCLUDE_EOF | FTABLE_INIT_ONE));
-  acod_decoder *decoder = acod_decoder_new(test_context);
+  acod_decoder *decoder = malloc(sizeof(acod_decoder));
+  acod_decoder_init(decoder);
 
   size_t symbol_index = 0;
   symbol last_symbol = 0;
@@ -80,9 +83,9 @@ const char *_test_acod(size_t length, byte *data) {
     }
   }
 
-  acod_decoder_delete(decoder);
   ftable_deinit(&decoding_frequencies);
   free(encoded_bytes.data);
+  free(decoder);
 
   return NULL;
 }
@@ -210,15 +213,8 @@ NODISCARD bool _acod_test_fill_writer_bits(writer *w, size_t bit_count) {
 const char *test_acod_allocation_failures() {
   TEST_ASSERT(context_is_errored(test_context) == false);
 
-  setup_test_context(0);
-  acod_decoder *decoder = acod_decoder_new(test_context);
-  TEST_ASSERT(context_is_errored(test_context) == true);
-  TEST_ASSERT(decoder == NULL);
-
-  setup_test_context(0);
-  acod_encoder *encoder = acod_encoder_new(test_context, NULL);
-  TEST_ASSERT(context_is_errored(test_context) == true);
-  TEST_ASSERT(encoder == NULL);
+  acod_decoder *decoder = malloc(sizeof(acod_decoder));
+  acod_encoder *encoder = malloc(sizeof(acod_encoder));
 
   // this tests for error on shift bit write
   {
@@ -227,7 +223,7 @@ const char *test_acod_allocation_failures() {
     TEST_ASSERT(ftable_init(&bit_table, test_context, 2, FTABLE_EXCLUDE_EOF | FTABLE_INIT_ONE));
     writer *w = malloc(sizeof(writer));
     TEST_ASSERT(writer_init(w, test_context, 2));
-    encoder = acod_encoder_new(test_context, w);
+    acod_encoder_init(encoder, test_context, w);
     TEST_ASSERT(context_is_errored(test_context) == false);
 
     TEST_ASSERT(_acod_test_fill_writer_bits(w, 15));
@@ -235,10 +231,10 @@ const char *test_acod_allocation_failures() {
     TEST_ASSERT(!acod_encoder_write(encoder, &bit_table, 0));
     TEST_ASSERT(context_is_errored(test_context) == true);
 
+    TEST_ASSERT(!acod_encoder_deinit(encoder));
     ftable_deinit(&bit_table);
     writer_deinit(w);
     free(w);
-    TEST_ASSERT(!acod_encoder_delete(encoder));
   }
 
   // this tests for error on underflow bit write
@@ -248,7 +244,7 @@ const char *test_acod_allocation_failures() {
     TEST_ASSERT(ftable_init(&bit_table, test_context, 2, FTABLE_EXCLUDE_EOF | FTABLE_INIT_ONE));
     writer *w = malloc(sizeof(writer));
     TEST_ASSERT(writer_init(w, test_context, 2));
-    encoder = acod_encoder_new(test_context, w);
+    acod_encoder_init(encoder, test_context, w);
     TEST_ASSERT(context_is_errored(test_context) == false);
 
     // this feels slightly like cheating, because I couldn't pick the right input data to make it underflow
@@ -259,10 +255,10 @@ const char *test_acod_allocation_failures() {
     TEST_ASSERT(!acod_encoder_write(encoder, &bit_table, 0));
     TEST_ASSERT(context_is_errored(test_context) == true);
 
+    TEST_ASSERT(!acod_encoder_deinit(encoder));
     ftable_deinit(&bit_table);
     writer_deinit(w);
     free(w);
-    TEST_ASSERT(!acod_encoder_delete(encoder));
   }
 
   // this tests for error on closing bit writes
@@ -272,7 +268,7 @@ const char *test_acod_allocation_failures() {
     TEST_ASSERT(ftable_init(&bit_table, test_context, 2, FTABLE_EXCLUDE_EOF | FTABLE_INIT_ONE));
     writer *w = malloc(sizeof(writer));
     TEST_ASSERT(writer_init(w, test_context, 2));
-    encoder = acod_encoder_new(test_context, w);
+    acod_encoder_init(encoder, test_context, w);
     TEST_ASSERT(context_is_errored(test_context) == false);
 
     // this feels slightly like cheating, because I couldn't pick the right input data to make it underflow
@@ -283,11 +279,14 @@ const char *test_acod_allocation_failures() {
     TEST_ASSERT(acod_encoder_write(encoder, &bit_table, 0));
     TEST_ASSERT(context_is_errored(test_context) == false);
 
-    TEST_ASSERT(!acod_encoder_delete(encoder));
+    TEST_ASSERT(!acod_encoder_deinit(encoder));
     ftable_deinit(&bit_table);
     writer_deinit(w);
     free(w);
   }
+
+  free(encoder);
+  free(decoder);
 
   return NULL;
 }
