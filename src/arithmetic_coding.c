@@ -20,13 +20,12 @@ typedef struct {
   acod_stage stage;
 } acod_state;
 
-// TODO: init here
-acod_state _acod_state_new() {
-  acod_state state;
-  state.low = 0;
-  state.high = ACOD_STATE_MASK;
-  state.stage = ACOD_STAGE_READY;
-  return state;
+void _acod_state_init(acod_state *state) {
+  *state = (acod_state){0};
+
+  state->low = 0;
+  state->high = ACOD_STATE_MASK;
+  state->stage = ACOD_STAGE_READY;
 }
 
 bool _acod_is_shiftable(acod_state *state) {
@@ -114,7 +113,7 @@ acod_encoder *acod_encoder_new(context *context, writer *writer) {
   if (!encoder) {
     return NULL;
   }
-  encoder->state = _acod_state_new();
+  _acod_state_init(&encoder->state);
   encoder->underflows = 0;
   encoder->writer = writer;
   encoder->context = context;
@@ -193,7 +192,7 @@ acod_decoder *acod_decoder_new(context *context) {
   if (!decoder) {
     return NULL;
   }
-  decoder->state = _acod_state_new();
+  _acod_state_init(&decoder->state);
   decoder->state.stage = ACOD_STAGE_PREPARATION;
   decoder->code = 0;
   decoder->base_bits_received = 0;
