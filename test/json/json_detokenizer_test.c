@@ -1,8 +1,8 @@
 #pragma once
-#include "../src/json_detokenizer.c"
-#include "../src/writer.c"
+#include "../../src/json/json_detokenizer.c"
+#include "../../src/writer.c"
+#include "../test_utils.c"
 #include "json_tokenizer_test.c"
-#include "test_utils.c"
 #include <string.h>
 
 bool test_setup_detokeniser_writer_for_failure(writer **w, int fail_after_characters) {

@@ -1,7 +1,7 @@
 #pragma once
-#include "commons.c"
-#include "context.c"
-#include "ring_buffer.c"
+#include "../commons.c"
+#include "../context.c"
+#include "../data_structures/ring_buffer.c"
 #include <assert.h>
 #include <limits.h>
 #include <stdint.h>

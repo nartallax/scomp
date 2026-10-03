@@ -1,6 +1,6 @@
 #pragma once
-#include "../src/queue.c"
-#include "test_utils.c"
+#include "../../src/data_structures/queue.c"
+#include "../test_utils.c"
 #include <string.h>
 
 void _test_queue_push(queue *q, const char *value) {

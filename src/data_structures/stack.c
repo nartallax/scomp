@@ -1,6 +1,6 @@
 #pragma once
-#include "commons.c"
-#include "context.c"
+#include "../commons.c"
+#include "../context.c"
 
 /** Stack data structure.
 Just like queue, may contain arbitrary sized values, and because of that operates with pointers. */

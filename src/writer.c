@@ -2,7 +2,7 @@
 
 #include "commons.c"
 #include "context.c"
-#include "queue.c"
+#include "data_structures/queue.c"
 #include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>

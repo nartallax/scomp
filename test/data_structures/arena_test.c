@@ -1,6 +1,6 @@
 #pragma once
-#include "../src/arena.c"
-#include "test_utils.c"
+#include "../../src/data_structures/arena.c"
+#include "../test_utils.c"
 
 const char *test_arena_simple() {
   arena a;

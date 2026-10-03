@@ -1,8 +1,8 @@
 #pragma once
-#include "commons.c"
+#include "../commons.c"
+#include "../context.c"
+#include "../data_structures/fenwick_tree.c"
 #include "constants.c"
-#include "context.c"
-#include "fenwick_tree.c"
 #include <stdbool.h>
 #include <stdint.h>
 

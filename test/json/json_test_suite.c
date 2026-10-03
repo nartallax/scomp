@@ -1,8 +1,8 @@
 #pragma once
-#include "../src/json_detokenizer.c"
-#include "../src/json_tokenizer.c"
-#include "../src/writer.c"
-#include "test_utils.c"
+#include "../../src/json/json_detokenizer.c"
+#include "../../src/json/json_tokenizer.c"
+#include "../../src/writer.c"
+#include "../test_utils.c"
 
 bool json_test_suite_has_errors = false;
 int json_test_suite_successes = 0;

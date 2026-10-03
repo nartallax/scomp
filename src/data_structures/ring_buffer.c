@@ -1,6 +1,6 @@
 #pragma once
-#include "commons.c"
-#include "context.c"
+#include "../commons.c"
+#include "../context.c"
 #include <stdbool.h>
 
 typedef struct {

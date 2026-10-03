@@ -1,5 +1,5 @@
 #pragma once
-#include "commons.c"
+#include "../commons.c"
 
 // size of arithmetic coding state, [2, 62]
 // this is tweakable, but in my experiments it didn't ever improve the outcome

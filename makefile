@@ -68,7 +68,9 @@ valgrind:
 
 .PHONY: check-format
 check-format:
-	@clang-format --dry-run --Werror --style=file src/*.c test/*.c && echo "All files are formatted correctly."
+	@set -e
+	@find ./src ./test -type f \( -name '*.c' -o -name '*.h' \) -exec clang-format --dry-run --Werror --style=file {} + || exit 1
+	@echo "All files are formatted correctly."
 
 # this one test everything there is to test
 .PHONY: test

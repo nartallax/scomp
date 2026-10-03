@@ -1,6 +1,6 @@
 #pragma once
-#include "../src/byte_stream_matcher.c"
-#include "test_utils.c"
+#include "../../src/string_compression/byte_stream_matcher.c"
+#include "../test_utils.c"
 
 const char *test_bsm_basic() {
   byte_stream_matcher bsm;

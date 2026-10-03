@@ -1,10 +1,10 @@
 #pragma once
-#include "arithmetic_coding.c"
+#include "../arithmetic_coding/arithmetic_coding.c"
+#include "../arithmetic_coding/frequency_table.c"
+#include "../commons.c"
+#include "../context.c"
+#include "../data_structures/ring_buffer.c"
 #include "byte_stream_matcher.c"
-#include "commons.c"
-#include "context.c"
-#include "frequency_table.c"
-#include "ring_buffer.c"
 
 const symbol _STRCOMP_BACKREFERENCE_SYMBOL = 256;
 const symbol _STRCOMP_BIT_TERMINATOR_SYMBOL = 2;

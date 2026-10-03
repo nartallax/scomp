@@ -1,8 +1,8 @@
 #pragma once
-#include "commons.c"
+#include "../commons.c"
+#include "../writer.c"
 #include "constants.c"
 #include "frequency_table.c"
-#include "writer.c"
 #include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -12,31 +12,31 @@ typedef enum {
   ACOD_STAGE_UNDERFLOW,
   ACOD_STAGE_READY,
   ACOD_STAGE_PREPARATION
-} acod_stage;
+} _acod_stage;
 
 typedef struct {
   symbol_frequency high;
   symbol_frequency low;
-  acod_stage stage;
-} acod_state;
+  _acod_stage stage;
+} _acod_state;
 
-void _acod_state_init(acod_state *state) {
-  *state = (acod_state){0};
+void _acod_state_init(_acod_state *state) {
+  *state = (_acod_state){0};
 
   state->low = 0;
   state->high = ACOD_STATE_MASK;
   state->stage = ACOD_STAGE_READY;
 }
 
-bool _acod_is_shiftable(acod_state *state) {
+bool _acod_is_shiftable(_acod_state *state) {
   return ((state->low ^ state->high) & ACOD_HALF_RANGE) == 0;
 }
 
-bool _acod_is_underflowable(acod_state *state) {
+bool _acod_is_underflowable(_acod_state *state) {
   return (state->low & (~state->high) & ACOD_QUARTER_RANGE) != 0;
 }
 
-void _acod_try_progress_stage(acod_state *state) {
+void _acod_try_progress_stage(_acod_state *state) {
   while (true) {
     switch (state->stage) {
     case ACOD_STAGE_READY:
@@ -58,7 +58,7 @@ void _acod_try_progress_stage(acod_state *state) {
   }
 }
 
-void _acod_perform_update_start(acod_state *state, ftable *frequencies, symbol symbol) {
+void _acod_perform_update_start(_acod_state *state, ftable *frequencies, symbol symbol) {
   assert(state->stage == ACOD_STAGE_READY);
 
   symbol_frequency value_range = state->high - state->low + 1;
@@ -81,7 +81,7 @@ void _acod_perform_update_start(acod_state *state, ftable *frequencies, symbol s
   _acod_try_progress_stage(state);
 }
 
-void _acod_perform_shift(acod_state *state) {
+void _acod_perform_shift(_acod_state *state) {
   assert(_acod_is_shiftable(state));
   // While low and high have the same top bit value, shift them out
   state->low = ((state->low << 1) & ACOD_STATE_MASK);
@@ -90,7 +90,7 @@ void _acod_perform_shift(acod_state *state) {
   _acod_try_progress_stage(state);
 }
 
-void _acod_perform_underflow(acod_state *state) {
+void _acod_perform_underflow(_acod_state *state) {
   assert(_acod_is_underflowable(state));
   // While low's top two bits are 01 and high's are 10, delete the second highest bit of both
   state->low = (state->low << 1) ^ ACOD_HALF_RANGE;
@@ -100,7 +100,7 @@ void _acod_perform_underflow(acod_state *state) {
 }
 
 typedef struct {
-  acod_state state;
+  _acod_state state;
   // Number of saved underflow bits. This value can grow without bound, so a truly correct implementation would use a BigInteger.
   // (of course, it's very unlikely and can potentially happen only to very, very long sequences of input symbols)
   uint64_t underflows;
@@ -173,7 +173,7 @@ NODISCARD bool acod_encoder_write(acod_encoder *encoder, ftable *frequencies, sy
 }
 
 typedef struct {
-  acod_state state;
+  _acod_state state;
   // The current raw code bits being buffered, which is always in the range [low, high].
   symbol_frequency code;
   int base_bits_received;

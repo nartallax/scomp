@@ -1,6 +1,6 @@
 #pragma once
-#include "../src/ring_buffer.c"
-#include "test_utils.c"
+#include "../../src/data_structures/ring_buffer.c"
+#include "../test_utils.c"
 
 const char *test_ring_buffer_simple() {
   ring_buffer rb;

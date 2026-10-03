@@ -1,13 +1,9 @@
 #pragma once
-#include "commons.c"
-#include "context.c"
-#include "limits.h"
-#include "queue.c"
-#include "stack.c"
-#include "utf8.c"
-#include <complex.h>
-#include <inttypes.h>
-#include <stdint.h>
+#include "../commons.c"
+#include "../context.c"
+#include "../data_structures/queue.c"
+#include "../data_structures/stack.c"
+#include "../utf8.c"
 
 /** Max length of state stack. Limits nesting.
 Exists to prevent memory overflow in case when the input is infinite number of '[' */

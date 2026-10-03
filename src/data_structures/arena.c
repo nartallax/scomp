@@ -1,6 +1,6 @@
 #pragma once
-#include "commons.c"
-#include "context.c"
+#include "../commons.c"
+#include "../context.c"
 #include <assert.h>
 
 const size_t ARENA_DEFAULT_LENGTH = 1024;

@@ -1,6 +1,6 @@
 #pragma once
+#include "../writer.c"
 #include "json_tokenizer.c"
-#include "writer.c"
 
 NODISCARD bool _jdet_write_int(writer *w, uint64_t value) {
   uint64_t rem = value % 10;

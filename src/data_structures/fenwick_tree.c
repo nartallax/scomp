@@ -1,6 +1,6 @@
 #pragma once
-#include "commons.c"
-#include "context.c"
+#include "../commons.c"
+#include "../context.c"
 #include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>

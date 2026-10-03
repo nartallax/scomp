@@ -1,6 +1,6 @@
 #pragma once
-#include "../src/json_tokenizer.c"
-#include "test_utils.c"
+#include "../../src/json/json_tokenizer.c"
+#include "../test_utils.c"
 #include <stdio.h>
 
 bool test_json_tokenizer_push_string(json_tokenizer *t, const char *str) {

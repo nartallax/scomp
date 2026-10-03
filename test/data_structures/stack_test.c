@@ -1,6 +1,6 @@
 #pragma once
-#include "../src/stack.c"
-#include "test_utils.c"
+#include "../../src/data_structures/stack.c"
+#include "../test_utils.c"
 #include <stdbool.h>
 #include <string.h>
 
