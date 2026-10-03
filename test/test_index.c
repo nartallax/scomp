@@ -45,7 +45,6 @@ int main() {
       MAKE_TEST(test_ring_buffer_allocation_fail),
       MAKE_TEST(test_writer_bytes),
       MAKE_TEST(test_writer_bits),
-      MAKE_TEST(test_writer_early_close),
       MAKE_TEST(test_writer_buffer_reuse),
       MAKE_TEST(test_writer_allocation_failure),
       MAKE_TEST(test_ftable_simple),

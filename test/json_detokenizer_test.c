@@ -7,13 +7,14 @@
 
 bool test_setup_detokeniser_writer_for_failure(writer **w, int fail_after_characters) {
   if (*w) {
-    writer_delete(*w);
+    writer_deinit(*w);
+    free(*w);
     *w = NULL;
   }
 
   setup_test_context_default();
-  *w = writer_new(test_context, fail_after_characters);
-  if (!*w) {
+  *w = malloc(sizeof(writer));
+  if (!writer_init(*w, test_context, fail_after_characters)) {
     return false;
   }
 
@@ -92,6 +93,7 @@ const char *test_json_detokenizer_allocation_failures() {
     TEST_ASSERT(!json_detokenizer_write(w, &((json_token){.kind = JSON_TOKEN_ESCAPED_CHARCODE, .unicode_character = (json_unicode_token){.value = charcode}})));
   }
 
-  writer_delete(w);
+  writer_deinit(w);
+  free(w);
   return NULL;
 }

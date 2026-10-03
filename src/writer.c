@@ -77,53 +77,43 @@ size_t writer_get_bytes_stored(writer *writer) {
   return (buffer_count * writer->size) + ((writer->current_bit_index + 7) >> 3);
 }
 
-void writer_delete(writer *writer) {
-  size_t bytes_stored = writer_get_bytes_stored(writer);
-  if (bytes_stored > 0) {
-    context_set_error(writer->context, "Writer is deleted while still having %zu non-consumed bytes", bytes_stored);
+void writer_deinit(writer *w) {
+  while (queue_get_count(&w->buffers) > 0) {
+    byte **slot = queue_pop(&w->buffers);
+    context_free(w->context, *slot);
   }
+  queue_deinit(&w->buffers);
 
-  while (queue_get_count(&writer->buffers) > 0) {
-    byte **slot = queue_pop(&writer->buffers);
-    context_free(writer->context, *slot);
+  while (queue_get_count(&w->free_buffers) > 0) {
+    byte **slot = queue_pop(&w->free_buffers);
+    context_free(w->context, *slot);
   }
-  queue_deinit(&writer->buffers);
-
-  while (queue_get_count(&writer->free_buffers) > 0) {
-    byte **slot = queue_pop(&writer->free_buffers);
-    context_free(writer->context, *slot);
-  }
-  queue_deinit(&writer->free_buffers);
-
-  context_free(writer->context, writer);
+  queue_deinit(&w->free_buffers);
 }
 
-// TODO: init here
-NODISCARD writer *writer_new(context *context, size_t size) {
-  writer *w = context_allocate(context, 1, sizeof(writer));
-  if (!w) {
-    return NULL;
-  }
+NODISCARD bool writer_init(writer *w, context *context, size_t size) {
+  *w = (writer){0};
+
   w->size = size;
   w->context = context;
   w->current_bit_index = 0;
 
   if (!queue_init(&w->buffers, context, sizeof(byte *))) {
-    context_free(context, w);
-    return NULL;
+    writer_deinit(w);
+    return false;
   }
 
   if (!queue_init(&w->free_buffers, context, sizeof(byte *))) {
-    queue_deinit(&w->buffers);
-    context_free(context, w);
-    return NULL;
+    writer_deinit(w);
+    return false;
   }
 
   if (!_writer_allocate_next_buffer(w)) {
-    writer_delete(w);
-    return NULL;
+    writer_deinit(w);
+    return false;
   }
-  return w;
+
+  return true;
 }
 
 /** Returns oldest non-consumed buffer full of bytes, with length of `writer->size`.

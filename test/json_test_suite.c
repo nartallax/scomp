@@ -40,7 +40,10 @@ bool test_parse_json_suite_path(const char *path, json_suite_expected_result *ex
 }
 
 buffer test_feed_file_into_tokenizer_detokenizer(const char *path, const char *filename) {
-  writer *w = writer_new(test_context, 1024);
+  writer *w = malloc(sizeof(writer));
+  if (!writer_init(w, test_context, 1024)) {
+    return EMPTY_BUFFER;
+  }
   json_tokenizer t;
   json_tokenizer_init(&t, test_context);
   json_token *token;
@@ -107,7 +110,8 @@ buffer test_feed_file_into_tokenizer_detokenizer(const char *path, const char *f
 
   buffer result_buffer = is_success ? writer_consume_all_buffers(w).buffer : EMPTY_BUFFER;
 
-  writer_delete(w);
+  writer_deinit(w);
+  free(w);
   json_tokenizer_deinit(&t);
 
   return result_buffer;
