@@ -1,6 +1,7 @@
 #include "arena_test.c"
 #include "arithmetic_coding_test.c"
 #include "byte_stream_matcher_test.c"
+#include "context_test.c"
 #include "fenwick_tree_test.c"
 #include "frequency_table_test.c"
 #include "json_detokenizer_test.c"
@@ -25,6 +26,7 @@ typedef struct {
 
 int main() {
   test tests[] = {
+      MAKE_TEST(test_context_double_error),
       MAKE_TEST(test_utf8_simple),
       MAKE_TEST(test_fenwick_tree_simple),
       MAKE_TEST(test_fenwick_tree_max_range),

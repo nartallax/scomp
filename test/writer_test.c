@@ -153,6 +153,7 @@ const char *test_writer_allocation_failure() {
   for (int i = 0; i < 3; i++) {
     setup_test_context(i);
     TEST_ASSERT(!writer_init(w, test_context, 2));
+    TEST_ASSERT(writer_get_bytes_stored(w) == 0);
   }
 
   setup_test_context(3);
