@@ -269,7 +269,7 @@ const char *test_json_tokenizer_numbers() {
   TEST_ASSERT(json_tokenizer_consume(&t) == NULL);
   TEST_ASSERT(test_json_tokenizer_reinit_nonempty(&t));
 
-  char *too_long_number = string_repeat("1", 1, JTOK_MAX_CHARS_LENGTH);
+  char *too_long_number = string_repeat("1", 1, sizeof(t.chars));
   TEST_ASSERT(!test_json_tokenizer_push_string(&t, too_long_number));
   free(too_long_number);
   TEST_ASSERT(test_json_tokenizer_reinit_nonempty(&t));
@@ -501,9 +501,9 @@ const char *test_json_tokenizer_whitespaces() {
 const char *test_json_tokenizer_bom() {
   json_tokenizer t;
   TEST_ASSERT(json_tokenizer_init(&t, test_context));
-  TEST_ASSERT(json_tokenizer_push(&t, utf8_bom[0]));
-  TEST_ASSERT(json_tokenizer_push(&t, utf8_bom[1]));
-  TEST_ASSERT(json_tokenizer_push(&t, utf8_bom[2]));
+  TEST_ASSERT(json_tokenizer_push(&t, UTF8_BOM[0]));
+  TEST_ASSERT(json_tokenizer_push(&t, UTF8_BOM[1]));
+  TEST_ASSERT(json_tokenizer_push(&t, UTF8_BOM[2]));
   TEST_ASSERT(json_tokenizer_push(&t, '{'));
   TEST_ASSERT(json_tokenizer_push(&t, '}'));
   TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_BOM);
@@ -511,8 +511,8 @@ const char *test_json_tokenizer_bom() {
   TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_OBJECT_CLOSE);
   TEST_ASSERT(test_json_tokenizer_reinit(&t));
 
-  TEST_ASSERT(json_tokenizer_push(&t, utf8_bom[0]));
-  TEST_ASSERT(json_tokenizer_push(&t, utf8_bom[1]));
+  TEST_ASSERT(json_tokenizer_push(&t, UTF8_BOM[0]));
+  TEST_ASSERT(json_tokenizer_push(&t, UTF8_BOM[1]));
   TEST_ASSERT(json_tokenizer_push(&t, 0x0));
   TEST_ASSERT(json_tokenizer_consume(&t) == NULL);
 
@@ -596,7 +596,8 @@ bool test_json_tokenizer_setup_for_queue_failure(json_tokenizer *t, size_t offse
   if (!json_tokenizer_init(t, test_context)) {
     return false;
   }
-  char *lots_of_array_open = string_repeat("[", 1, QUEUE_DEFAULT_LENGTH - offset);
+  size_t queue_default_length = t->token_queue.length;
+  char *lots_of_array_open = string_repeat("[", 1, queue_default_length - offset);
   if (!test_json_tokenizer_push_string(t, lots_of_array_open)) {
     return false;
   }
@@ -646,7 +647,7 @@ const char *test_json_tokenizer_allocation_failures() {
   // overflow on context push
   setup_test_context_default();
   TEST_ASSERT(json_tokenizer_init(&t, test_context));
-  long_string_with_repeats = string_repeat("[", 1, STACK_DEFAULT_LENGTH - 1);
+  long_string_with_repeats = string_repeat("[", 1, t.state_stack.length - 1);
   TEST_ASSERT(test_json_tokenizer_push_string(&t, long_string_with_repeats));
   free(long_string_with_repeats);
   update_test_context_for_alloc_failure(0);

@@ -5,8 +5,6 @@
 #include <stddef.h>
 #include <string.h>
 
-#define QUEUE_DEFAULT_LENGTH 16
-
 /** A queue data structure.
 Can store data of arbitrary size (passed in constructor).
 Because of that, its api does not operate with values themselves, but rather with pointers to those values. */
@@ -28,7 +26,7 @@ typedef struct {
 NODISCARD bool queue_init(queue *q, context *context, size_t value_size) {
   *q = (queue){0};
 
-  q->length = QUEUE_DEFAULT_LENGTH;
+  q->length = 16;
   q->head = 0;
   q->tail = 0;
   q->context = context;

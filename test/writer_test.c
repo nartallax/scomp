@@ -158,6 +158,7 @@ const char *test_writer_allocation_failure() {
 
   setup_test_context(3);
   TEST_ASSERT(writer_init(w, test_context, 2));
+  size_t queue_default_length = w->buffers.length;
   TEST_ASSERT(writer_write_byte(w, 1));
   buffer_or_error b = writer_consume_all_buffers(w);
   TEST_ASSERT(b.buffer.length == 0 && b.buffer.data == NULL && b.is_error);
@@ -169,9 +170,9 @@ const char *test_writer_allocation_failure() {
   TEST_ASSERT(!writer_write_byte(w, 2));
   writer_deinit(w, test_context);
 
-  setup_test_context(3 + QUEUE_DEFAULT_LENGTH - 1);
+  setup_test_context(3 + queue_default_length - 1);
   TEST_ASSERT(writer_init(w, test_context, 2));
-  for (byte i = 0; i < QUEUE_DEFAULT_LENGTH - 2; i++) {
+  for (byte i = 0; i < queue_default_length - 2; i++) {
     TEST_ASSERT(writer_write_byte(w, i));
     TEST_ASSERT(writer_write_byte(w, i * 2));
   }

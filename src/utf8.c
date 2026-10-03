@@ -2,12 +2,11 @@
 #include "commons.c"
 #include <stdbool.h>
 
-#define UTF8_BOM_LENGTH 3
-const byte utf8_bom[UTF8_BOM_LENGTH] = {0xEF, 0xBB, 0xBF};
+const byte UTF8_BOM[3] = {0xEF, 0xBB, 0xBF};
 
 /** Determines if the sequence of bytes can be a utf-8 byte-order mark. If this returns true and length >= 3 - the sequence contains valid BOM. */
 bool utf8_can_bytes_be_bom_start(const byte *bytes, size_t length) {
-  return (length < 1 || bytes[0] == utf8_bom[0]) && (length < 2 || bytes[1] == utf8_bom[1]) && (length < 3 || bytes[2] == utf8_bom[2]);
+  return (length < 1 || bytes[0] == UTF8_BOM[0]) && (length < 2 || bytes[1] == UTF8_BOM[1]) && (length < 3 || bytes[2] == UTF8_BOM[2]);
 }
 
 /** Returns number 1-4 depending on expected length of the sequence, or 0 if passed byte is an invalid start of the sequence. */

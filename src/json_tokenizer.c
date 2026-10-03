@@ -9,15 +9,9 @@
 #include <inttypes.h>
 #include <stdint.h>
 
-/** Length of internal buffer of a tokenizer.
-If it ever fills - tokenizer will start to fail to ingest more bytes, which indicates invalid JSON.
-Technically it's possible to have longer numbers, especially when they are tiny fractions like 0.00...256 zeroes...005
-But it's very unlikely */
-#define JTOK_MAX_CHARS_LENGTH 128
-
 /** Max length of state stack. Limits nesting.
 Exists to prevent memory overflow in case when the input is infinite number of '[' */
-#define JTOK_MAX_STATE_STACK_LENGTH 1024
+const size_t JTOK_MAX_STATE_STACK_LENGTH = 1024;
 
 // TODO: consider making this single-byte long and check the performance
 /** Types of state in which JSON tokens may appear.
@@ -123,8 +117,11 @@ typedef struct {
   queue token_queue;
   stack state_stack;
   /** Unparsed characters.
-  Length of this field is determined mostly by max possible meaningful length of a number */
-  byte chars[JTOK_MAX_CHARS_LENGTH];
+  If this buffer ever fills - tokenizer will start to fail to ingest more bytes, which indicates invalid JSON.
+  Length of this field is determined mostly by max possible meaningful length of a number.
+  Technically it's possible to have longer numbers, especially when they are tiny fractions like 0.00...256 zeroes...005,
+  but it's very unlikely to have in a legit json. */
+  byte chars[128];
   /** Next free index in `characters` field */
   size_t chars_length;
   json_token_kind last_nonws_read_token_kind;
@@ -233,7 +230,7 @@ NODISCARD _jtok_success_state _jtok_push_number_token(json_tokenizer *t, uint64_
 
 NODISCARD _jtok_success_state _jtok_try_bom(json_tokenizer *t) {
   // second condition is commented out because it is checked by the caller
-  if (t->chars_length == UTF8_BOM_LENGTH /* && utf8_can_bytes_be_bom_start(t->chars, t->chars_length) */) {
+  if (t->chars_length == sizeof(UTF8_BOM) /* && utf8_can_bytes_be_bom_start(t->chars, t->chars_length) */) {
     return _jtok_push_simple_token(t, JSON_TOKEN_BOM);
   }
   return _JTOK_PASS;
@@ -282,7 +279,7 @@ NODISCARD _jtok_success_state _jtok_try_whitespace(json_tokenizer *t) {
   return _JTOK_PASS;
 }
 
-const uint64_t _jtok_not_a_hex_character = 0xff;
+const uint64_t _JTOK_NOT_A_HEX_CHARACTER = 0xff;
 uint64_t _jtok_parse_hex(byte hex_char) {
   if (hex_char >= '0' && hex_char <= '9') {
     return hex_char - '0';
@@ -291,7 +288,7 @@ uint64_t _jtok_parse_hex(byte hex_char) {
   } else if (hex_char >= 'A' && hex_char <= 'F') {
     return (hex_char - 'A') + 10;
   } else {
-    return _jtok_not_a_hex_character;
+    return _JTOK_NOT_A_HEX_CHARACTER;
   }
 }
 
@@ -312,7 +309,7 @@ NODISCARD _jtok_success_state _jtok_try_parse_next_string_part(json_tokenizer *t
     uint64_t b = _jtok_parse_hex(t->chars[3]);
     uint64_t c = _jtok_parse_hex(t->chars[4]);
     uint64_t d = _jtok_parse_hex(t->chars[5]);
-    if (a == _jtok_not_a_hex_character || b == _jtok_not_a_hex_character || c == _jtok_not_a_hex_character || d == _jtok_not_a_hex_character) {
+    if (a == _JTOK_NOT_A_HEX_CHARACTER || b == _JTOK_NOT_A_HEX_CHARACTER || c == _JTOK_NOT_A_HEX_CHARACTER || d == _JTOK_NOT_A_HEX_CHARACTER) {
       return _JTOK_PASS;
     }
     // 4 hex bytes are stored like that to preserve case
@@ -393,14 +390,14 @@ void _jtok_pop_state(json_tokenizer *t) {
   }
 }
 
-const uint64_t tenth_of_max_uint64 = UINT64_MAX / 10;
+const uint64_t TENTH_OF_MAX_UINT64 = UINT64_MAX / 10;
 bool _jtok_uint64_will_overflow(uint64_t value, byte addition) {
-  return value >= tenth_of_max_uint64 - addition;
+  return value >= TENTH_OF_MAX_UINT64 - addition;
 }
 
-const uint16_t tenth_of_max_uint16 = UINT16_MAX / 10;
+const uint16_t TENTH_OFF_MAX_UINT16 = UINT16_MAX / 10;
 bool _jtok_uint16_will_overflow(uint16_t value, byte addition) {
-  return value >= tenth_of_max_uint16 - addition;
+  return value >= TENTH_OFF_MAX_UINT16 - addition;
 }
 
 NODISCARD _jtok_success_state _jtok_try_produce_number(json_tokenizer *t, size_t end_offset) {
@@ -755,7 +752,7 @@ NODISCARD _jtok_success_state _jtok_try_tokenize(json_tokenizer *t) {
 /** Add a byte to the tokenizer. This may cause some amount of tokens to appear for consumption.
 Returns true if byte was consumed successfully. */
 NODISCARD bool json_tokenizer_push(json_tokenizer *t, byte b) {
-  if (t->chars_length == JTOK_MAX_CHARS_LENGTH - 1) {
+  if (t->chars_length == sizeof(t->chars) - 1) {
     // broken json, or maybe overly long number
     return false;
   }

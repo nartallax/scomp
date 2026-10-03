@@ -34,7 +34,7 @@ typedef struct {
   uint64_t length;
 } bsm_match;
 
-const bsm_match empty_bsm_match = {0};
+const bsm_match BSM_MATCH_EMPTY = {0};
 
 NODISCARD bool bsm_init(byte_stream_matcher *bsm, context *context) {
   *bsm = (byte_stream_matcher){0};

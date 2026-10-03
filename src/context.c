@@ -10,10 +10,8 @@ typedef void *(*calloc_fn)(size_t, size_t);
 typedef void *(*realloc_fn)(void *, size_t);
 typedef void (*free_fn)(void *);
 
-#define ERROR_MESSAGE_LENGTH 512
-
 typedef struct {
-  char message[ERROR_MESSAGE_LENGTH];
+  char message[512];
   size_t message_length;
   /** False when there's no error */
   bool is_present;
@@ -66,7 +64,7 @@ void context_set_error(context *context, const char *format, ...) {
 
   va_list args;
   va_start(args, format);
-  context->error.message_length = vsnprintf(context->error.message, ERROR_MESSAGE_LENGTH, format, args);
+  context->error.message_length = vsnprintf(context->error.message, sizeof(context->error.message), format, args);
   context->error.is_present = true;
   va_end(args);
 }

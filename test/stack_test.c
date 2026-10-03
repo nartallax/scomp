@@ -33,12 +33,13 @@ const char *test_stack_simple() {
   TEST_ASSERT(_test_stack_strcmp(stack_pop(s), "first"));
   TEST_ASSERT(stack_get_count(s) == 0);
 
-  for (size_t i = 0; i < STACK_DEFAULT_LENGTH * 2 + 5; i++) {
+  size_t default_length = s->length;
+  for (size_t i = 0; i < default_length * 2 + 5; i++) {
     _test_stack_push(s, "value");
   }
-  TEST_ASSERT(stack_get_count(s) == STACK_DEFAULT_LENGTH * 2 + 5);
+  TEST_ASSERT(stack_get_count(s) == default_length * 2 + 5);
 
-  for (size_t i = 0; i < STACK_DEFAULT_LENGTH * 2 + 3; i++) {
+  for (size_t i = 0; i < default_length * 2 + 3; i++) {
     TEST_ASSERT(_test_stack_strcmp(stack_peek(s), "value"));
     TEST_ASSERT(_test_stack_strcmp(stack_pop(s), "value"));
   }
@@ -75,14 +76,15 @@ const char *test_stack_non_pointer() {
   TEST_ASSERT(stack_get_count(s) == 0);
   TEST_ASSERT(o->x == 1 && o->y == 2);
 
-  for (size_t i = 0; i < STACK_DEFAULT_LENGTH * 2 + 5; i++) {
+  size_t default_length = s->length;
+  for (size_t i = 0; i < default_length * 2 + 5; i++) {
     o = stack_push(s);
     o->x = i;
     o->y = i * 2;
   }
-  TEST_ASSERT(stack_get_count(s) == STACK_DEFAULT_LENGTH * 2 + 5);
+  TEST_ASSERT(stack_get_count(s) == default_length * 2 + 5);
 
-  for (size_t i = STACK_DEFAULT_LENGTH * 2 + 4; i >= 2; i--) {
+  for (size_t i = default_length * 2 + 4; i >= 2; i--) {
     o = stack_pop(s);
     TEST_ASSERT(o->x == i && o->y == i * 2);
   }
@@ -102,7 +104,8 @@ const char *test_stack_allocation_failures() {
 
   setup_test_context(1);
   TEST_ASSERT(stack_init(s, test_context, sizeof(const char *)));
-  for (size_t i = 0; i < STACK_DEFAULT_LENGTH - 1; i++) {
+  size_t default_length = s->length;
+  for (size_t i = 0; i < default_length - 1; i++) {
     stack_push(s);
   }
   TEST_ASSERT(stack_push(s) == NULL);

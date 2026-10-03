@@ -2,8 +2,6 @@
 #include "commons.c"
 #include "context.c"
 
-#define STACK_DEFAULT_LENGTH 16
-
 /** Stack data structure.
 Just like queue, may contain arbitrary sized values, and because of that operates with pointers. */
 typedef struct {
@@ -21,7 +19,7 @@ NODISCARD bool stack_init(stack *s, context *context, size_t value_size) {
 
   s->context = context;
   s->value_size = value_size;
-  s->length = STACK_DEFAULT_LENGTH;
+  s->length = 16;
   s->count = 0;
   s->values = context_allocate(context, s->length, value_size);
   if (!s->values) {

@@ -6,10 +6,10 @@
 #include "frequency_table.c"
 #include "ring_buffer.c"
 
-const symbol _strcomp_backreference_symbol = 256;
-const symbol _strcomp_bit_terminator_symbol = 2;
+const symbol _STRCOMP_BACKREFERENCE_SYMBOL = 256;
+const symbol _STRCOMP_BIT_TERMINATOR_SYMBOL = 2;
 // TODO: tune this
-const size_t _strcomp_min_backreference_length = 5;
+const size_t _STRCOMP_MIN_BACKREFERENCE_LENGTH = 5;
 
 typedef struct {
   ftable main_symbol_table;
@@ -86,17 +86,17 @@ NODISCARD bool _strcomp_write_uint(string_compressor *compressor, uint64_t value
     ftable_increment(&compressor->base.raw_bit_with_terminator_table, bit);
     value = value >> 1;
   }
-  if (!acod_encoder_write(compressor->encoder, &compressor->base.raw_bit_with_terminator_table, _strcomp_bit_terminator_symbol)) {
+  if (!acod_encoder_write(compressor->encoder, &compressor->base.raw_bit_with_terminator_table, _STRCOMP_BIT_TERMINATOR_SYMBOL)) {
     return false;
   }
-  ftable_increment(&compressor->base.raw_bit_with_terminator_table, _strcomp_bit_terminator_symbol);
+  ftable_increment(&compressor->base.raw_bit_with_terminator_table, _STRCOMP_BIT_TERMINATOR_SYMBOL);
   return true;
 }
 
 // TODO: think about better ways of writing backreferences. this is very suboptimal
 // do it like deflate does it?
 NODISCARD bool _strcomp_write_backreference(string_compressor *compressor, uint64_t offset, uint64_t length) {
-  if (!acod_encoder_write(compressor->encoder, &compressor->base.main_symbol_table, _strcomp_backreference_symbol)) {
+  if (!acod_encoder_write(compressor->encoder, &compressor->base.main_symbol_table, _STRCOMP_BACKREFERENCE_SYMBOL)) {
     return false;
   }
   if (!_strcomp_write_uint(compressor, offset)) {
@@ -114,9 +114,9 @@ NODISCARD bool _strcomp_compressor_flush_once(string_compressor *compressor) {
     buffer_start += (int64_t)_BSM_MATCH_LENGTH_LIMIT;
   }
   // if we can't even properly take hash of the bytes - don't attempt to find anything
-  bsm_match match = (compressor->bytes_in_buffer < _BSM_HASH_LENGTH_BYTES) ? empty_bsm_match : bsm_find_match(&compressor->bsm, &compressor->buffer, buffer_start);
+  bsm_match match = (compressor->bytes_in_buffer < _BSM_HASH_LENGTH_BYTES) ? BSM_MATCH_EMPTY : bsm_find_match(&compressor->bsm, &compressor->buffer, buffer_start);
 
-  if (match.length >= _strcomp_min_backreference_length) {
+  if (match.length >= _STRCOMP_MIN_BACKREFERENCE_LENGTH) {
     if (!_strcomp_write_backreference(compressor, match.offset, match.length)) {
       return false;
     }
