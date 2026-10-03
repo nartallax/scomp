@@ -137,6 +137,8 @@ void json_tokenizer_deinit(json_tokenizer *tokenizer) {
 }
 
 bool json_tokenizer_init(json_tokenizer *tokenizer, context *context) {
+  *tokenizer = (json_tokenizer){0};
+
   if (!queue_init(&tokenizer->token_queue, context, sizeof(json_token))) {
     return false;
   }

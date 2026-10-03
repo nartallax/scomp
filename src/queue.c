@@ -25,14 +25,16 @@ typedef struct {
   size_t tail;
 } queue;
 
-NODISCARD bool queue_init(queue *queue, context *context, size_t value_size) {
-  queue->length = QUEUE_DEFAULT_LENGTH;
-  queue->head = 0;
-  queue->tail = 0;
-  queue->context = context;
-  queue->value_size = value_size;
-  queue->values = context_allocate(context, queue->length, value_size);
-  if (!queue->values) {
+NODISCARD bool queue_init(queue *q, context *context, size_t value_size) {
+  *q = (queue){0};
+
+  q->length = QUEUE_DEFAULT_LENGTH;
+  q->head = 0;
+  q->tail = 0;
+  q->context = context;
+  q->value_size = value_size;
+  q->values = context_allocate(context, q->length, value_size);
+  if (!q->values) {
     return false;
   }
 

@@ -16,6 +16,8 @@ typedef struct {
 } ftree;
 
 NODISCARD bool ftree_init(ftree *tree, context *context, int64_t size) {
+  *tree = (ftree){0};
+
   // +1 because fenwick trees' indices are inherently 1-based
   tree->size = size + 1;
   tree->data = context_allocate_zero_init(context, tree->size, sizeof(uint64_t));

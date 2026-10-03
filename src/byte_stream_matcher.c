@@ -39,6 +39,8 @@ typedef struct {
 const bsm_match empty_bsm_match = {0};
 
 NODISCARD bool bsm_init(byte_stream_matcher *bsm, context *context) {
+  *bsm = (byte_stream_matcher){0};
+
   bsm->context = context;
   bsm->rolling_hash = 0;
 

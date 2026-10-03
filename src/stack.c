@@ -16,13 +16,15 @@ typedef struct {
   size_t count;
 } stack;
 
-NODISCARD bool stack_init(stack *stack, context *context, size_t value_size) {
-  stack->context = context;
-  stack->value_size = value_size;
-  stack->length = STACK_DEFAULT_LENGTH;
-  stack->count = 0;
-  stack->values = context_allocate(context, stack->length, value_size);
-  if (!stack->values) {
+NODISCARD bool stack_init(stack *s, context *context, size_t value_size) {
+  *s = (stack){0};
+
+  s->context = context;
+  s->value_size = value_size;
+  s->length = STACK_DEFAULT_LENGTH;
+  s->count = 0;
+  s->values = context_allocate(context, s->length, value_size);
+  if (!s->values) {
     return false;
   }
 

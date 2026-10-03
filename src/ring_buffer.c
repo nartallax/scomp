@@ -11,6 +11,8 @@ typedef struct {
 } ring_buffer;
 
 NODISCARD bool ring_buffer_init(ring_buffer *rb, context *context, size_t length_shift) {
+  *rb = (ring_buffer){0};
+
   rb->context = context;
   size_t length = (size_t)1 << length_shift;
   rb->length_mask = length - 1;

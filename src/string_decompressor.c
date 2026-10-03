@@ -12,6 +12,7 @@
 // } string_decompressor;
 
 // bool strdecomp_init(string_decompressor *decomp) {
+//  *decomp = (string_decompressor){0};
 // }
 
 // void strdecomp_deinit(string_decompressor *decomp) {

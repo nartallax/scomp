@@ -24,10 +24,9 @@ void _strcomp_deinit_base(string_compression_base *base) {
 }
 
 NODISCARD bool _strcomp_init_base(string_compression_base *base, context *context) {
-  // TODO: do this in every init ever
   *base = (string_compression_base){0};
-  base->context = context;
 
+  base->context = context;
   if (!ftable_init(&base->main_symbol_table, context, 257, FTABLE_INIT_ONE | FTABLE_INCLUDE_EOF)) {
     // TODO: go over inits everywhere and call deinit instead of repeating all the fields
     _strcomp_deinit_base(base);
@@ -59,6 +58,7 @@ void strcomp_compressor_deinit(string_compressor *compressor) {
 
 NODISCARD bool strcomp_compressor_init(string_compressor *compressor, context *context, acod_encoder *encoder, ftable *table, size_t buffer_size) {
   *compressor = (string_compressor){0};
+
   if (!_strcomp_init_base(&compressor->base, context)) {
     return false;
   }

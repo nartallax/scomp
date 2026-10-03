@@ -92,6 +92,8 @@ void ftable_deinit(ftable *table) {
 }
 
 NODISCARD bool ftable_init(ftable *table, context *context, symbol length, ftable_flags init_flags) {
+  *table = (ftable){0};
+
   symbol eof_padding = _ftable_get_eof_length_padding(init_flags);
 
   table->compaction_buffer = NULL; // just to zero-init

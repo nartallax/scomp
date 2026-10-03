@@ -14,13 +14,15 @@ typedef struct {
   int allocations_count;
 } arena;
 
-NODISCARD bool arena_init(arena *arena, context *context) {
-  arena->offset = 0;
-  arena->length = ARENA_DEFAULT_LENGTH;
-  arena->context = context;
-  arena->allocations_count = 0;
-  arena->data = context_allocate(context, arena->length, sizeof(byte));
-  if (!arena->data) {
+NODISCARD bool arena_init(arena *a, context *context) {
+  *a = (arena){0};
+
+  a->offset = 0;
+  a->length = ARENA_DEFAULT_LENGTH;
+  a->context = context;
+  a->allocations_count = 0;
+  a->data = context_allocate(context, a->length, sizeof(byte));
+  if (!a->data) {
     return false;
   }
   return true;
