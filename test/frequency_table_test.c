@@ -1,6 +1,6 @@
 #pragma once
 #include "../src/frequency_table.c"
-#include "./test_utils.c"
+#include "test_utils.c"
 #include <stdlib.h>
 
 const char *test_ftable_simple() {
