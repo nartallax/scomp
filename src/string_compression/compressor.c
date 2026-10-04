@@ -14,26 +14,21 @@ typedef struct {
 } string_compressor;
 
 /** Don't forget to flush the compressor before calling this */
-void strcomp_compressor_deinit(string_compressor *compressor, context *context) {
+// TODO: unite flush and deinit, like with acod
+void strcomp_deinit(string_compressor *compressor, context *context) {
   bsm_deinit(&compressor->bsm, context);
   _strcomp_deinit_base(&compressor->base, context);
 }
 
-NODISCARD bool strcomp_compressor_init(string_compressor *compressor, context *context, acod_encoder *encoder, ftable *table, size_t buffer_size) {
+NODISCARD bool strcomp_init(string_compressor *compressor, context *context, acod_encoder *encoder) {
   *compressor = (string_compressor){0};
-
+  compressor->encoder = encoder;
   if (!_strcomp_init_base(&compressor->base, context)) {
     return false;
   }
 
-  compressor->encoder = encoder;
-  if (!ring_buffer_init(&compressor->base.buffer, context, _BSM_MATCH_LENGTH_SHIFT)) {
-    strcomp_compressor_deinit(compressor, context);
-    return false;
-  }
-
   if (!bsm_init(&compressor->bsm, context)) {
-    strcomp_compressor_deinit(compressor, context);
+    strcomp_deinit(compressor, context);
     return false;
   }
 
@@ -43,6 +38,7 @@ NODISCARD bool strcomp_compressor_init(string_compressor *compressor, context *c
 NODISCARD bool _strcomp_write_uint(string_compressor *compressor, uint64_t value) {
   while (value > 0) {
     byte bit = value & 1;
+    // printf("writing bit: %i\n", bit);
     if (!acod_encoder_write(compressor->encoder, &compressor->base.raw_bit_with_terminator_table, bit)) {
       return false;
     }
@@ -52,6 +48,7 @@ NODISCARD bool _strcomp_write_uint(string_compressor *compressor, uint64_t value
     ftable_increment(&compressor->base.raw_bit_with_terminator_table, bit);
     value = value >> 1;
   }
+  // printf("writing bit: %zu\n", _STRCOMP_BIT_TERMINATOR_SYMBOL);
   if (!acod_encoder_write(compressor->encoder, &compressor->base.raw_bit_with_terminator_table, _STRCOMP_BIT_TERMINATOR_SYMBOL)) {
     return false;
   }
@@ -62,9 +59,13 @@ NODISCARD bool _strcomp_write_uint(string_compressor *compressor, uint64_t value
 // TODO: think about better ways of writing backreferences. this is very suboptimal
 // do it like deflate does it?
 NODISCARD bool _strcomp_write_backreference(string_compressor *compressor, uint64_t offset, uint64_t length) {
+  // TODO: writing a backreference does not populate lookback buffer
+  // maybe it should? adjust decompressor too if yes
+  // printf("writing char: %zu\n", _STRCOMP_BACKREFERENCE_SYMBOL);
   if (!acod_encoder_write(compressor->encoder, &compressor->base.main_symbol_table, _STRCOMP_BACKREFERENCE_SYMBOL)) {
     return false;
   }
+  ftable_increment(&compressor->base.main_symbol_table, _STRCOMP_BACKREFERENCE_SYMBOL);
   if (!_strcomp_write_uint(compressor, offset)) {
     return false;
   }
@@ -89,22 +90,26 @@ NODISCARD bool _strcomp_compressor_flush_once(string_compressor *compressor) {
     }
     compressor->bytes_in_buffer -= match.length;
     assert(compressor->bytes_in_buffer >= 0);
+    return true;
   }
 
   byte first_byte = ring_buffer_get(&compressor->base.buffer, buffer_start);
+  // printf("writing char: %i\n", first_byte);
   if (!acod_encoder_write(compressor->encoder, &compressor->base.main_symbol_table, first_byte)) {
     return false;
   }
+  ftable_increment(&compressor->base.main_symbol_table, first_byte);
+  bsm_push(&compressor->bsm, first_byte);
   compressor->bytes_in_buffer--;
+  assert(compressor->bytes_in_buffer >= 0);
   return true;
 }
 
 /** Put a byte in compressor's buffer.
 This may result in some symbols being written out, or not. */
-NODISCARD bool strcomp_compressor_write(string_compressor *compressor, byte b) {
+NODISCARD bool strcomp_write(string_compressor *compressor, byte b) {
   compressor->bytes_in_buffer++;
   ring_buffer_push(&compressor->base.buffer, b);
-  bsm_push(&compressor->bsm, b);
   if (compressor->bytes_in_buffer == _BSM_MATCH_LENGTH_LIMIT - 1) {
     if (!_strcomp_compressor_flush_once(compressor)) {
       return false;
@@ -115,11 +120,16 @@ NODISCARD bool strcomp_compressor_write(string_compressor *compressor, byte b) {
 }
 
 /** Write out everything the compressor has in its buffer, and then write EOF marker */
-NODISCARD bool strcomp_compressor_flush(string_compressor *compressor) {
+NODISCARD bool strcomp_flush(string_compressor *compressor) {
   while (compressor->bytes_in_buffer > 0) {
     if (!_strcomp_compressor_flush_once(compressor)) {
       return false;
     }
   }
-  return acod_encoder_write(compressor->encoder, &compressor->base.main_symbol_table, _STRCOMP_EOF_SYMBOL);
+  // printf("writing char: %zu\n", _STRCOMP_EOF_SYMBOL);
+  if (!acod_encoder_write(compressor->encoder, &compressor->base.main_symbol_table, _STRCOMP_EOF_SYMBOL)) {
+    return false;
+  }
+  ftable_increment(&compressor->base.main_symbol_table, _STRCOMP_EOF_SYMBOL);
+  return true;
 }

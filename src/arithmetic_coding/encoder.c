@@ -41,7 +41,7 @@ NODISCARD bool _acod_encoder_write_shift_bit(acod_encoder *encoder, byte bit) {
 }
 
 NODISCARD bool _acod_encoder_finalize(acod_encoder *encoder) {
-  // This makes the final interval unambiguous.
+  // This makes the final interval unambiguous
   encoder->underflows++;
 
   byte final_bit = encoder->state.low < ACOD_QUARTER_RANGE ? 0 : 1;

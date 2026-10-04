@@ -7,6 +7,7 @@
 #include "data_structures/ring_buffer_test.c"
 #include "data_structures/stack_test.c"
 #include "string_compression/byte_stream_matcher_test.c"
+#include "string_compression/string_compressor_test.c"
 #include "test_utils.c"
 #include "utf8_test.c"
 #include "writer_test.c"
@@ -73,6 +74,8 @@ int main() {
       MAKE_TEST(test_bsm_basic),
       MAKE_TEST(test_bsm_allocation_failures),
       MAKE_TEST(test_bsm_wraps),
+      MAKE_TEST(test_string_compression_simple),
+      MAKE_TEST(test_string_compression_allocation_failures)
       // tests go here
   };
 

@@ -12,7 +12,7 @@ const size_t _BSM_LENGTH_MASK = _BSM_LENGTH - 1;
 const size_t _BSM_LOOKBACK_LENGTH = 3;
 const size_t _BSM_MATCH_LENGTH_SHIFT = 9; // not based on anything
 const size_t _BSM_MATCH_LENGTH_LIMIT = 1 << _BSM_MATCH_LENGTH_SHIFT;
-const size_t _BSM_HASH_LENGTH_BYTES = 4;
+const int32_t _BSM_HASH_LENGTH_BYTES = 4;
 
 /** A structure that stores last N bytes of a stream and helps to search it */
 typedef struct {

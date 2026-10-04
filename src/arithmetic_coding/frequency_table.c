@@ -17,6 +17,7 @@
 // also limiting N to small-ish numbers may allow us to reduce bit width of symbol_frequency, which is good for cpu cache
 
 typedef enum {
+  // TODO: consider removing implicit eof like this completely, no real use for it
   FTABLE_INCLUDE_EOF = 1 << 0,
   FTABLE_EXCLUDE_EOF = (1 << 1),
   FTABLE_INIT_ZERO = (1 << 2),

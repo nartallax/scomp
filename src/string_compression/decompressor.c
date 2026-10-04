@@ -6,15 +6,15 @@
 #include <stdbool.h>
 
 typedef enum {
-  _STRCOMP_STATE_SYMBOL,
-  _STRCOMP_STATE_OFFSET,
-  _STRCOMP_STATE_LENGTH
+  _STRDECOMP_STATE_SYMBOL,
+  _STRDECOMP_STATE_OFFSET,
+  _STRDECOMP_STATE_LENGTH
 } _strcomp_state;
 
 typedef enum {
-  STRCOMP_OK = 1,
-  STRCOMP_ERROR,
-  STRCOMP_EOF
+  STRDECOMP_OK = 1,
+  STRDECOMP_ERROR,
+  STRDECOMP_EOF
 } strdecomp_push_result;
 
 typedef struct {
@@ -32,7 +32,7 @@ NODISCARD bool strdecomp_init(string_decompressor *decomp, context *context, wri
 
   decomp->writer = writer;
   decomp->decoder = decoder;
-  decomp->state = _STRCOMP_STATE_SYMBOL;
+  decomp->state = _STRDECOMP_STATE_SYMBOL;
   decomp->length = 0;
   decomp->offset = 0;
   decomp->shift = 0;
@@ -44,56 +44,56 @@ void strdecomp_deinit(string_decompressor *decomp, context *context) {
 }
 
 void _strdecomp_update_uint(string_decompressor *decomp, symbol bit) {
-  uint64_t *field = decomp->state == _STRCOMP_STATE_OFFSET ? &decomp->offset : &decomp->length;
+  uint64_t *field = decomp->state == _STRDECOMP_STATE_OFFSET ? &decomp->offset : &decomp->length;
   *field |= (bit << decomp->shift);
   decomp->shift++;
 }
 
-bool _strdecomp_output_byte(string_decompressor *decomp, byte b) {
-  if (!writer_write_byte(decomp->writer, b)) {
-    return false;
-  }
-  ring_buffer_push(&decomp->base.buffer, b);
-  return true;
-}
-
-strdecomp_push_result strdecomp_push_bit(string_decompressor *decomp, byte bit) {
+NODISCARD strdecomp_push_result strdecomp_push_bit(string_decompressor *decomp, byte bit) {
   acod_decoder_update(decomp->decoder, bit);
+
   while (acod_decoder_has_symbol(decomp->decoder)) {
 
     // reading a symbol
-    if (decomp->state == _STRCOMP_STATE_SYMBOL) {
-      symbol s = acod_decoder_read(decomp->decoder, &decomp->base.main_symbol_table);
+    if (decomp->state == _STRDECOMP_STATE_SYMBOL) {
+      ftable *table = &decomp->base.main_symbol_table;
+      symbol s = acod_decoder_read(decomp->decoder, table);
+      ftable_increment(table, s);
+      // printf("reading char: %zu\n", s);
       if (s == _STRCOMP_BACKREFERENCE_SYMBOL) {
-        decomp->state = _STRCOMP_STATE_OFFSET;
+        decomp->state = _STRDECOMP_STATE_OFFSET;
         continue;
       }
 
       if (s == _STRCOMP_EOF_SYMBOL) {
-        return STRCOMP_EOF;
+        return STRDECOMP_EOF;
       }
 
-      if (!_strdecomp_output_byte(decomp, (byte)s)) {
-        return STRCOMP_ERROR;
+      if (!writer_write_byte(decomp->writer, (byte)s)) {
+        return STRDECOMP_ERROR;
       }
+      ring_buffer_push(&decomp->base.buffer, (byte)s);
 
       continue;
     }
 
     // reading a backreference
-    symbol s = acod_decoder_read(decomp->decoder, &decomp->base.raw_bit_with_terminator_table);
+    ftable *table = &decomp->base.raw_bit_with_terminator_table;
+    symbol s = acod_decoder_read(decomp->decoder, table);
+    ftable_increment(table, s);
+    // printf("reading bits: %zu\n", s);
     if (s != _STRCOMP_BIT_TERMINATOR_SYMBOL) {
       _strdecomp_update_uint(decomp, s);
       continue;
     }
 
-    if (decomp->state == _STRCOMP_STATE_OFFSET) {
-      decomp->state = _STRCOMP_STATE_LENGTH;
+    if (decomp->state == _STRDECOMP_STATE_OFFSET) {
+      decomp->state = _STRDECOMP_STATE_LENGTH;
       decomp->shift = 0;
       continue;
     }
 
-    decomp->state = _STRCOMP_STATE_SYMBOL;
+    decomp->state = _STRDECOMP_STATE_SYMBOL;
     int64_t start_index = (int64_t)ring_buffer_get_index(&decomp->base.buffer) - (int64_t)decomp->offset;
     if (start_index < 0) {
       start_index += ring_buffer_get_length(&decomp->base.buffer);
@@ -104,11 +104,11 @@ strdecomp_push_result strdecomp_push_bit(string_decompressor *decomp, byte bit) 
     decomp->shift = 0;
     for (int64_t i = 0; i < length; i++) {
       byte b = ring_buffer_get(&decomp->base.buffer, start_index + i);
-      if (!_strdecomp_output_byte(decomp, (byte)s)) {
-        return STRCOMP_ERROR;
+      if (!writer_write_byte(decomp->writer, b)) {
+        return STRDECOMP_ERROR;
       }
     }
   }
 
-  return STRCOMP_OK;
+  return STRDECOMP_OK;
 }
