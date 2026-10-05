@@ -108,7 +108,7 @@ bool _test_strcomp_comp_decomp(const char *src) {
   }
   if (i != decompressed.length) {
     printf("Decompressed data is longer than source: %zu > %zu\n", decompressed.length, i);
-    printf("%c %c %c\n", decompressed.data[48], decompressed.data[49], decompressed.data[50]);
+    printf("%c %c %c\n", decompressed.data[decompressed.length - 3], decompressed.data[decompressed.length - 2], decompressed.data[decompressed.length - 1]);
     return false;
   }
 
@@ -119,9 +119,8 @@ bool _test_strcomp_comp_decomp(const char *src) {
 }
 
 const char *test_string_compression_simple() {
-  // TODO: revive test
-  // TEST_ASSERT(_test_strcomp_comp_decomp("0123456789"));
-  // TEST_ASSERT(_test_strcomp_comp_decomp("01234567890123456789012345678901234567890123456789"));
+  TEST_ASSERT(_test_strcomp_comp_decomp("0123456789"));
+  TEST_ASSERT(_test_strcomp_comp_decomp("01234567890123456789012345678901234567890123456789"));
   return NULL;
 }
 

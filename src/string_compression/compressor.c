@@ -77,6 +77,7 @@ void _strcomp_compressor_flush_once(string_compressor *compressor) {
     _strcomp_write_backreference(compressor, match.offset, match.length);
     compressor->bytes_in_buffer -= match.length;
     assert(compressor->bytes_in_buffer >= 0);
+    return;
   }
 
   byte first_byte = ring_buffer_get(&compressor->base.buffer, buffer_start);
