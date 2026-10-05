@@ -71,8 +71,8 @@ void json_detokenizer_write(writer *w, json_token *token) {
       writer_write_byte(w, chars & 0xff);
       chars = chars >> 8;
     }
-    return;
   }
+    return;
   case JSON_TOKEN_ESCAPED_CHARCODE: {
     uint64_t chars = token->unicode_character.value;
     writer_write_byte(w, '\\');
@@ -81,8 +81,8 @@ void json_detokenizer_write(writer *w, json_token *token) {
     writer_write_byte(w, (chars >> 8) & 0xff);
     writer_write_byte(w, (chars >> 16) & 0xff);
     writer_write_byte(w, (chars >> 24) & 0xff);
-    return;
   }
+    return;
   default:
     // case JSON_TOKEN_NUMBER: as default for code coverage reasons
     // integer part
