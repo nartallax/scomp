@@ -4,6 +4,7 @@
 #include "data_structures/arena_test.c"
 #include "data_structures/fenwick_tree_test.c"
 #include "data_structures/fixed_queue_test.c"
+#include "data_structures/halfbyte_fixed_stack_test.c"
 #include "data_structures/queue_test.c"
 #include "data_structures/ring_buffer_test.c"
 #include "data_structures/stack_test.c"
@@ -37,6 +38,8 @@ int main() {
       MAKE_TEST(test_stack_simple),
       MAKE_TEST(test_stack_non_pointer),
       MAKE_TEST(test_stack_allocation_failures),
+      MAKE_TEST(test_hbfstack_simple),
+      MAKE_TEST(test_hbfstack_allocation_failures),
       MAKE_TEST(test_queue_simple),
       MAKE_TEST(test_queue_overflow_while_wrapping),
       MAKE_TEST(test_queue_overflow_while_not_wrapping),
