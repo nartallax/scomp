@@ -36,34 +36,34 @@ typedef struct {
 const buffer_or_error ERROR_ERROR_BUFFER = (buffer_or_error){.is_error = true, .buffer = EMPTY_BUFFER};
 const buffer_or_error EMPTY_ERROR_BUFFER = (buffer_or_error){.is_error = false, .buffer = EMPTY_BUFFER};
 
-NODISCARD bool _writer_allocate_next_buffer(writer *writer) {
+void _writer_allocate_next_buffer(writer *writer) {
   byte *buffer;
   if (queue_get_count(&writer->free_buffers) > 0) {
     byte **existing_buffer_slot = queue_pop(&writer->free_buffers);
     buffer = *existing_buffer_slot;
   } else {
     buffer = context_allocate_zero_init(writer->context, writer->size, sizeof(byte));
-    if (!buffer) {
-      return false;
-    }
   }
 
   byte **new_buffer_slot = queue_push(&writer->buffers);
-  if (!new_buffer_slot) {
+  if (new_buffer_slot && buffer) {
+    *new_buffer_slot = buffer;
+  } else {
     context_free(writer->context, buffer);
-    return false;
   }
-
-  *new_buffer_slot = buffer;
+  // when allocation fails - it's bad, but we can't do anything about it
+  // context is considered broken and must not be used
+  // but that's not supposed to happen anytime often
+  // so, what we are doing: we are still writing to SOME buffer;
+  // this overwrites existing output, which makes output of the whole library garbadge;
+  // but it's fine, because error is set on context, and should be checked, which means output is not supposed to be used anyway
   writer->current_bit_index = 0;
-  return true;
 }
 
-NODISCARD bool _writer_maybe_allocate_next_buffer(writer *writer) {
+void _writer_maybe_allocate_next_buffer(writer *writer) {
   if ((writer->current_bit_index >> 3) >= writer->size) {
-    return _writer_allocate_next_buffer(writer);
+    _writer_allocate_next_buffer(writer);
   }
-  return true;
 }
 
 size_t writer_get_bytes_stored(writer *writer) {
@@ -108,7 +108,8 @@ NODISCARD bool writer_init(writer *w, context *context, size_t size) {
     return false;
   }
 
-  if (!_writer_allocate_next_buffer(w)) {
+  _writer_allocate_next_buffer(w);
+  if (context_is_errored(context)) {
     writer_deinit(w, context);
     return false;
   }
@@ -136,6 +137,10 @@ Only use this function if you are sure this writer will receive no more writes.
 If this writer is used to write individual bits - last byte of the buffer may be partially written.
 This is okay if you are closing the writer, but if more bits are to be written in this writer - next byte would be corrupted. */
 NODISCARD buffer_or_error writer_consume_nonempty_buffer(writer *writer) {
+  if (context_is_errored(writer->context)) {
+    return ERROR_ERROR_BUFFER;
+  }
+
   buffer full_buffer = writer_consume_full_buffer(writer);
   if (full_buffer.length > 0) {
     return (buffer_or_error){.is_error = false, .buffer = full_buffer};
@@ -146,7 +151,9 @@ NODISCARD buffer_or_error writer_consume_nonempty_buffer(writer *writer) {
   }
   size_t bit_index = writer->current_bit_index;
   // allocating before pop, to avoid losing data
-  if (!_writer_allocate_next_buffer(writer)) {
+  _writer_allocate_next_buffer(writer);
+  if (context_is_errored(writer->context)) {
+    // we are reusing the buffer. we must not pop it.
     return ERROR_ERROR_BUFFER;
   }
   byte **slot = queue_pop(&writer->buffers);
@@ -191,40 +198,47 @@ NODISCARD buffer_or_error writer_consume_all_buffers(writer *writer) {
   return (buffer_or_error){.is_error = false, .buffer = (buffer){.length = index, .data = bytes}};
 }
 
-NODISCARD bool writer_write_bit(writer *writer, byte bit) {
+void writer_write_bit(writer *writer, byte bit) {
   assert(bit == 1 || bit == 0);
   byte **slot = queue_peek_tail(&writer->buffers);
   byte *tail_buffer = *slot;
   tail_buffer[writer->current_bit_index >> 3] |= bit << (writer->current_bit_index & 7);
   writer->current_bit_index++;
-  return _writer_maybe_allocate_next_buffer(writer);
+  _writer_maybe_allocate_next_buffer(writer);
 }
 
-NODISCARD bool writer_write_byte(writer *writer, byte value) {
+void writer_write_byte(writer *writer, byte value) {
   assert((writer->current_bit_index & 7) == 0 && "Cannot mix bit- and byte-level writes in a single writer instance.");
   byte **slot = queue_peek_tail(&writer->buffers);
   byte *tail_buffer = *slot;
   tail_buffer[writer->current_bit_index >> 3] = value;
   writer->current_bit_index += 8;
-  return _writer_maybe_allocate_next_buffer(writer);
+  _writer_maybe_allocate_next_buffer(writer);
 }
 
 /** Like `writer_supply_dirty_buffer()`, but assumes that buffer is already zero-initialized. */
-void writer_supply_zeroinit_buffer(writer *writer, byte *buffer) {
+NODISCARD bool writer_supply_zeroinit_buffer(writer *writer, byte *buffer) {
   byte **slot = queue_push(&writer->free_buffers);
+  if (!slot) {
+    return false;
+  }
   *slot = buffer;
+  return true;
 }
 
 /** Provide writer with a buffer. Buffer must have length of `writer->size`.
 Buffer will be zero-filled, and then reused as a normal writer buffer.
+Returns false in case of allocation errors.
 
 Idea behind this method is to reduce amount of allocations.
 If mode of consumption allows you to retain buffers - might as well reuse them. */
-void writer_supply_dirty_buffer(writer *writer, byte *buffer) {
+NODISCARD bool writer_supply_dirty_buffer(writer *writer, byte *buffer) {
+  // TODO: this sucks. if we are writing whole bytes - we don't care about previous trash in the buffer
+  // I need to think about a better way to zero out buffer during writing
   for (size_t i = 0; i < writer->size; i++) {
     buffer[i] = 0;
   }
-  writer_supply_zeroinit_buffer(writer, buffer);
+  return writer_supply_zeroinit_buffer(writer, buffer);
 }
 
 // TODO: unicode-aware string compression

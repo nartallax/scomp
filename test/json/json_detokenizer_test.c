@@ -5,23 +5,6 @@
 #include "json_tokenizer_test.c"
 #include <string.h>
 
-bool test_setup_detokeniser_writer_for_failure(writer **w, int fail_after_characters) {
-  if (*w) {
-    writer_deinit(*w, test_context);
-    free(*w);
-    *w = NULL;
-  }
-
-  setup_test_context_default();
-  *w = malloc(sizeof(writer));
-  if (!writer_init(*w, test_context, fail_after_characters)) {
-    return false;
-  }
-
-  update_test_context_for_alloc_failure(0);
-  return true;
-}
-
 json_token test_string_to_single_json_token(const char *str) {
   json_tokenizer t;
   json_tokenizer_init(&t, test_context);
@@ -34,66 +17,57 @@ json_token test_string_to_single_json_token(const char *str) {
   return token;
 }
 
-const char *test_json_detokenizer_allocation_failures() {
-  writer *w = NULL;
+bool test_json_detokenizer(json_token *token, const char *expected_result) {
+  writer w;
+  TEST_ASSERT(writer_init(&w, test_context, 1024));
+  json_detokenizer_write(&w, token);
+  buffer result = writer_consume_all_buffers(&w).buffer;
+  char *result_str = malloc(sizeof(char) * (result.length + 1));
+  strncpy(result_str, (const char *)result.data, result.length);
+  free(result.data);
+  result_str[result.length] = 0;
+  size_t i = 0;
+  for (; expected_result[i] != 0; i++) {
+    if (i >= result.length) {
+      printf("Result shorter than expected: %s != %s\n", result_str, expected_result);
+      return false;
+    }
+    if (result_str[i] != expected_result[i]) {
+      printf("Unexpected result: %s != %s\n", result_str, expected_result);
+      return false;
+    }
+  }
+  if (i != result.length) {
+    printf("Result longer than expected: %s != %s\n", result_str, expected_result);
+    return false;
+  }
+  writer_deinit(&w, test_context);
+  free(result_str);
+  return true;
+}
 
-  TEST_ASSERT(test_setup_detokeniser_writer_for_failure(&w, 2));
-  TEST_ASSERT(!json_detokenizer_write(w, &((json_token){.kind = JSON_TOKEN_NUMBER, .number = (json_number_token){.integer_part = 12345}})));
+const char *test_json_detokenizer_simple() {
+  TEST_ASSERT(test_json_detokenizer(&((json_token){.kind = JSON_TOKEN_NUMBER, .number = (json_number_token){.integer_part = 12345}}), "12345"));
 
   const char *number_with_everything_str = "-12345.00123E-0065";
-  size_t number_with_everything_strlen = strlen(number_with_everything_str);
   json_token number_with_everything = test_string_to_single_json_token(number_with_everything_str);
-  for (size_t i = 1; i < number_with_everything_strlen; i++) {
-    TEST_ASSERT(test_setup_detokeniser_writer_for_failure(&w, (int)i));
-    TEST_ASSERT(!json_detokenizer_write(w, &number_with_everything));
-  }
+  TEST_ASSERT(test_json_detokenizer(&number_with_everything, number_with_everything_str));
 
   json_token number_with_zero_exp = test_string_to_single_json_token("1e0");
-  for (int i = 1; i <= 3; i++) {
-    TEST_ASSERT(test_setup_detokeniser_writer_for_failure(&w, (int)i));
-    TEST_ASSERT(!json_detokenizer_write(w, &number_with_zero_exp));
-  }
-  TEST_ASSERT(test_setup_detokeniser_writer_for_failure(&w, (int)4));
-  TEST_ASSERT(json_detokenizer_write(w, &number_with_zero_exp));
+  TEST_ASSERT(test_json_detokenizer(&number_with_zero_exp, "1e0"));
 
-  for (int i = 1; i <= 3; i++) {
-    TEST_ASSERT(test_setup_detokeniser_writer_for_failure(&w, i));
-    TEST_ASSERT(!json_detokenizer_write(w, &((json_token){.kind = JSON_TOKEN_BOM})));
-  }
+  const char utf8_bom_zeroterminated[4] = {UTF8_BOM[0], UTF8_BOM[1], UTF8_BOM[2], 0};
+  TEST_ASSERT(test_json_detokenizer(&((json_token){.kind = JSON_TOKEN_BOM}), utf8_bom_zeroterminated));
+  TEST_ASSERT(test_json_detokenizer(&((json_token){.kind = JSON_TOKEN_TRUE}), "true"));
+  TEST_ASSERT(test_json_detokenizer(&((json_token){.kind = JSON_TOKEN_FALSE}), "false"));
+  TEST_ASSERT(test_json_detokenizer(&((json_token){.kind = JSON_TOKEN_NULL}), "null"));
+  TEST_ASSERT(test_json_detokenizer(&((json_token){.kind = JSON_TOKEN_ESCAPED_CHARACTER, .character = (json_character_token){.character = 'n'}}), "\\n"));
 
-  for (int i = 1; i <= 4; i++) {
-    TEST_ASSERT(test_setup_detokeniser_writer_for_failure(&w, i));
-    TEST_ASSERT(!json_detokenizer_write(w, &((json_token){.kind = JSON_TOKEN_TRUE})));
-  }
+  uint64_t utf8_bytes = (0xE2 << 0) | (0x82 << 8) | (0xAC << 16);
+  TEST_ASSERT(test_json_detokenizer(&((json_token){.kind = JSON_TOKEN_CHARACTER, .unicode_character = (json_unicode_token){.value = utf8_bytes, .length = 3}}), "€"));
 
-  for (int i = 1; i <= 5; i++) {
-    TEST_ASSERT(test_setup_detokeniser_writer_for_failure(&w, i));
-    TEST_ASSERT(!json_detokenizer_write(w, &((json_token){.kind = JSON_TOKEN_FALSE})));
-  }
+  uint64_t charcode = ('1' << 0) | ('2' << 8) | ('3' << 16) | ('4' << 24);
+  TEST_ASSERT(test_json_detokenizer(&((json_token){.kind = JSON_TOKEN_ESCAPED_CHARCODE, .unicode_character = (json_unicode_token){.value = charcode}}), "\\u1234"));
 
-  for (int i = 1; i <= 4; i++) {
-    TEST_ASSERT(test_setup_detokeniser_writer_for_failure(&w, i));
-    TEST_ASSERT(!json_detokenizer_write(w, &((json_token){.kind = JSON_TOKEN_NULL})));
-  }
-
-  for (int i = 1; i <= 2; i++) {
-    TEST_ASSERT(test_setup_detokeniser_writer_for_failure(&w, i));
-    TEST_ASSERT(!json_detokenizer_write(w, &((json_token){.kind = JSON_TOKEN_ESCAPED_CHARACTER, .character = (json_character_token){.character = 'n'}})));
-  }
-
-  for (int i = 1; i <= 3; i++) {
-    uint64_t utf8_bytes = (0xE2 << 0) | (0x82 << 8) | (0xAC << 16);
-    TEST_ASSERT(test_setup_detokeniser_writer_for_failure(&w, i));
-    TEST_ASSERT(!json_detokenizer_write(w, &((json_token){.kind = JSON_TOKEN_CHARACTER, .unicode_character = (json_unicode_token){.value = utf8_bytes, .length = 3}})));
-  }
-
-  for (int i = 1; i <= 6; i++) {
-    uint64_t charcode = ('1' << 0) | ('2' << 8) | ('3' << 16) | ('4' << 14);
-    TEST_ASSERT(test_setup_detokeniser_writer_for_failure(&w, i));
-    TEST_ASSERT(!json_detokenizer_write(w, &((json_token){.kind = JSON_TOKEN_ESCAPED_CHARCODE, .unicode_character = (json_unicode_token){.value = charcode}})));
-  }
-
-  writer_deinit(w, test_context);
-  free(w);
   return NULL;
 }

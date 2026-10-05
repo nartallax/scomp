@@ -1,6 +1,7 @@
 MAKEFLAGS += --no-print-directory
 
 CC=clang -std=c23 -Wall -Wextra -Wpedantic
+FSANITIZE=-fsanitize=address,undefined,signed-integer-overflow,unsigned-integer-overflow,shift -fno-omit-frame-pointer
 
 .PHONY: clear
 clear:
@@ -15,13 +16,13 @@ build_test:
 .PHONY: build_test_for_debug
 build_test_for_debug:
 	@make clear
-	@$(CC) -O0 -g -o ./build/test test/test_index.c
+	@$(CC) -O0 -g $(FSANITIZE) -o ./build/test test/test_index.c
 
 .PHONY: build_test_for_coverage
 build_test_for_coverage:
 	@make clear
 	@# -DNDEBUG here because I don't want to calculate code coverage on asserts
-	@$(CC) -DNDEBUG -O3 -fprofile-instr-generate -fcoverage-mapping -fsanitize=address,undefined,signed-integer-overflow,unsigned-integer-overflow,shift -fno-omit-frame-pointer -g -o ./build/test test/test_index.c
+	@$(CC) -DNDEBUG -O3 -fprofile-instr-generate -fcoverage-mapping $(FSANITIZE) -g -o ./build/test test/test_index.c
 
 .PHONY: run_test_for_coverage
 run_test_for_coverage: 

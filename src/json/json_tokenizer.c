@@ -11,6 +11,7 @@
 // this would vastly simplify what happens with unused characters buffer on tokenizer reset callback
 // as this would guarantee that one last symbol at most can be a start of a new JSON, not all of them
 
+// TODO: constexpr
 /** Max length of state stack. Limits nesting.
 Exists to prevent memory overflow in case when the input is infinite number of '[' */
 const size_t JTOK_MAX_STATE_STACK_LENGTH = 1024;

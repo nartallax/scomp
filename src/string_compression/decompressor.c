@@ -11,12 +11,6 @@ typedef enum {
   _STRDECOMP_STATE_LENGTH
 } _strcomp_state;
 
-typedef enum {
-  STRDECOMP_OK = 1,
-  STRDECOMP_ERROR,
-  STRDECOMP_EOF
-} strdecomp_push_result;
-
 typedef struct {
   string_compression_base base;
   writer *writer;
@@ -49,7 +43,8 @@ void _strdecomp_update_uint(string_decompressor *decomp, symbol bit) {
   decomp->shift++;
 }
 
-NODISCARD strdecomp_push_result strdecomp_push_bit(string_decompressor *decomp, byte bit) {
+/** Returns true if pushing this bit resulted in reading EOF symbol */
+NODISCARD bool strdecomp_push_bit(string_decompressor *decomp, byte bit) {
   acod_decoder_update(decomp->decoder, bit);
 
   while (acod_decoder_has_symbol(decomp->decoder)) {
@@ -66,12 +61,10 @@ NODISCARD strdecomp_push_result strdecomp_push_bit(string_decompressor *decomp, 
       }
 
       if (s == _STRCOMP_EOF_SYMBOL) {
-        return STRDECOMP_EOF;
+        return true;
       }
 
-      if (!writer_write_byte(decomp->writer, (byte)s)) {
-        return STRDECOMP_ERROR;
-      }
+      writer_write_byte(decomp->writer, (byte)s);
       ring_buffer_push(&decomp->base.buffer, (byte)s);
 
       continue;
@@ -104,11 +97,9 @@ NODISCARD strdecomp_push_result strdecomp_push_bit(string_decompressor *decomp, 
     decomp->shift = 0;
     for (int64_t i = 0; i < length; i++) {
       byte b = ring_buffer_get(&decomp->base.buffer, start_index + i);
-      if (!writer_write_byte(decomp->writer, b)) {
-        return STRDECOMP_ERROR;
-      }
+      writer_write_byte(decomp->writer, b);
     }
   }
 
-  return STRDECOMP_OK;
+  return false;
 }

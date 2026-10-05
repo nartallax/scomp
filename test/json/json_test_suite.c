@@ -75,11 +75,7 @@ buffer test_feed_file_into_tokenizer_detokenizer(const char *path, const char *f
       if (!token) {
         break;
       }
-      if (!json_detokenizer_write(w, token)) {
-        printf("Failed to tokenize token of kind %i in file %s\n", token->kind, filename);
-        is_success = false;
-        break;
-      }
+      json_detokenizer_write(w, token);
     }
   }
 
@@ -92,11 +88,7 @@ buffer test_feed_file_into_tokenizer_detokenizer(const char *path, const char *f
     if (!token) {
       break;
     }
-    if (!json_detokenizer_write(w, token)) {
-      printf("Failed to tokenize token of kind %i in file %s\n", token->kind, filename);
-      is_success = false;
-      break;
-    }
+    json_detokenizer_write(w, token);
   }
 
   if (ferror(src_file)) {
@@ -108,7 +100,15 @@ buffer test_feed_file_into_tokenizer_detokenizer(const char *path, const char *f
 
   is_success = is_success && json_tokenizer_is_empty(&t);
 
-  buffer result_buffer = is_success ? writer_consume_all_buffers(w).buffer : EMPTY_BUFFER;
+  buffer_or_error result_buffer_or_error = writer_consume_all_buffers(w);
+  if (result_buffer_or_error.is_error) {
+    is_success = false;
+  }
+
+  buffer result_buffer = is_success ? result_buffer_or_error.buffer : EMPTY_BUFFER;
+  if (result_buffer.data != result_buffer_or_error.buffer.data) {
+    free(result_buffer_or_error.buffer.data);
+  }
 
   writer_deinit(w, test_context);
   free(w);

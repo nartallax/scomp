@@ -31,18 +31,12 @@ buffer encode_bytes(size_t length, byte *data) {
 
   for (size_t i = 0; i < length; i++) {
     symbol symbol = data[i];
-    if (!acod_encoder_write(encoder, &encoding_frequencies, symbol)) {
-      return EMPTY_BUFFER;
-    }
+    acod_encoder_write(encoder, &encoding_frequencies, symbol);
     ftable_increment(&encoding_frequencies, symbol);
   }
-  if (!acod_encoder_write(encoder, &encoding_frequencies, ftable_get_eof_symbol(&encoding_frequencies))) {
-    return EMPTY_BUFFER;
-  }
+  acod_encoder_write(encoder, &encoding_frequencies, ftable_get_eof_symbol(&encoding_frequencies));
 
-  if (!acod_encoder_deinit(encoder, test_context)) {
-    return EMPTY_BUFFER;
-  }
+  acod_encoder_deinit(encoder);
   buffer_or_error result = writer_consume_all_buffers(w);
   writer_deinit(w, test_context);
   free(w);
@@ -204,9 +198,7 @@ const char *test_acod_simple() {
 
 NODISCARD bool _acod_test_fill_writer_bits(writer *w, size_t bit_count) {
   for (size_t i = 0; i < bit_count; i++) {
-    if (!writer_write_bit(w, 0)) {
-      return false;
-    }
+    writer_write_bit(w, 0);
   }
   return true;
 }
@@ -216,76 +208,77 @@ const char *test_acod_allocation_failures() {
 
   acod_decoder *decoder = malloc(sizeof(acod_decoder));
   acod_encoder *encoder = malloc(sizeof(acod_encoder));
+  // TODO: rm this?
+  /*
+    // this tests for error on shift bit write
+    {
+      setup_test_context_default();
+      ftable bit_table;
+      TEST_ASSERT(ftable_init(&bit_table, test_context, 2, FTABLE_EXCLUDE_EOF | FTABLE_INIT_ONE));
+      writer *w = malloc(sizeof(writer));
+      TEST_ASSERT(writer_init(w, test_context, 2));
+      acod_encoder_init(encoder, w);
+      TEST_ASSERT(context_is_errored(test_context) == false);
 
-  // this tests for error on shift bit write
-  {
-    setup_test_context_default();
-    ftable bit_table;
-    TEST_ASSERT(ftable_init(&bit_table, test_context, 2, FTABLE_EXCLUDE_EOF | FTABLE_INIT_ONE));
-    writer *w = malloc(sizeof(writer));
-    TEST_ASSERT(writer_init(w, test_context, 2));
-    acod_encoder_init(encoder, w);
-    TEST_ASSERT(context_is_errored(test_context) == false);
+      TEST_ASSERT(_acod_test_fill_writer_bits(w, 15));
+      update_test_context_for_alloc_failure(0);
+      TEST_ASSERT(!acod_encoder_write(encoder, &bit_table, 0));
+      TEST_ASSERT(context_is_errored(test_context) == true);
 
-    TEST_ASSERT(_acod_test_fill_writer_bits(w, 15));
-    update_test_context_for_alloc_failure(0);
-    TEST_ASSERT(!acod_encoder_write(encoder, &bit_table, 0));
-    TEST_ASSERT(context_is_errored(test_context) == true);
+      TEST_ASSERT(!acod_encoder_deinit(encoder, test_context));
+      ftable_deinit(&bit_table, test_context);
+      writer_deinit(w, test_context);
+      free(w);
+    }
 
-    TEST_ASSERT(!acod_encoder_deinit(encoder, test_context));
-    ftable_deinit(&bit_table, test_context);
-    writer_deinit(w, test_context);
-    free(w);
-  }
+    // this tests for error on underflow bit write
+    {
+      setup_test_context_default();
+      ftable bit_table;
+      TEST_ASSERT(ftable_init(&bit_table, test_context, 2, FTABLE_EXCLUDE_EOF | FTABLE_INIT_ONE));
+      writer *w = malloc(sizeof(writer));
+      TEST_ASSERT(writer_init(w, test_context, 2));
+      acod_encoder_init(encoder, w);
+      TEST_ASSERT(context_is_errored(test_context) == false);
 
-  // this tests for error on underflow bit write
-  {
-    setup_test_context_default();
-    ftable bit_table;
-    TEST_ASSERT(ftable_init(&bit_table, test_context, 2, FTABLE_EXCLUDE_EOF | FTABLE_INIT_ONE));
-    writer *w = malloc(sizeof(writer));
-    TEST_ASSERT(writer_init(w, test_context, 2));
-    acod_encoder_init(encoder, w);
-    TEST_ASSERT(context_is_errored(test_context) == false);
+      // this feels slightly like cheating, because I couldn't pick the right input data to make it underflow
+      // but I won't compromise 100% code coverage just because of that
+      encoder->underflows++;
+      TEST_ASSERT(_acod_test_fill_writer_bits(w, 14));
+      update_test_context_for_alloc_failure(0);
+      TEST_ASSERT(!acod_encoder_write(encoder, &bit_table, 0));
+      TEST_ASSERT(context_is_errored(test_context) == true);
 
-    // this feels slightly like cheating, because I couldn't pick the right input data to make it underflow
-    // but I won't compromise 100% code coverage just because of that
-    encoder->underflows++;
-    TEST_ASSERT(_acod_test_fill_writer_bits(w, 14));
-    update_test_context_for_alloc_failure(0);
-    TEST_ASSERT(!acod_encoder_write(encoder, &bit_table, 0));
-    TEST_ASSERT(context_is_errored(test_context) == true);
+      TEST_ASSERT(!acod_encoder_deinit(encoder, test_context));
+      ftable_deinit(&bit_table, test_context);
+      writer_deinit(w, test_context);
+      free(w);
+    }
 
-    TEST_ASSERT(!acod_encoder_deinit(encoder, test_context));
-    ftable_deinit(&bit_table, test_context);
-    writer_deinit(w, test_context);
-    free(w);
-  }
+    // this tests for error on closing bit writes
+    {
+      setup_test_context_default();
+      ftable bit_table;
+      TEST_ASSERT(ftable_init(&bit_table, test_context, 2, FTABLE_EXCLUDE_EOF | FTABLE_INIT_ONE));
+      writer *w = malloc(sizeof(writer));
+      TEST_ASSERT(writer_init(w, test_context, 2));
+      acod_encoder_init(encoder, w);
+      TEST_ASSERT(context_is_errored(test_context) == false);
 
-  // this tests for error on closing bit writes
-  {
-    setup_test_context_default();
-    ftable bit_table;
-    TEST_ASSERT(ftable_init(&bit_table, test_context, 2, FTABLE_EXCLUDE_EOF | FTABLE_INIT_ONE));
-    writer *w = malloc(sizeof(writer));
-    TEST_ASSERT(writer_init(w, test_context, 2));
-    acod_encoder_init(encoder, w);
-    TEST_ASSERT(context_is_errored(test_context) == false);
+      // this feels slightly like cheating, because I couldn't pick the right input data to make it underflow
+      // but I won't compromise 100% code coverage just because of that
+      encoder->underflows++;
+      TEST_ASSERT(_acod_test_fill_writer_bits(w, 13));
+      update_test_context_for_alloc_failure(0);
+      TEST_ASSERT(acod_encoder_write(encoder, &bit_table, 0));
+      TEST_ASSERT(context_is_errored(test_context) == false);
 
-    // this feels slightly like cheating, because I couldn't pick the right input data to make it underflow
-    // but I won't compromise 100% code coverage just because of that
-    encoder->underflows++;
-    TEST_ASSERT(_acod_test_fill_writer_bits(w, 13));
-    update_test_context_for_alloc_failure(0);
-    TEST_ASSERT(acod_encoder_write(encoder, &bit_table, 0));
-    TEST_ASSERT(context_is_errored(test_context) == false);
-
-    TEST_ASSERT(!acod_encoder_deinit(encoder, test_context));
-    ftable_deinit(&bit_table, test_context);
-    writer_deinit(w, test_context);
-    free(w);
-  }
-
+      TEST_ASSERT(!acod_encoder_deinit(encoder, test_context));
+      ftable_deinit(&bit_table, test_context);
+      writer_deinit(w, test_context);
+      free(w);
+    }
+  */
   free(encoder);
   free(decoder);
 
