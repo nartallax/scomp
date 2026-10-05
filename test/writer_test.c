@@ -146,8 +146,6 @@ const char *test_writer_buffer_reuse() {
 }
 
 const char *test_writer_allocation_failure() {
-  // TODO: revive this test
-  /*
   writer *w = malloc(sizeof(writer));
   for (int i = 0; i < 3; i++) {
     setup_test_context(i);
@@ -202,7 +200,30 @@ const char *test_writer_allocation_failure() {
   b = writer_consume_all_buffers(w);
   TEST_ASSERT(b.buffer.length == 0 && b.buffer.data == NULL && b.is_error);
   writer_deinit(w, test_context);
+
+  setup_test_context(3);
+  TEST_ASSERT(writer_init(w, test_context, 2));
+  writer_write_byte(w, 1);
+  writer_write_byte(w, 2);
+  writer_write_byte(w, 3);
+  b = writer_consume_nonempty_buffer(w);
+  TEST_ASSERT(b.buffer.length == 0 && b.buffer.data == NULL && b.is_error);
+  writer_deinit(w, test_context);
+
+  setup_test_context(3);
+  TEST_ASSERT(writer_init(w, test_context, 2));
+  while (true) {
+    byte *some_buffer = malloc(1);
+    bool is_good = writer_supply_zeroinit_buffer(w, some_buffer);
+    bool is_errored = context_is_errored(test_context);
+    TEST_ASSERT(is_good == !is_errored);
+    if (is_errored) {
+      free(some_buffer);
+      break;
+    }
+  }
+  writer_deinit(w, test_context);
+
   free(w);
-  */
   return NULL;
 }

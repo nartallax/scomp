@@ -45,11 +45,13 @@ void _writer_allocate_next_buffer(writer *writer) {
     buffer = context_allocate_zero_init(writer->context, writer->size, sizeof(byte));
   }
 
-  byte **new_buffer_slot = queue_push(&writer->buffers);
-  if (new_buffer_slot && buffer) {
-    *new_buffer_slot = buffer;
-  } else {
-    context_free(writer->context, buffer);
+  if (buffer) {
+    byte **new_buffer_slot = queue_push(&writer->buffers);
+    if (new_buffer_slot) {
+      *new_buffer_slot = buffer;
+    } else {
+      context_free(writer->context, buffer);
+    }
   }
   // when allocation fails - it's bad, but we can't do anything about it
   // context is considered broken and must not be used
