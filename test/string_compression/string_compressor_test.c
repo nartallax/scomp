@@ -105,7 +105,7 @@ buffer _test_strcomp_decompress(buffer src) {
 
 bool _test_strcomp_comp_decomp(const char *src) {
   buffer compressed = _test_strcomp_compress(src);
-  printf("compressed length: %zu\n", compressed.length);
+  // printf("compressed length: %zu\n", compressed.length);
   buffer decompressed = _test_strcomp_decompress(compressed);
   size_t i = 0;
   for (i = 0; src[i] != 0; i++) {

@@ -3,6 +3,7 @@
 #include "context_test.c"
 #include "data_structures/arena_test.c"
 #include "data_structures/fenwick_tree_test.c"
+#include "data_structures/fixed_queue_test.c"
 #include "data_structures/queue_test.c"
 #include "data_structures/ring_buffer_test.c"
 #include "data_structures/stack_test.c"
@@ -41,6 +42,9 @@ int main() {
       MAKE_TEST(test_queue_overflow_while_not_wrapping),
       MAKE_TEST(test_queue_non_pointer_values),
       MAKE_TEST(test_queue_allocation_failures),
+      MAKE_TEST(test_fixed_queue_simple),
+      MAKE_TEST(test_fixed_queue_wrapping),
+      MAKE_TEST(test_fixed_queue_allocation_failures),
       MAKE_TEST(test_arena_simple),
       MAKE_TEST(test_arena_one_big_allocation),
       MAKE_TEST(test_arena_allocation_failures),

@@ -5,6 +5,12 @@
 #include "../data_structures/stack.c"
 #include "../utf8.c"
 
+// TODO: need a test that json tokenizer will fail faster than buffer overflow happens
+// as in, if tokenizer is able to detect that its buffer contains values that can never be a proper JSON
+// is it possible?
+// this would vastly simplify what happens with unused characters buffer on tokenizer reset callback
+// as this would guarantee that one last symbol at most can be a start of a new JSON, not all of them
+
 /** Max length of state stack. Limits nesting.
 Exists to prevent memory overflow in case when the input is infinite number of '[' */
 const size_t JTOK_MAX_STATE_STACK_LENGTH = 1024;
