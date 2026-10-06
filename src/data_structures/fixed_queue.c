@@ -19,6 +19,11 @@ void fqueue_deinit(fixed_queue *q, context *context) {
   context_free(context, q->values);
 }
 
+void fqueue_reset(fixed_queue *q) {
+  q->head = 0;
+  q->tail = 0;
+}
+
 NODISCARD bool fqueue_init(fixed_queue *q, context *context, size_t value_size, size_t length_shift) {
   *q = (fixed_queue){0};
 

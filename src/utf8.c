@@ -31,10 +31,14 @@ size_t utf8_get_sequence_length_by_first_byte(byte b) {
   }
 }
 
+bool utf8_is_valid_continuation_byte(byte b) {
+  return (b & 0b11000000) == 0b10000000;
+}
+
 /** Continuation bytes = bytes after first one */
 bool utf8_are_continuation_bytes_valid(const byte *bytes, size_t length) {
   for (size_t i = 1; i < length; i++) {
-    if ((bytes[i] & 0b11000000) != 0b10000000) {
+    if (!utf8_is_valid_continuation_byte(bytes[i])) {
       return false;
     }
   }
