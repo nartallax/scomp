@@ -2,7 +2,7 @@
 #include "commons.c"
 #include <stdbool.h>
 
-const byte UTF8_BOM[3] = {0xEF, 0xBB, 0xBF};
+constexpr byte UTF8_BOM[3] = {0xEF, 0xBB, 0xBF};
 
 /** Determines if the sequence of bytes can be a utf-8 byte-order mark. If this returns true and length >= 3 - the sequence contains valid BOM. */
 bool utf8_can_bytes_be_bom_start(const byte *bytes, size_t length) {

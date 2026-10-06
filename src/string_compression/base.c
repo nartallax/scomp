@@ -5,11 +5,11 @@
 #include "../data_structures/ring_buffer.c"
 #include "byte_stream_matcher.c"
 
-const symbol _STRCOMP_BACKREFERENCE_SYMBOL = 256;
-const symbol _STRCOMP_EOF_SYMBOL = 257;
-const symbol _STRCOMP_BIT_TERMINATOR_SYMBOL = 2;
+constexpr symbol _STRCOMP_BACKREFERENCE_SYMBOL = 256;
+constexpr symbol _STRCOMP_EOF_SYMBOL = 257;
+constexpr symbol _STRCOMP_BIT_TERMINATOR_SYMBOL = 2;
 // TODO: tune this
-const size_t _STRCOMP_MIN_BACKREFERENCE_LENGTH = 5;
+constexpr size_t _STRCOMP_MIN_BACKREFERENCE_LENGTH = 5;
 
 typedef struct {
   ftable main_symbol_table;

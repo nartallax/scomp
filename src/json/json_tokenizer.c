@@ -11,10 +11,9 @@
 // this would vastly simplify what happens with unused characters buffer on tokenizer reset callback
 // as this would guarantee that one last symbol at most can be a start of a new JSON, not all of them
 
-// TODO: constexpr
 /** Max length of state stack. Limits nesting.
 Exists to prevent memory overflow in case when the input is infinite number of '[' */
-const size_t JTOK_MAX_STATE_STACK_LENGTH = 1024;
+constexpr size_t JTOK_MAX_STATE_STACK_LENGTH = 1024;
 
 // TODO: consider making this single-byte long and check the performance
 /** Types of state in which JSON tokens may appear.
@@ -282,7 +281,7 @@ NODISCARD _jtok_success_state _jtok_try_whitespace(json_tokenizer *t) {
   return _JTOK_PASS;
 }
 
-const uint64_t _JTOK_NOT_A_HEX_CHARACTER = 0xff;
+constexpr uint64_t _JTOK_NOT_A_HEX_CHARACTER = 0xff;
 uint64_t _jtok_parse_hex(byte hex_char) {
   if (hex_char >= '0' && hex_char <= '9') {
     return hex_char - '0';
@@ -393,12 +392,12 @@ void _jtok_pop_state(json_tokenizer *t) {
   }
 }
 
-const uint64_t TENTH_OF_MAX_UINT64 = UINT64_MAX / 10;
+constexpr uint64_t TENTH_OF_MAX_UINT64 = UINT64_MAX / 10;
 bool _jtok_uint64_will_overflow(uint64_t value, byte addition) {
   return value >= TENTH_OF_MAX_UINT64 - addition;
 }
 
-const uint16_t TENTH_OFF_MAX_UINT16 = UINT16_MAX / 10;
+constexpr uint16_t TENTH_OFF_MAX_UINT16 = UINT16_MAX / 10;
 bool _jtok_uint16_will_overflow(uint16_t value, byte addition) {
   return value >= TENTH_OFF_MAX_UINT16 - addition;
 }

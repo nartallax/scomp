@@ -26,15 +26,15 @@ typedef struct {
   size_t length;
 } buffer;
 
-const buffer EMPTY_BUFFER = (buffer){.data = NULL, .length = 0};
+constexpr buffer EMPTY_BUFFER = (buffer){.data = NULL, .length = 0};
 
 typedef struct {
   bool is_error;
   buffer buffer;
 } buffer_or_error;
 
-const buffer_or_error ERROR_ERROR_BUFFER = (buffer_or_error){.is_error = true, .buffer = EMPTY_BUFFER};
-const buffer_or_error EMPTY_ERROR_BUFFER = (buffer_or_error){.is_error = false, .buffer = EMPTY_BUFFER};
+constexpr buffer_or_error ERROR_ERROR_BUFFER = (buffer_or_error){.is_error = true, .buffer = EMPTY_BUFFER};
+constexpr buffer_or_error EMPTY_ERROR_BUFFER = (buffer_or_error){.is_error = false, .buffer = EMPTY_BUFFER};
 
 void _writer_allocate_next_buffer(writer *writer) {
   byte *buffer;

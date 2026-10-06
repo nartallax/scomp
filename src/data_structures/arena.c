@@ -3,7 +3,7 @@
 #include "../context.c"
 #include <assert.h>
 
-const size_t ARENA_DEFAULT_LENGTH = 1024;
+constexpr size_t ARENA_DEFAULT_LENGTH = 1024;
 
 // TODO: do we still need it?
 typedef struct {

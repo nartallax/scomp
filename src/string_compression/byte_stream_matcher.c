@@ -6,13 +6,13 @@
 #include <limits.h>
 #include <stdint.h>
 
-const size_t _BSM_LENGTH_SHIFT = 16; // 16 bits of length = 64kb of lookback
-const size_t _BSM_LENGTH = 1 << _BSM_LENGTH_SHIFT;
-const size_t _BSM_LENGTH_MASK = _BSM_LENGTH - 1;
-const size_t _BSM_LOOKBACK_LENGTH = 3;
-const size_t _BSM_MATCH_LENGTH_SHIFT = 9; // not based on anything
-const size_t _BSM_MATCH_LENGTH_LIMIT = 1 << _BSM_MATCH_LENGTH_SHIFT;
-const int32_t _BSM_HASH_LENGTH_BYTES = 4;
+constexpr size_t _BSM_LENGTH_SHIFT = 16; // 16 bits of length = 64kb of lookback
+constexpr size_t _BSM_LENGTH = 1 << _BSM_LENGTH_SHIFT;
+constexpr size_t _BSM_LENGTH_MASK = _BSM_LENGTH - 1;
+constexpr size_t _BSM_LOOKBACK_LENGTH = 3;
+constexpr size_t _BSM_MATCH_LENGTH_SHIFT = 9; // not based on anything
+constexpr size_t _BSM_MATCH_LENGTH_LIMIT = 1 << _BSM_MATCH_LENGTH_SHIFT;
+constexpr int32_t _BSM_HASH_LENGTH_BYTES = 4;
 
 /** A structure that stores last N bytes of a stream and helps to search it */
 typedef struct {
@@ -34,7 +34,7 @@ typedef struct {
   uint64_t length;
 } bsm_match;
 
-const bsm_match BSM_MATCH_EMPTY = {0};
+constexpr bsm_match BSM_MATCH_EMPTY = {0};
 
 NODISCARD bool bsm_init(byte_stream_matcher *bsm, context *context) {
   *bsm = (byte_stream_matcher){0};
