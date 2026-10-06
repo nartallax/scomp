@@ -5,6 +5,7 @@
 const char *test_ring_buffer_simple() {
   ring_buffer rb;
   TEST_ASSERT(ring_buffer_init(&rb, test_context, 2));
+  TEST_ASSERT(ring_buffer_get_length(&rb) == 4);
   ring_buffer_push(&rb, 5);
   ring_buffer_push(&rb, 6);
   ring_buffer_push(&rb, 7);
