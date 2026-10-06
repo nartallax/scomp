@@ -28,6 +28,7 @@ void hbfstack_deinit(halfbyte_fixed_stack *stack, context *context) {
 }
 
 void hbfstack_push(halfbyte_fixed_stack *stack, byte value) {
+  assert(value < 0x0f && "Half-byte stack only accepts values from 0 to 15");
   assert(stack->index < stack->item_capacity && "Half-byte fixed stack overflow on push()");
   size_t byte_index = stack->index >> 1;
   byte result_value = stack->index & 1 ? stack->values[byte_index] | (value << 4) : value;
