@@ -23,10 +23,10 @@ typedef struct {
   size_t tail;
 } queue;
 
-NODISCARD bool queue_init(queue *q, context *context, size_t value_size) {
+NODISCARD bool queue_init(queue *q, context *context, size_t value_size, size_t starting_length_shift) {
   *q = (queue){0};
 
-  q->length = 16;
+  q->length = 1 << starting_length_shift;
   q->head = 0;
   q->tail = 0;
   q->context = context;

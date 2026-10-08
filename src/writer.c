@@ -100,12 +100,12 @@ NODISCARD bool writer_init(writer *w, context *context, size_t size) {
   w->context = context;
   w->current_bit_index = 0;
 
-  if (!queue_init(&w->buffers, context, sizeof(byte *))) {
+  if (!queue_init(&w->buffers, context, sizeof(byte *), 4)) {
     writer_deinit(w, context);
     return false;
   }
 
-  if (!queue_init(&w->free_buffers, context, sizeof(byte *))) {
+  if (!queue_init(&w->free_buffers, context, sizeof(byte *), 4)) {
     writer_deinit(w, context);
     return false;
   }
