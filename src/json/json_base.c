@@ -4,17 +4,17 @@
 // TODO: test if nesting below the limit actually works
 /** Max length of state stack. Limits nesting.
 Exists to prevent memory overflow in case when the input is infinite number of '[' */
-constexpr size_t JSON_MAX_STATE_STACK_LENGTH__new = 512;
+constexpr size_t JSON_MAX_STATE_STACK_LENGTH = 512;
 
 /** Max amount of bytes that may be assembled into one token.
 
 It's that many mostly for various numbers;
 non-number tokens will be 6 bytes at most (\u1234 being the second longest) */
-constexpr size_t JSON_MAX_SINGLE_TOKEN_LENGTH__new = 128;
+constexpr size_t JSON_MAX_SINGLE_TOKEN_LENGTH = 128;
 
 /** Max amount of leading zeroes a JSON number can have in its fractional part, or in its exponent.
 It's possible to have in theory many more leading zeroes, especially in fractions, but it's just about never happens in real life. */
-constexpr size_t JSON_MAX_LEADING_ZEROES__new = 32;
+constexpr size_t JSON_MAX_LEADING_ZEROES = 32;
 
 constexpr byte _JTOK_TRUE_BYTES[] = {'t', 'r', 'u', 'e'};
 constexpr byte _JTOK_FALSE_BYTES[] = {'f', 'a', 'l', 's', 'e'};
@@ -46,7 +46,7 @@ typedef enum {
 
   // number tokens
   JSON_TOKEN_NUMBER, // 12.345, 1e10. every number that is not 64-bit safe integer
-} json_token_kind__new;
+} json_token_kind;
 
 typedef enum {
   JSON_STATE_ROOT = 0,            // if this state is ever reached - it means JSON reading is completed
@@ -68,18 +68,18 @@ typedef enum {
   JSON_STATE_FALSE,               // expecting letters of `false`
   JSON_STATE_NULL,                // expecting letters of `null`
   JSON_STATE_BOM                  // expecting bytes of utf-8 byte order mark
-} json_state__new;
+} json_state;
 
 /** Tokens that store exactly 1 character of information with them */
 typedef struct {
   byte character;
-} json_character_token__new;
+} json_character_token;
 
 /** Tokens that are describing a unicode character, or a part of it, depeding on kind */
 typedef struct {
   uint64_t value;
   byte length;
-} json_unicode_token__new;
+} json_unicode_token;
 
 // TODO: make it be byte-long
 /** Various booleans about JSON numbers packed into a bitmap */
@@ -91,25 +91,25 @@ typedef enum {
   JSON_NUMBER_EXPONENT_HAS_PLUS = 1 << 4,    // 1e+1
   JSON_NUMBER_IS_NEGATIVE = 1 << 5,          // -1
   JSON_NUMBER_IS_ZERO = 1 << 6               // 0, -0
-} json_number_flags__new;
+} json_number_flags;
 
 /** Tokens that contains a number in JSON sense. */
 typedef struct {
   uint64_t integer_part;
   uint64_t fraction_part;
   uint16_t exponent_part; // exponents over 65535 are way too large for anything practical anyway
-  json_number_flags__new flags;
+  json_number_flags flags;
   byte fraction_leading_zeroes;
   byte exponent_leading_zeroes;
-} json_number_token__new;
+} json_number_token;
 
 /** Any of the tokens described above. */
 typedef struct {
-  json_token_kind__new kind;
+  json_token_kind kind;
 
   union {
-    json_character_token__new character;
-    json_unicode_token__new unicode_character;
-    json_number_token__new number;
+    json_character_token character;
+    json_unicode_token unicode_character;
+    json_number_token number;
   };
-} json_token__new;
+} json_token;
