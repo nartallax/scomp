@@ -3,7 +3,6 @@
 #include "../test_utils.c"
 #include <stdio.h>
 
-// TODO: remove this
 char test_json_print_buffer[128];
 const char *test_json_print_token(json_token *t) {
   writer w;
@@ -54,21 +53,6 @@ bool test_json_tokenizer_reinit(json_tokenizer *t) {
   json_tokenizer_reset(t);
   return true;
 }
-
-// bool test_json_tokenizer_setup_for_queue_failure(json_tokenizer *t, size_t offset, int allocations_before_failure) {
-//   setup_test_context_default();
-//   if (!json_tokenizer_init(t, test_context)) {
-//     return false;
-//   }
-//   size_t queue_default_length = t->token_queue.length;
-//   char *lots_of_array_open = string_repeat("[", 1, queue_default_length - offset);
-//   if (!test_json_tokenizer_push_string(t, lots_of_array_open)) {
-//     return false;
-//   }
-//   free(lots_of_array_open);
-//   update_test_context_for_alloc_failure(allocations_before_failure);
-//   return true;
-// }
 
 json_token *test_json_consume(queue *q) {
   if (queue_get_count(q) == 0) {
@@ -717,67 +701,16 @@ const char *test_json_tokenizer_stack_limitations() {
 }
 
 const char *test_json_tokenizer_allocation_failures() {
-  // json_tokenizer t;
-  // queue q;
-  // TEST_ASSERT(queue_init(&q, test_context, sizeof(json_token), 4));
-  // char *long_string_with_repeats;
-  // setup_test_context(0);
-  // TEST_ASSERT(!json_tokenizer_init(&t, test_context));
+  json_tokenizer t;
+  setup_test_context(0);
+  TEST_ASSERT(!json_tokenizer_init(&t, test_context));
 
-  // // printf("queue size/length = %zu/%zu; stack size/length = %zu/%zu\n", queue_get_count(&t.token_queue), t.token_queue.length, t.state_stack.count, t.state_stack.length);
+  setup_test_context(1);
+  TEST_ASSERT(!json_tokenizer_init(&t, test_context));
 
-  // setup_test_context(1);
-  // TEST_ASSERT(!json_tokenizer_init(&t, test_context));
+  setup_test_context(2);
+  TEST_ASSERT(json_tokenizer_init(&t, test_context));
 
-  // // overflow on context push
-  // setup_test_context_default();
-  // TEST_ASSERT(json_tokenizer_init(&t, test_context));
-  // long_string_with_repeats = string_repeat("[", 1, t.state_stack.length - 1);
-  // TEST_ASSERT(test_json_tokenizer_push_string(&t, &q,  long_string_with_repeats));
-  // free(long_string_with_repeats);
-  // update_test_context_for_alloc_failure(0);
-  // TEST_ASSERT(!test_json_tokenizer_push_string(&t, &q,  "["));
-  // json_tokenizer_deinit(&t, test_context);
-
-  // // overflow on token queue push
-  // TEST_ASSERT(test_json_tokenizer_setup_for_queue_failure(&t, 1, 1));
-  // TEST_ASSERT(!test_json_tokenizer_push_string(&t, &q,  "["));
-  // json_tokenizer_deinit(&t, test_context);
-
-  // TEST_ASSERT(test_json_tokenizer_setup_for_queue_failure(&t, 1, 1));
-  // TEST_ASSERT(!test_json_tokenizer_push_string(&t, &q,  "123 "));
-  // json_tokenizer_deinit(&t, test_context);
-
-  // TEST_ASSERT(test_json_tokenizer_setup_for_queue_failure(&t, 2, 0));
-  // TEST_ASSERT(!test_json_tokenizer_push_string(&t, &q,  "\"a\""));
-  // json_tokenizer_deinit(&t, test_context);
-
-  // TEST_ASSERT(test_json_tokenizer_setup_for_queue_failure(&t, 1, 0));
-  // TEST_ASSERT(!test_json_tokenizer_push_string(&t, &q,  " "));
-  // json_tokenizer_deinit(&t, test_context);
-
-  // TEST_ASSERT(test_json_tokenizer_setup_for_queue_failure(&t, 5, 0));
-  // TEST_ASSERT(!test_json_tokenizer_push_string(&t, &q,  "{\"a\":"));
-  // json_tokenizer_deinit(&t, test_context);
-
-  // TEST_ASSERT(test_json_tokenizer_setup_for_queue_failure(&t, 2, 0));
-  // TEST_ASSERT(!test_json_tokenizer_push_string(&t, &q,  "null,"));
-  // json_tokenizer_deinit(&t, test_context);
-
-  // // some bullshit for code coverage
-  // // it's not normally possible for code to attempt memory allocations in places this test is testing
-  // // because it's guaranteed to be some free slots in the state stack
-  // // but I also don't feel comfortable to not check something that must always be checked
-  // setup_test_context_default();
-  // TEST_ASSERT(json_tokenizer_init(&t, test_context));
-  // while (stack_get_count(&t.state_stack) < t.state_stack.length - 1) {
-  //   json_state_type *state_slot = stack_push(&t.state_stack);
-  //   *state_slot = JSON_STATE_ROOT;
-  // }
-  // update_test_context_for_alloc_failure(0);
-  // TEST_ASSERT(!test_json_tokenizer_push_string(&t, &q,  "["));
-  // json_tokenizer_deinit(&t, test_context);
-  // queue_deinit(&q, test_context);
-
+  json_tokenizer_deinit(&t, test_context);
   return NULL;
 }
