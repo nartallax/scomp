@@ -78,129 +78,129 @@ json_token *test_json_consume(queue *q) {
 }
 
 const char *test_json_tokenizer_string() {
-  // json_tokenizer t;
-  // json_token *k;
-  // queue q;
-  // TEST_ASSERT(queue_init(&q, test_context, sizeof(json_token), 4));
-  // TEST_ASSERT(json_tokenizer_init(&t, test_context));
+  json_tokenizer t;
+  json_token *k;
+  queue q;
+  TEST_ASSERT(queue_init(&q, test_context, sizeof(json_token), 4));
+  TEST_ASSERT(json_tokenizer_init(&t, test_context));
 
-  // TEST_ASSERT(test_json_tokenizer_push_string(&t, &q, "\"abcde\""));
-  // TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_QUOTES);
-  // k = test_json_consume(&q);
-  // TEST_ASSERT(k->kind == JSON_TOKEN_UNICODE_CHARACTER && k->unicode_character.value == 'a' && k->unicode_character.length == 1);
-  // k = test_json_consume(&q);
-  // TEST_ASSERT(k->kind == JSON_TOKEN_UNICODE_CHARACTER && k->unicode_character.value == 'b' && k->unicode_character.length == 1);
-  // k = test_json_consume(&q);
-  // TEST_ASSERT(k->kind == JSON_TOKEN_UNICODE_CHARACTER && k->unicode_character.value == 'c' && k->unicode_character.length == 1);
-  // k = test_json_consume(&q);
-  // TEST_ASSERT(k->kind == JSON_TOKEN_UNICODE_CHARACTER && k->unicode_character.value == 'd' && k->unicode_character.length == 1);
-  // k = test_json_consume(&q);
-  // TEST_ASSERT(k->kind == JSON_TOKEN_UNICODE_CHARACTER && k->unicode_character.value == 'e' && k->unicode_character.length == 1);
-  // TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_QUOTES);
-  // TEST_ASSERT(test_json_consume(&q) == NULL);
-  // TEST_ASSERT(test_json_tokenizer_reinit(&t));
+  TEST_ASSERT(test_json_tokenizer_push_string(&t, &q, "\"abcde\""));
+  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_QUOTES);
+  k = test_json_consume(&q);
+  TEST_ASSERT(k->kind == JSON_TOKEN_UNICODE_CHARACTER && k->unicode_character.value == 'a' && k->unicode_character.length == 1);
+  k = test_json_consume(&q);
+  TEST_ASSERT(k->kind == JSON_TOKEN_UNICODE_CHARACTER && k->unicode_character.value == 'b' && k->unicode_character.length == 1);
+  k = test_json_consume(&q);
+  TEST_ASSERT(k->kind == JSON_TOKEN_UNICODE_CHARACTER && k->unicode_character.value == 'c' && k->unicode_character.length == 1);
+  k = test_json_consume(&q);
+  TEST_ASSERT(k->kind == JSON_TOKEN_UNICODE_CHARACTER && k->unicode_character.value == 'd' && k->unicode_character.length == 1);
+  k = test_json_consume(&q);
+  TEST_ASSERT(k->kind == JSON_TOKEN_UNICODE_CHARACTER && k->unicode_character.value == 'e' && k->unicode_character.length == 1);
+  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_QUOTES);
+  TEST_ASSERT(test_json_consume(&q) == NULL);
+  TEST_ASSERT(test_json_tokenizer_reinit(&t));
 
-  // // correct escaped codepoint
-  // TEST_ASSERT(test_json_tokenizer_push_string(&t, &q, "\"\\u12aB\""));
-  // TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_QUOTES);
-  // k = test_json_consume(&q);
-  // uint64_t merged_code = 0;
-  // merged_code = (merged_code << 8) | 'B';
-  // merged_code = (merged_code << 8) | 'a';
-  // merged_code = (merged_code << 8) | '2';
-  // merged_code = (merged_code << 8) | '1';
-  // TEST_ASSERT(k->kind == JSON_TOKEN_ESCAPED_UNICODE_CHARCODE && k->unicode_character.value == merged_code);
-  // TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_QUOTES);
-  // TEST_ASSERT(test_json_tokenizer_reinit(&t));
+  // correct escaped codepoint
+  TEST_ASSERT(test_json_tokenizer_push_string(&t, &q, "\"\\u12aB\""));
+  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_QUOTES);
+  k = test_json_consume(&q);
+  uint64_t merged_code = 0;
+  merged_code = (merged_code << 8) | 'B';
+  merged_code = (merged_code << 8) | 'a';
+  merged_code = (merged_code << 8) | '2';
+  merged_code = (merged_code << 8) | '1';
+  TEST_ASSERT(k->kind == JSON_TOKEN_ESCAPED_UNICODE_CHARCODE && k->unicode_character.value == merged_code);
+  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_QUOTES);
+  TEST_ASSERT(test_json_tokenizer_reinit(&t));
 
-  // // incorrect escaped codepoint
-  // TEST_ASSERT(!test_json_tokenizer_push_string(&t, &q, "\"\\uGg//\""));
-  // TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_QUOTES);
-  // TEST_ASSERT(test_json_consume(&q) == NULL);
-  // TEST_ASSERT(test_json_tokenizer_reinit_nonempty(&t));
+  // incorrect escaped codepoint
+  TEST_ASSERT(!test_json_tokenizer_push_string(&t, &q, "\"\\uGg//\""));
+  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_QUOTES);
+  TEST_ASSERT(test_json_consume(&q) == NULL);
+  TEST_ASSERT(test_json_tokenizer_reinit_nonempty(&t));
 
-  // // incorrect escaped codepoints in all four positions
-  // const char *bad_escaped_codepoints[4] = {"\"\\uxfff", "\"\\ufxff", "\"\\uffxf", "\"\\ufffx"};
-  // for (size_t i = 0; i < 4; i++) {
-  //   TEST_ASSERT(!test_json_tokenizer_push_string(&t, &q, bad_escaped_codepoints[i]));
-  //   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_QUOTES);
-  //   TEST_ASSERT(test_json_consume(&q) == NULL);
-  //   TEST_ASSERT(test_json_tokenizer_reinit_nonempty(&t));
-  // }
+  // incorrect escaped codepoints in all four positions
+  const char *bad_escaped_codepoints[4] = {"\"\\uxfff", "\"\\ufxff", "\"\\uffxf", "\"\\ufffx"};
+  for (size_t i = 0; i < 4; i++) {
+    TEST_ASSERT(!test_json_tokenizer_push_string(&t, &q, bad_escaped_codepoints[i]));
+    TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_QUOTES);
+    TEST_ASSERT(test_json_consume(&q) == NULL);
+    TEST_ASSERT(test_json_tokenizer_reinit_nonempty(&t));
+  }
 
-  // // other escapings
-  // TEST_ASSERT(test_json_tokenizer_push_string(&t, &q, "\"\\r\\\\\\n\\t\\\"\\/\\b\\f\""));
-  // TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_QUOTES);
-  // k = test_json_consume(&q);
-  // TEST_ASSERT(k->kind == JSON_TOKEN_ESCAPE_SEQUENCE && k->character.character == 'r');
-  // k = test_json_consume(&q);
-  // TEST_ASSERT(k->kind == JSON_TOKEN_ESCAPE_SEQUENCE && k->character.character == '\\');
-  // k = test_json_consume(&q);
-  // TEST_ASSERT(k->kind == JSON_TOKEN_ESCAPE_SEQUENCE && k->character.character == 'n');
-  // k = test_json_consume(&q);
-  // TEST_ASSERT(k->kind == JSON_TOKEN_ESCAPE_SEQUENCE && k->character.character == 't');
-  // k = test_json_consume(&q);
-  // TEST_ASSERT(k->kind == JSON_TOKEN_ESCAPE_SEQUENCE && k->character.character == '"');
-  // k = test_json_consume(&q);
-  // TEST_ASSERT(k->kind == JSON_TOKEN_ESCAPE_SEQUENCE && k->character.character == '/');
-  // k = test_json_consume(&q);
-  // TEST_ASSERT(k->kind == JSON_TOKEN_ESCAPE_SEQUENCE && k->character.character == 'b');
-  // k = test_json_consume(&q);
-  // TEST_ASSERT(k->kind == JSON_TOKEN_ESCAPE_SEQUENCE && k->character.character == 'f');
-  // TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_QUOTES);
-  // TEST_ASSERT(test_json_tokenizer_reinit(&t));
+  // other escapings
+  TEST_ASSERT(test_json_tokenizer_push_string(&t, &q, "\"\\r\\\\\\n\\t\\\"\\/\\b\\f\""));
+  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_QUOTES);
+  k = test_json_consume(&q);
+  TEST_ASSERT(k->kind == JSON_TOKEN_ESCAPE_SEQUENCE && k->character.character == 'r');
+  k = test_json_consume(&q);
+  TEST_ASSERT(k->kind == JSON_TOKEN_ESCAPE_SEQUENCE && k->character.character == '\\');
+  k = test_json_consume(&q);
+  TEST_ASSERT(k->kind == JSON_TOKEN_ESCAPE_SEQUENCE && k->character.character == 'n');
+  k = test_json_consume(&q);
+  TEST_ASSERT(k->kind == JSON_TOKEN_ESCAPE_SEQUENCE && k->character.character == 't');
+  k = test_json_consume(&q);
+  TEST_ASSERT(k->kind == JSON_TOKEN_ESCAPE_SEQUENCE && k->character.character == '"');
+  k = test_json_consume(&q);
+  TEST_ASSERT(k->kind == JSON_TOKEN_ESCAPE_SEQUENCE && k->character.character == '/');
+  k = test_json_consume(&q);
+  TEST_ASSERT(k->kind == JSON_TOKEN_ESCAPE_SEQUENCE && k->character.character == 'b');
+  k = test_json_consume(&q);
+  TEST_ASSERT(k->kind == JSON_TOKEN_ESCAPE_SEQUENCE && k->character.character == 'f');
+  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_QUOTES);
+  TEST_ASSERT(test_json_tokenizer_reinit(&t));
 
-  // // correct unicode
-  // TEST_ASSERT(test_json_tokenizer_push_string(&t, &q, "\"Привет, мир!\""));
-  // TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_QUOTES);
-  // k = test_json_consume(&q);
-  // TEST_ASSERT(k->kind == JSON_TOKEN_UNICODE_CHARACTER && k->unicode_character.value == (0xD0 | (0x9F << 8)));
-  // k = test_json_consume(&q);
-  // TEST_ASSERT(k->kind == JSON_TOKEN_UNICODE_CHARACTER && k->unicode_character.value == (0xD1 | (0x80 << 8)));
-  // k = test_json_consume(&q);
-  // TEST_ASSERT(k->kind == JSON_TOKEN_UNICODE_CHARACTER && k->unicode_character.value == (0xD0 | (0xB8 << 8)));
-  // k = test_json_consume(&q);
-  // TEST_ASSERT(k->kind == JSON_TOKEN_UNICODE_CHARACTER && k->unicode_character.value == (0xD0 | (0xB2 << 8)));
-  // k = test_json_consume(&q);
-  // TEST_ASSERT(k->kind == JSON_TOKEN_UNICODE_CHARACTER && k->unicode_character.value == (0xD0 | (0xB5 << 8)));
-  // k = test_json_consume(&q);
-  // TEST_ASSERT(k->kind == JSON_TOKEN_UNICODE_CHARACTER && k->unicode_character.value == (0xD1 | (0x82 << 8)));
-  // k = test_json_consume(&q);
-  // TEST_ASSERT(k->kind == JSON_TOKEN_UNICODE_CHARACTER && k->unicode_character.value == ',');
-  // k = test_json_consume(&q);
-  // TEST_ASSERT(k->kind == JSON_TOKEN_UNICODE_CHARACTER && k->unicode_character.value == ' ');
-  // k = test_json_consume(&q);
-  // TEST_ASSERT(k->kind == JSON_TOKEN_UNICODE_CHARACTER && k->unicode_character.value == (0xD0 | (0xBC << 8)));
-  // k = test_json_consume(&q);
-  // TEST_ASSERT(k->kind == JSON_TOKEN_UNICODE_CHARACTER && k->unicode_character.value == (0xD0 | (0xB8 << 8)));
-  // k = test_json_consume(&q);
-  // TEST_ASSERT(k->kind == JSON_TOKEN_UNICODE_CHARACTER && k->unicode_character.value == (0xD1 | (0x80 << 8)));
-  // k = test_json_consume(&q);
-  // TEST_ASSERT(k->kind == JSON_TOKEN_UNICODE_CHARACTER && k->unicode_character.value == '!');
-  // TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_QUOTES);
-  // TEST_ASSERT(test_json_tokenizer_reinit(&t));
+  // correct unicode
+  TEST_ASSERT(test_json_tokenizer_push_string(&t, &q, "\"Привет, мир!\""));
+  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_QUOTES);
+  k = test_json_consume(&q);
+  TEST_ASSERT(k->kind == JSON_TOKEN_UNICODE_CHARACTER && k->unicode_character.value == (0xD0 | (0x9F << 8)));
+  k = test_json_consume(&q);
+  TEST_ASSERT(k->kind == JSON_TOKEN_UNICODE_CHARACTER && k->unicode_character.value == (0xD1 | (0x80 << 8)));
+  k = test_json_consume(&q);
+  TEST_ASSERT(k->kind == JSON_TOKEN_UNICODE_CHARACTER && k->unicode_character.value == (0xD0 | (0xB8 << 8)));
+  k = test_json_consume(&q);
+  TEST_ASSERT(k->kind == JSON_TOKEN_UNICODE_CHARACTER && k->unicode_character.value == (0xD0 | (0xB2 << 8)));
+  k = test_json_consume(&q);
+  TEST_ASSERT(k->kind == JSON_TOKEN_UNICODE_CHARACTER && k->unicode_character.value == (0xD0 | (0xB5 << 8)));
+  k = test_json_consume(&q);
+  TEST_ASSERT(k->kind == JSON_TOKEN_UNICODE_CHARACTER && k->unicode_character.value == (0xD1 | (0x82 << 8)));
+  k = test_json_consume(&q);
+  TEST_ASSERT(k->kind == JSON_TOKEN_UNICODE_CHARACTER && k->unicode_character.value == ',');
+  k = test_json_consume(&q);
+  TEST_ASSERT(k->kind == JSON_TOKEN_UNICODE_CHARACTER && k->unicode_character.value == ' ');
+  k = test_json_consume(&q);
+  TEST_ASSERT(k->kind == JSON_TOKEN_UNICODE_CHARACTER && k->unicode_character.value == (0xD0 | (0xBC << 8)));
+  k = test_json_consume(&q);
+  TEST_ASSERT(k->kind == JSON_TOKEN_UNICODE_CHARACTER && k->unicode_character.value == (0xD0 | (0xB8 << 8)));
+  k = test_json_consume(&q);
+  TEST_ASSERT(k->kind == JSON_TOKEN_UNICODE_CHARACTER && k->unicode_character.value == (0xD1 | (0x80 << 8)));
+  k = test_json_consume(&q);
+  TEST_ASSERT(k->kind == JSON_TOKEN_UNICODE_CHARACTER && k->unicode_character.value == '!');
+  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_QUOTES);
+  TEST_ASSERT(test_json_tokenizer_reinit(&t));
 
-  // // unicode with broken continuation bytes
-  // const byte broken_continuation_bytes_unicode_pair[6] = {0xD0, 0xFF, 0xD0, 0xFF, 0xD0, 0xFF};
-  // char *broken_continuation_bytes_unicode_str = malloc(64);
-  // TEST_ASSERT(sprintf(broken_continuation_bytes_unicode_str, "\"%.*s\"", 6, broken_continuation_bytes_unicode_pair) < 64);
-  // TEST_ASSERT(!test_json_tokenizer_push_string(&t, &q, broken_continuation_bytes_unicode_str));
-  // free(broken_continuation_bytes_unicode_str);
-  // TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_QUOTES);
-  // TEST_ASSERT(test_json_consume(&q) == NULL);
-  // TEST_ASSERT(test_json_tokenizer_reinit_nonempty(&t));
+  // unicode with broken continuation bytes
+  const byte broken_continuation_bytes_unicode_pair[6] = {0xD0, 0xFF, 0xD0, 0xFF, 0xD0, 0xFF};
+  char *broken_continuation_bytes_unicode_str = malloc(64);
+  TEST_ASSERT(sprintf(broken_continuation_bytes_unicode_str, "\"%.*s\"", 6, broken_continuation_bytes_unicode_pair) < 64);
+  TEST_ASSERT(!test_json_tokenizer_push_string(&t, &q, broken_continuation_bytes_unicode_str));
+  free(broken_continuation_bytes_unicode_str);
+  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_QUOTES);
+  TEST_ASSERT(test_json_consume(&q) == NULL);
+  TEST_ASSERT(test_json_tokenizer_reinit_nonempty(&t));
 
-  // // unicode with broken continuation bytes in escape sequence
-  // broken_continuation_bytes_unicode_str = malloc(64);
-  // TEST_ASSERT(sprintf(broken_continuation_bytes_unicode_str, "\"\\%.*s\"", 6, broken_continuation_bytes_unicode_pair) < 64);
-  // TEST_ASSERT(!test_json_tokenizer_push_string(&t, &q, broken_continuation_bytes_unicode_str));
-  // free(broken_continuation_bytes_unicode_str);
-  // TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_QUOTES);
-  // TEST_ASSERT(test_json_consume(&q) == NULL);
-  // TEST_ASSERT(test_json_tokenizer_reinit_nonempty(&t));
+  // unicode with broken continuation bytes in escape sequence
+  broken_continuation_bytes_unicode_str = malloc(64);
+  TEST_ASSERT(sprintf(broken_continuation_bytes_unicode_str, "\"\\%.*s\"", 6, broken_continuation_bytes_unicode_pair) < 64);
+  TEST_ASSERT(!test_json_tokenizer_push_string(&t, &q, broken_continuation_bytes_unicode_str));
+  free(broken_continuation_bytes_unicode_str);
+  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_QUOTES);
+  TEST_ASSERT(test_json_consume(&q) == NULL);
+  TEST_ASSERT(test_json_tokenizer_reinit_nonempty(&t));
 
-  // json_tokenizer_deinit(&t, test_context);
-  // queue_deinit(&q, test_context);
+  json_tokenizer_deinit(&t, test_context);
+  queue_deinit(&q, test_context);
   return NULL;
 }
 
