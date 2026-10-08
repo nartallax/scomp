@@ -90,6 +90,7 @@ typedef enum {
   JSON_NUMBER_EXPONENT_IS_NEGATIVE = 1 << 3, // 1e-1
   JSON_NUMBER_EXPONENT_HAS_PLUS = 1 << 4,    // 1e+1
   JSON_NUMBER_IS_NEGATIVE = 1 << 5,          // -1
+  JSON_NUMBER_IS_ZERO = 1 << 6               // 0, -0
 } json_number_flags__new;
 
 /** Tokens that contains a number in JSON sense. */

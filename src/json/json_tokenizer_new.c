@@ -138,10 +138,12 @@ NODISCARD bool _jtok_try_value__new(json_tokenizer__new *t, byte b) {
     t->partial_number_token.flags |= JSON_NUMBER_IS_NEGATIVE;
     return _jtok_start_value__new(t, JSON_STATE_NUMBER);
   default:
-    // TODO: think about not having leading zeroes in integers. `01` is invalid
     if (b >= '0' && b <= '9') {
       t->value_progress = 1;
       t->partial_number_token.integer_part = b - '0';
+      if (b == '0') {
+        t->partial_number_token.flags |= JSON_NUMBER_IS_ZERO;
+      }
       return _jtok_start_value__new(t, JSON_STATE_NUMBER);
     }
     return false;
@@ -228,16 +230,7 @@ size_t json_tokenizer_render_partial_token__new(json_tokenizer__new *t, writer *
     json_token__new token;
     token.kind = JSON_TOKEN_NUMBER;
     token.number = t->partial_number_token;
-    size_t bytes_written = json_detokenizer_write__new(w, &token);
-    if (bytes_written == 2 && t->value_progress == 0) {
-      // special case: single `-` is parsed/restringified into number `-0`, but we must not add this extra zero
-      // we don't have such special cases for fraction/exponent part, because leading zeroes on those ones are written in a separate fields
-      // so detokenizer is aware that 0 in exponent value is actually no characters
-      // but with integer part we don't have leading zero counter
-      // TODO: start storing a flag about zero in the token instead of doing this cringe
-      bytes_written--;
-    }
-    return bytes_written;
+    return json_detokenizer_write__new(w, &token);
   }
   case JSON_STATE_START:
   case JSON_STATE_ROOT:
@@ -446,7 +439,7 @@ NODISCARD bool json_tokenizer_push__new(json_tokenizer__new *t, byte b) {
         t->value_progress++;
         return true;
       } else {
-        if (t->value_progress > 0 && t->partial_number_token.integer_part == 0) {
+        if (t->partial_number_token.flags & JSON_NUMBER_IS_ZERO) {
           // TODO: do we have those in tests? and others mentioned her
           // `01` is invalid, `-01` is invalid
           return false;
@@ -455,6 +448,9 @@ NODISCARD bool json_tokenizer_push__new(json_tokenizer__new *t, byte b) {
           return false;
         }
         t->partial_number_token.fraction_part = (t->partial_number_token.fraction_part * 10) + digit;
+        if (digit == 0 && t->value_progress == 0) {
+          t->partial_number_token.flags |= JSON_NUMBER_IS_ZERO;
+        }
         t->value_progress++;
         return true;
       }
@@ -495,4 +491,13 @@ NODISCARD bool json_tokenizer_push__new(json_tokenizer__new *t, byte b) {
       return json_tokenizer_push__new(t, b);
     }
   }
+}
+
+/** Returns true if the tokenizer have read one whole JSON completely.
+In this state, tokenizer will only read whitespace tokens
+(because we allow to have infinite number of whitespace tokens after the end of the actual value).
+You can reset the tokenizer if you want to reuse it. */
+bool json_tokenizer_is_done__new(json_tokenizer__new *t) {
+  json_state__new state = bfstack_peek(&t->state_stack);
+  return state == JSON_STATE_ROOT;
 }

@@ -95,7 +95,9 @@ size_t json_detokenizer_write__new(writer *w, json_token__new *token) {
       writer_write_byte(w, '-');
       result++;
     }
-    result += _jdet_write_int__new(w, token->number.integer_part);
+    if (token->number.integer_part != 0 || (token->number.flags & JSON_NUMBER_IS_ZERO)) {
+      result += _jdet_write_int__new(w, token->number.integer_part);
+    }
 
     // fraction part
     if (token->number.flags & JSON_NUMBER_HAS_FRACTION) {
