@@ -17,7 +17,7 @@ typedef struct {
   context *context;
   queue buffers;
   size_t current_bit_index;
-  size_t size;
+  size_t single_buffer_byte_size;
   queue free_buffers;
 } writer;
 
@@ -42,7 +42,7 @@ void _writer_allocate_next_buffer(writer *writer) {
     byte **existing_buffer_slot = queue_pop(&writer->free_buffers);
     buffer = *existing_buffer_slot;
   } else {
-    buffer = context_allocate_zero_init(writer->context, writer->size, sizeof(byte));
+    buffer = context_allocate_zero_init(writer->context, writer->single_buffer_byte_size, sizeof(byte));
   }
 
   if (buffer) {
@@ -63,7 +63,7 @@ void _writer_allocate_next_buffer(writer *writer) {
 }
 
 void _writer_maybe_allocate_next_buffer(writer *writer) {
-  if ((writer->current_bit_index >> 3) >= writer->size) {
+  if ((writer->current_bit_index >> 3) >= writer->single_buffer_byte_size) {
     _writer_allocate_next_buffer(writer);
   }
 }
@@ -76,7 +76,7 @@ size_t writer_get_bytes_stored(writer *writer) {
     // to avoid underflow, this condition exists
     buffer_count--;
   }
-  return (buffer_count * writer->size) + ((writer->current_bit_index + 7) >> 3);
+  return (buffer_count * writer->single_buffer_byte_size) + ((writer->current_bit_index + 7) >> 3);
 }
 
 void writer_deinit(writer *w, context *context) {
@@ -93,19 +93,19 @@ void writer_deinit(writer *w, context *context) {
   queue_deinit(&w->free_buffers, context);
 }
 
-NODISCARD bool writer_init(writer *w, context *context, size_t size) {
+NODISCARD bool writer_init(writer *w, context *context, size_t single_buffer_byte_size, size_t queues_size_shift) {
   *w = (writer){0};
 
-  w->size = size;
+  w->single_buffer_byte_size = single_buffer_byte_size;
   w->context = context;
   w->current_bit_index = 0;
 
-  if (!queue_init(&w->buffers, context, sizeof(byte *), 4)) {
+  if (!queue_init(&w->buffers, context, sizeof(byte *), queues_size_shift)) {
     writer_deinit(w, context);
     return false;
   }
 
-  if (!queue_init(&w->free_buffers, context, sizeof(byte *), 4)) {
+  if (!queue_init(&w->free_buffers, context, sizeof(byte *), queues_size_shift)) {
     writer_deinit(w, context);
     return false;
   }
@@ -130,7 +130,7 @@ NODISCARD buffer writer_consume_full_buffer(writer *writer) {
     return EMPTY_BUFFER;
   }
   byte **slot = queue_pop(&writer->buffers);
-  return (buffer){.data = *slot, .length = writer->size};
+  return (buffer){.data = *slot, .length = writer->single_buffer_byte_size};
 }
 
 /** Returns oldest non-consumed buffer. Buffer counts as consumed (writer won't store it anymore).
@@ -237,7 +237,7 @@ If mode of consumption allows you to retain buffers - might as well reuse them. 
 NODISCARD bool writer_supply_dirty_buffer(writer *writer, byte *buffer) {
   // TODO: this sucks. if we are writing whole bytes - we don't care about previous trash in the buffer
   // I need to think about a better way to zero out buffer during writing
-  for (size_t i = 0; i < writer->size; i++) {
+  for (size_t i = 0; i < writer->single_buffer_byte_size; i++) {
     buffer[i] = 0;
   }
   return writer_supply_zeroinit_buffer(writer, buffer);

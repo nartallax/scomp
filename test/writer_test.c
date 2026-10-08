@@ -5,7 +5,7 @@
 
 const char *test_writer_bytes() {
   writer *w = malloc(sizeof(writer));
-  TEST_ASSERT(writer_init(w, test_context, 2));
+  TEST_ASSERT(writer_init(w, test_context, 2, 4));
   TEST_ASSERT(writer_get_bytes_stored(w) == 0);
   TEST_ASSERT(writer_consume_full_buffer(w).length == 0);
   TEST_ASSERT(writer_consume_nonempty_buffer(w).buffer.length == 0);
@@ -66,7 +66,7 @@ void _write_byte_as_bits(writer *writer, byte value) {
 
 const char *test_writer_bits() {
   writer *w = malloc(sizeof(writer));
-  TEST_ASSERT(writer_init(w, test_context, 2));
+  TEST_ASSERT(writer_init(w, test_context, 2, 4));
   buffer b;
   TEST_ASSERT(writer_get_bytes_stored(w) == 0);
 
@@ -113,7 +113,7 @@ const char *test_writer_bits() {
 
 const char *test_writer_buffer_reuse() {
   writer *w = malloc(sizeof(writer));
-  TEST_ASSERT(writer_init(w, test_context, 2));
+  TEST_ASSERT(writer_init(w, test_context, 2, 4));
   buffer b;
 
   writer_write_byte(w, 2);
@@ -149,12 +149,12 @@ const char *test_writer_allocation_failure() {
   writer *w = malloc(sizeof(writer));
   for (int i = 0; i < 3; i++) {
     setup_test_context(i);
-    TEST_ASSERT(!writer_init(w, test_context, 2));
+    TEST_ASSERT(!writer_init(w, test_context, 2, 4));
     TEST_ASSERT(writer_get_bytes_stored(w) == 0);
   }
 
   setup_test_context(3);
-  TEST_ASSERT(writer_init(w, test_context, 2));
+  TEST_ASSERT(writer_init(w, test_context, 2, 4));
   size_t queue_default_length = w->buffers.length;
   writer_write_byte(w, 1);
   buffer_or_error b = writer_consume_all_buffers(w);
@@ -162,7 +162,7 @@ const char *test_writer_allocation_failure() {
   writer_deinit(w, test_context);
 
   setup_test_context(3);
-  TEST_ASSERT(writer_init(w, test_context, 2));
+  TEST_ASSERT(writer_init(w, test_context, 2, 4));
   writer_write_byte(w, 1);
   TEST_ASSERT(!context_is_errored(test_context));
   writer_write_byte(w, 2);
@@ -170,7 +170,7 @@ const char *test_writer_allocation_failure() {
   writer_deinit(w, test_context);
 
   setup_test_context(3 + queue_default_length - 1);
-  TEST_ASSERT(writer_init(w, test_context, 2));
+  TEST_ASSERT(writer_init(w, test_context, 2, 4));
   for (byte i = 0; i < queue_default_length - 2; i++) {
     writer_write_byte(w, i);
     writer_write_byte(w, i * 2);
@@ -183,7 +183,7 @@ const char *test_writer_allocation_failure() {
   writer_deinit(w, test_context);
 
   setup_test_context_default();
-  TEST_ASSERT(writer_init(w, test_context, 3));
+  TEST_ASSERT(writer_init(w, test_context, 3, 4));
   writer_write_byte(w, 1);
   update_test_context_for_alloc_failure(0);
   b = writer_consume_nonempty_buffer(w);
@@ -191,7 +191,7 @@ const char *test_writer_allocation_failure() {
   writer_deinit(w, test_context);
 
   setup_test_context_default();
-  TEST_ASSERT(writer_init(w, test_context, 3));
+  TEST_ASSERT(writer_init(w, test_context, 3, 4));
   writer_write_byte(w, 1);
   writer_write_byte(w, 2);
   writer_write_byte(w, 3);
@@ -202,7 +202,7 @@ const char *test_writer_allocation_failure() {
   writer_deinit(w, test_context);
 
   setup_test_context(3);
-  TEST_ASSERT(writer_init(w, test_context, 2));
+  TEST_ASSERT(writer_init(w, test_context, 2, 4));
   writer_write_byte(w, 1);
   writer_write_byte(w, 2);
   writer_write_byte(w, 3);
@@ -211,7 +211,7 @@ const char *test_writer_allocation_failure() {
   writer_deinit(w, test_context);
 
   setup_test_context(3);
-  TEST_ASSERT(writer_init(w, test_context, 2));
+  TEST_ASSERT(writer_init(w, test_context, 2, 4));
   while (true) {
     byte *some_buffer = malloc(1);
     bool is_good = writer_supply_zeroinit_buffer(w, some_buffer);

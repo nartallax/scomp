@@ -41,7 +41,7 @@ bool test_parse_json_suite_path(const char *path, json_suite_expected_result *ex
 
 buffer test_feed_file_into_tokenizer_detokenizer(const char *path, const char *filename) {
   writer *w = malloc(sizeof(writer));
-  if (!writer_init(w, test_context, 1024)) {
+  if (!writer_init(w, test_context, 1024, 4)) {
     return EMPTY_BUFFER;
   }
   json_tokenizer t;

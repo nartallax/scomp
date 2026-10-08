@@ -18,7 +18,7 @@ byte *get_random_bytes(size_t length) {
 
 buffer encode_bytes(size_t length, byte *data) {
   writer *w = malloc(sizeof(writer));
-  if (!writer_init(w, test_context, writer_buffer_size)) {
+  if (!writer_init(w, test_context, writer_buffer_size, 4)) {
     return EMPTY_BUFFER;
   }
 
@@ -216,7 +216,7 @@ const char *test_acod_allocation_failures() {
       ftable bit_table;
       TEST_ASSERT(ftable_init(&bit_table, test_context, 2, FTABLE_EXCLUDE_EOF | FTABLE_INIT_ONE));
       writer *w = malloc(sizeof(writer));
-      TEST_ASSERT(writer_init(w, test_context, 2));
+      TEST_ASSERT(writer_init(w, test_context, 2, 4));
       acod_encoder_init(encoder, w);
       TEST_ASSERT(context_is_errored(test_context) == false);
 
@@ -237,7 +237,7 @@ const char *test_acod_allocation_failures() {
       ftable bit_table;
       TEST_ASSERT(ftable_init(&bit_table, test_context, 2, FTABLE_EXCLUDE_EOF | FTABLE_INIT_ONE));
       writer *w = malloc(sizeof(writer));
-      TEST_ASSERT(writer_init(w, test_context, 2));
+      TEST_ASSERT(writer_init(w, test_context, 2, 4));
       acod_encoder_init(encoder, w);
       TEST_ASSERT(context_is_errored(test_context) == false);
 
@@ -261,7 +261,7 @@ const char *test_acod_allocation_failures() {
       ftable bit_table;
       TEST_ASSERT(ftable_init(&bit_table, test_context, 2, FTABLE_EXCLUDE_EOF | FTABLE_INIT_ONE));
       writer *w = malloc(sizeof(writer));
-      TEST_ASSERT(writer_init(w, test_context, 2));
+      TEST_ASSERT(writer_init(w, test_context, 2, 4));
       acod_encoder_init(encoder, w);
       TEST_ASSERT(context_is_errored(test_context) == false);
 

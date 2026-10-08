@@ -19,7 +19,7 @@ json_token test_string_to_single_json_token(const char *str) {
 
 bool test_json_detokenizer(json_token *token, const char *expected_result) {
   writer w;
-  TEST_ASSERT(writer_init(&w, test_context, 1024));
+  TEST_ASSERT(writer_init(&w, test_context, 1024, 4));
   json_detokenizer_write(&w, token);
   buffer result = writer_consume_all_buffers(&w).buffer;
   char *result_str = malloc(sizeof(char) * (result.length + 1));

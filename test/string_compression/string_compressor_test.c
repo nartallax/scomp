@@ -7,7 +7,7 @@
 
 buffer _test_strcomp_compress(const char *source) {
   writer w;
-  if (!writer_init(&w, test_context, 1024)) {
+  if (!writer_init(&w, test_context, 1024, 4)) {
     printf("Failed to init writer\n");
     return EMPTY_BUFFER;
   }
@@ -37,7 +37,7 @@ buffer _test_strcomp_compress(const char *source) {
 
 buffer _test_strcomp_decompress(buffer src) {
   writer w;
-  if (!writer_init(&w, test_context, 1024)) {
+  if (!writer_init(&w, test_context, 1024, 4)) {
     printf("Failed to init writer\n");
     return EMPTY_BUFFER;
   }
