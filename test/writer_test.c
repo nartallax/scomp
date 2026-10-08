@@ -123,7 +123,7 @@ const char *test_writer_buffer_reuse() {
   TEST_ASSERT(b.data[0] == 2 && b.data[1] == 3);
   byte *reused_array = b.data;
 
-  TEST_ASSERT(writer_supply_dirty_buffer(w, b.data));
+  TEST_ASSERT(writer_supply_buffer(w, b.data));
   writer_write_byte(w, 5);
   writer_write_byte(w, 6);
   _write_byte_as_bits(w, 0b10000000);
@@ -137,11 +137,39 @@ const char *test_writer_buffer_reuse() {
 
   // this checks that all unused free buffers are deleted too
   byte *other_array = malloc(sizeof(byte) * 2);
-  TEST_ASSERT(writer_supply_zeroinit_buffer(w, other_array));
+  TEST_ASSERT(writer_supply_buffer(w, other_array));
 
   writer_deinit(w, test_context);
   free(w);
 
+  return NULL;
+}
+
+const char *test_writer_buffer_resets() {
+  writer *w = malloc(sizeof(writer));
+  TEST_ASSERT(writer_init(w, test_context, 16, 4));
+
+  writer_write_byte(w, 0xf0);
+  writer_write_byte(w, 0x0f);
+  buffer a = writer_peek_current_buffer(w);
+  TEST_ASSERT(a.length == 2 && a.data[0] == 0xf0 && a.data[1] == 0x0f);
+
+  writer_reset_current_buffer(w);
+  writer_write_bit(w, 0);
+  writer_write_bit(w, 1);
+  writer_write_bit(w, 0);
+  writer_write_bit(w, 1);
+  writer_write_bit(w, 1);
+  writer_write_bit(w, 0);
+  writer_write_bit(w, 1);
+  writer_write_bit(w, 0);
+  writer_write_bit(w, 1);
+  buffer b = writer_peek_current_buffer(w);
+  TEST_ASSERT(b.data == a.data);
+  TEST_ASSERT(b.length == 2 && b.data[0] == 0x5a && b.data[1] == 0x01);
+
+  writer_deinit(w, test_context);
+  free(w);
   return NULL;
 }
 
@@ -214,7 +242,7 @@ const char *test_writer_allocation_failure() {
   TEST_ASSERT(writer_init(w, test_context, 2, 4));
   while (true) {
     byte *some_buffer = malloc(1);
-    bool is_good = writer_supply_zeroinit_buffer(w, some_buffer);
+    bool is_good = writer_supply_buffer(w, some_buffer);
     bool is_errored = context_is_errored(test_context);
     TEST_ASSERT(is_good == !is_errored);
     if (is_errored) {

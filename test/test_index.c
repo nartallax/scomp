@@ -56,6 +56,7 @@ int main() {
       MAKE_TEST(test_writer_bytes),
       MAKE_TEST(test_writer_bits),
       MAKE_TEST(test_writer_buffer_reuse),
+      MAKE_TEST(test_writer_buffer_resets),
       MAKE_TEST(test_writer_allocation_failure),
       MAKE_TEST(test_ftable_simple),
       MAKE_TEST(test_ftable_with_eof),

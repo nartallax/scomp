@@ -42,7 +42,7 @@ void _writer_allocate_next_buffer(writer *writer) {
     byte **existing_buffer_slot = queue_pop(&writer->free_buffers);
     buffer = *existing_buffer_slot;
   } else {
-    buffer = context_allocate_zero_init(writer->context, writer->single_buffer_byte_size, sizeof(byte));
+    buffer = context_allocate(writer->context, writer->single_buffer_byte_size, sizeof(byte));
   }
 
   if (buffer) {
@@ -117,6 +117,20 @@ NODISCARD bool writer_init(writer *w, context *context, size_t single_buffer_byt
   }
 
   return true;
+}
+
+/** Resets offset writer uses to locate end of current buffer.
+This leads writer to overwrite values already in the buffer, effectively reusing it.
+Existing data in the buffer will be lost. */
+void writer_reset_current_buffer(writer *w) {
+  w->current_bit_index = 0;
+}
+
+/** Returns the buffer writer is currently writing into without consuming it. */
+buffer writer_peek_current_buffer(writer *w) {
+  byte **slot = queue_peek_tail(&w->buffers);
+  byte *tail_buffer = *slot;
+  return (buffer){.data = tail_buffer, .length = ((w->current_bit_index + 7) >> 3)};
 }
 
 /** Returns oldest non-consumed buffer full of bytes, with length of `writer->size`.
@@ -204,7 +218,17 @@ void writer_write_bit(writer *writer, byte bit) {
   assert(bit == 1 || bit == 0);
   byte **slot = queue_peek_tail(&writer->buffers);
   byte *tail_buffer = *slot;
-  tail_buffer[writer->current_bit_index >> 3] |= bit << (writer->current_bit_index & 7);
+  byte b = tail_buffer[writer->current_bit_index >> 3];
+  // TODO: faster way to do this?
+  if ((writer->current_bit_index & 0x07) == 0) {
+    // we could zero-init buffers on allocation
+    // but that will negatively affect mode when consumers write whole bytes, and reuse buffers
+    // because those buffers will need to be cleaned for nothing, as data in them will be overwritten anyways
+    // so we zero-init individual bytes on write
+    b = 0;
+  }
+  b |= bit << (writer->current_bit_index & 7);
+  tail_buffer[writer->current_bit_index >> 3] = b;
   writer->current_bit_index++;
   _writer_maybe_allocate_next_buffer(writer);
 }
@@ -218,29 +242,19 @@ void writer_write_byte(writer *writer, byte value) {
   _writer_maybe_allocate_next_buffer(writer);
 }
 
-/** Like `writer_supply_dirty_buffer()`, but assumes that buffer is already zero-initialized. */
-NODISCARD bool writer_supply_zeroinit_buffer(writer *writer, byte *buffer) {
+/** Provide writer with a buffer. Buffer must have length of `writer->size`.
+Buffer will be used as a normal writer buffer.
+Returns false in case of allocation errors.
+
+Idea behind this method is to reduce amount of allocations.
+If mode of consumption allows you to retain buffers - might as well reuse them. */
+NODISCARD bool writer_supply_buffer(writer *writer, byte *buffer) {
   byte **slot = queue_push(&writer->free_buffers);
   if (!slot) {
     return false;
   }
   *slot = buffer;
   return true;
-}
-
-/** Provide writer with a buffer. Buffer must have length of `writer->size`.
-Buffer will be zero-filled, and then reused as a normal writer buffer.
-Returns false in case of allocation errors.
-
-Idea behind this method is to reduce amount of allocations.
-If mode of consumption allows you to retain buffers - might as well reuse them. */
-NODISCARD bool writer_supply_dirty_buffer(writer *writer, byte *buffer) {
-  // TODO: this sucks. if we are writing whole bytes - we don't care about previous trash in the buffer
-  // I need to think about a better way to zero out buffer during writing
-  for (size_t i = 0; i < writer->single_buffer_byte_size; i++) {
-    buffer[i] = 0;
-  }
-  return writer_supply_zeroinit_buffer(writer, buffer);
 }
 
 // TODO: unicode-aware string compression
