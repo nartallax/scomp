@@ -504,7 +504,7 @@ NODISCARD bool json_tokenizer_push__new(json_tokenizer__new *t, byte b) {
         return true;
       }
     } else if (b == '.' && !(t->partial_number_token.flags & (JSON_NUMBER_HAS_EXPONENT | JSON_NUMBER_HAS_FRACTION))) {
-      // `1.1.1` is invalid; `1e1.1` is invalid
+      // `1.1.1` is invalid; `1..1` is invalid; `1e1.1` is invalid
       if (t->value_progress == 0) {
         // `-.1` is invalid
         return false;
@@ -513,7 +513,7 @@ NODISCARD bool json_tokenizer_push__new(json_tokenizer__new *t, byte b) {
       t->value_progress = 0;
       return true;
     } else if ((b == 'e' || b == 'E') && !(t->partial_number_token.flags & JSON_NUMBER_HAS_EXPONENT)) {
-      // `1e1e1` is invalid
+      // `1e1e1` is invalid, `1ee1` is invalid
       if (t->value_progress == 0) {
         // `1.e1` is invalid; `-e1` is invalid
         return false;
