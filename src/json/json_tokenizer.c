@@ -115,23 +115,30 @@ NODISCARD bool _jtok_start_value(json_tokenizer *t, json_state state) {
   return _jtok_push_state(t, state);
 }
 
+constexpr byte _JTOK_NULL_START = _JTOK_NULL_BYTES[0];
+constexpr byte _JTOK_TRUE_START = _JTOK_TRUE_BYTES[0];
+constexpr byte _JTOK_FALSE_START = _JTOK_FALSE_BYTES[0];
+
 // TODO: test what will happen if stack push fails on every value
 // TODO: test what will happen if broken json is detected on every value
 NODISCARD bool _jtok_try_value(json_tokenizer *t, byte b) {
   switch (b) {
   case '"':
+    _jtok_push_simple_token(t, JSON_TOKEN_QUOTES);
     return _jtok_start_value(t, JSON_STATE_STRING);
   case '{':
+    _jtok_push_simple_token(t, JSON_TOKEN_OBJECT_OPEN);
     return _jtok_start_value(t, JSON_STATE_OBJECT_START);
   case '[':
+    _jtok_push_simple_token(t, JSON_TOKEN_ARRAY_OPEN);
     return _jtok_start_value(t, JSON_STATE_ARRAY_START);
-  case _JTOK_NULL_BYTES[0]:
+  case _JTOK_NULL_START:
     t->value_progress = 1;
     return _jtok_start_value(t, JSON_STATE_NULL);
-  case _JTOK_TRUE_BYTES[0]:
+  case _JTOK_TRUE_START:
     t->value_progress = 1;
     return _jtok_start_value(t, JSON_STATE_TRUE);
-  case _JTOK_FALSE_BYTES[0]:
+  case _JTOK_FALSE_START:
     t->value_progress = 1;
     return _jtok_start_value(t, JSON_STATE_FALSE);
   case '-':
@@ -207,21 +214,21 @@ size_t json_tokenizer_render_partial_token(json_tokenizer *t, writer *w) {
     return t->value_progress;
   case JSON_STATE_ESCAPED_CHARACTER: {
     json_token token;
-    token.kind = JSON_TOKEN_ESCAPED_CHARACTER;
+    token.kind = JSON_TOKEN_ESCAPE_SEQUENCE;
     token.character.character = 'n';
     json_detokenizer_write(w, &token);
   }
     return 1;
   case JSON_STATE_ESCAPED_CHARCODE: {
     json_token token;
-    token.kind = JSON_TOKEN_ESCAPED_CHARCODE;
+    token.kind = JSON_TOKEN_ESCAPED_UNICODE_CHARCODE;
     token.unicode_character = t->partial_unicode_token;
     json_detokenizer_write(w, &token);
   }
     return t->value_progress + 2;
   case JSON_STATE_UNICODE_CHARACTER: {
     json_token token;
-    token.kind = JSON_TOKEN_CHARACTER;
+    token.kind = JSON_TOKEN_UNICODE_CHARACTER;
     token.unicode_character = t->partial_unicode_token;
     json_detokenizer_write(w, &token);
   }
@@ -358,8 +365,7 @@ NODISCARD bool json_tokenizer_push(json_tokenizer *t, byte b) {
       }
       return true;
     } else if (b == '\\') {
-      _jtok_push_simple_token(t, JSON_TOKEN_ESCAPED_CHARACTER);
-      return true;
+      return _jtok_push_state(t, JSON_STATE_ESCAPED_CHARACTER);
     } else {
       size_t utf8_length = utf8_get_sequence_length_by_first_byte(b);
       if (utf8_length == 0) {
@@ -372,7 +378,7 @@ NODISCARD bool json_tokenizer_push(json_tokenizer *t, byte b) {
           // unescaped control characters are not valid in JSON
           return false;
         }
-        _jtok_push_unicode_token(t, JSON_TOKEN_CHARACTER);
+        _jtok_push_unicode_token(t, JSON_TOKEN_UNICODE_CHARACTER);
         return true;
       }
       t->value_progress = 1;
@@ -385,18 +391,19 @@ NODISCARD bool json_tokenizer_push(json_tokenizer *t, byte b) {
     t->partial_unicode_token.value |= ((uint64_t)b) << (8 * t->value_progress);
     t->value_progress++;
     if (t->value_progress == t->partial_unicode_token.length) {
-      _jtok_push_unicode_token(t, JSON_TOKEN_CHARACTER);
+      _jtok_push_unicode_token(t, JSON_TOKEN_UNICODE_CHARACTER);
       bfstack_pop(&t->state_stack);
     }
     return true;
   case JSON_STATE_ESCAPED_CHARACTER:
     if (b == '\\' || b == '"' || b == '/' || b == 'b' || b == 'f' || b == 'n' || b == 'r' || b == 't') {
-      _jtok_push_character_token(t, JSON_TOKEN_ESCAPED_CHARACTER, b);
+      _jtok_push_character_token(t, JSON_TOKEN_ESCAPE_SEQUENCE, b);
       bfstack_pop(&t->state_stack);
       return true;
     } else if (b == 'u') {
       t->partial_unicode_token.length = 4;
-      return _jtok_push_state(t, JSON_STATE_ESCAPED_CHARCODE);
+      bfstack_replace(&t->state_stack, JSON_STATE_ESCAPED_CHARCODE);
+      return true;
     } else {
       return false;
     }
@@ -410,7 +417,7 @@ NODISCARD bool json_tokenizer_push(json_tokenizer *t, byte b) {
     t->value_progress++;
     if (t->value_progress == 4) {
       bfstack_pop(&t->state_stack);
-      _jtok_push_unicode_token(t, JSON_TOKEN_CHARACTER);
+      _jtok_push_unicode_token(t, JSON_TOKEN_ESCAPED_UNICODE_CHARCODE);
     }
     return true;
   case JSON_STATE_NUMBER:
@@ -440,16 +447,16 @@ NODISCARD bool json_tokenizer_push(json_tokenizer *t, byte b) {
         return true;
       } else {
         if (t->partial_number_token.flags & JSON_NUMBER_IS_ZERO) {
-          // TODO: do we have those in tests? and others mentioned her
           // `01` is invalid, `-01` is invalid
           return false;
         }
         if (_jtok_uint64_will_overflow(t->partial_number_token.integer_part, digit)) {
           return false;
         }
-        t->partial_number_token.fraction_part = (t->partial_number_token.fraction_part * 10) + digit;
         if (digit == 0 && t->value_progress == 0) {
           t->partial_number_token.flags |= JSON_NUMBER_IS_ZERO;
+        } else {
+          t->partial_number_token.integer_part = (t->partial_number_token.integer_part * 10) + digit;
         }
         t->value_progress++;
         return true;
@@ -466,8 +473,13 @@ NODISCARD bool json_tokenizer_push(json_tokenizer *t, byte b) {
     } else if ((b == 'e' || b == 'E') && !(t->partial_number_token.flags & JSON_NUMBER_HAS_EXPONENT)) {
       // `1e1e1` is invalid, `1ee1` is invalid
       if (t->value_progress == 0) {
-        // `1.e1` is invalid; `-e1` is invalid
-        return false;
+        if (t->partial_number_token.flags & JSON_NUMBER_HAS_FRACTION) {
+          if (t->partial_number_token.fraction_leading_zeroes == 0) {
+            return false; // `1.e1` is invalid
+          }
+        } else {
+          return false; // `-e1` is invalid
+        }
       }
       t->partial_number_token.flags |= JSON_NUMBER_HAS_EXPONENT;
       if (b == 'E') {
@@ -481,10 +493,19 @@ NODISCARD bool json_tokenizer_push(json_tokenizer *t, byte b) {
       t->partial_number_token.flags |= b == '-' ? JSON_NUMBER_EXPONENT_IS_NEGATIVE : JSON_NUMBER_EXPONENT_HAS_PLUS;
       return true;
     } else {
-      // it's something else. time to terminate the token
+      // it's not a part of a number. time to terminate the token
       if (t->value_progress == 0) {
-        // `-true` is invalid; `1.true` is invalid; `1etrue` is invalid
-        return false;
+        if (t->partial_number_token.flags & JSON_NUMBER_HAS_EXPONENT) {
+          if (t->partial_number_token.exponent_leading_zeroes == 0) {
+            return false; // `1e ` is invalid
+          }
+        } else if (t->partial_number_token.flags & JSON_NUMBER_HAS_FRACTION) {
+          if (t->partial_number_token.fraction_leading_zeroes == 0) {
+            return false; // `1. ` is invalid
+          }
+        } else {
+          return false; // `- ` is invalid
+        }
       }
       _jtok_push_number_token(t);
       _jtok_pop_state_after_reading_value(t);

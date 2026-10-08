@@ -1,7 +1,6 @@
 #pragma once
-#import "../commons.c"
+#include "../commons.c"
 
-// TODO: test if nesting below the limit actually works
 /** Max length of state stack. Limits nesting.
 Exists to prevent memory overflow in case when the input is infinite number of '[' */
 constexpr size_t JSON_MAX_STATE_STACK_LENGTH = 512;
@@ -16,6 +15,7 @@ constexpr size_t JSON_MAX_SINGLE_TOKEN_LENGTH = 128;
 It's possible to have in theory many more leading zeroes, especially in fractions, but it's just about never happens in real life. */
 constexpr size_t JSON_MAX_LEADING_ZEROES = 32;
 
+// TODO: is it faster to hardcode it everywhere?
 constexpr byte _JTOK_TRUE_BYTES[] = {'t', 'r', 'u', 'e'};
 constexpr byte _JTOK_FALSE_BYTES[] = {'f', 'a', 'l', 's', 'e'};
 constexpr byte _JTOK_NULL_BYTES[] = {'n', 'u', 'l', 'l'};
@@ -37,12 +37,12 @@ typedef enum {
   JSON_TOKEN_BOM,             // byte-order mark that may appear at the start of the JSON
 
   // character tokens
-  JSON_TOKEN_WHITESPACE,        // ' ', '\n', '\r', '\t' between elements and commas
-  JSON_TOKEN_ESCAPED_CHARACTER, // \n, \r, \\ and other single-character escape sequences within a string
+  JSON_TOKEN_WHITESPACE,      // ' ', '\n', '\r', '\t' between elements and commas
+  JSON_TOKEN_ESCAPE_SEQUENCE, // \n, \r, \\ and other single-character escape sequences within a string
 
   // unicode tokens
-  JSON_TOKEN_CHARACTER,        // normal, non-escaped element of a string. one unicode codepoint; `value` contains sequence of utf-8 bytes merged into one uint64, not decoded codepoint
-  JSON_TOKEN_ESCAPED_CHARCODE, // \u1234
+  JSON_TOKEN_UNICODE_CHARACTER,        // normal, non-escaped element of a string. one unicode codepoint; `value` contains sequence of utf-8 bytes merged into one uint64, not decoded codepoint
+  JSON_TOKEN_ESCAPED_UNICODE_CHARCODE, // \u1234
 
   // number tokens
   JSON_TOKEN_NUMBER, // 12.345, 1e10. every number that is not 64-bit safe integer

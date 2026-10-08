@@ -65,11 +65,11 @@ size_t json_detokenizer_write(writer *w, json_token *token) {
   case JSON_TOKEN_WHITESPACE:
     writer_write_byte(w, token->character.character);
     return 1;
-  case JSON_TOKEN_ESCAPED_CHARACTER:
+  case JSON_TOKEN_ESCAPE_SEQUENCE:
     writer_write_byte(w, '\\');
     writer_write_byte(w, token->character.character);
     return 2;
-  case JSON_TOKEN_CHARACTER: {
+  case JSON_TOKEN_UNICODE_CHARACTER: {
     uint64_t chars = token->unicode_character.value;
     for (size_t i = 0; i < token->unicode_character.length; i++) {
       writer_write_byte(w, chars & 0xff);
@@ -77,7 +77,7 @@ size_t json_detokenizer_write(writer *w, json_token *token) {
     }
   }
     return token->unicode_character.length;
-  case JSON_TOKEN_ESCAPED_CHARCODE: {
+  case JSON_TOKEN_ESCAPED_UNICODE_CHARCODE: {
     uint64_t chars = token->unicode_character.value;
     writer_write_byte(w, '\\');
     writer_write_byte(w, 'u');
