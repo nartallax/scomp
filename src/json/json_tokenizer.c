@@ -88,6 +88,7 @@ void _jtok_push_unicode_token(json_tokenizer *t, json_token_kind kind) {
   json_token *slot = fqueue_push(&t->token_queue);
   slot->kind = kind;
   slot->unicode_character = t->partial_unicode_token;
+  t->partial_unicode_token = (json_unicode_token){0};
   t->value_progress = 0;
 }
 
@@ -96,7 +97,6 @@ void _jtok_push_number_token(json_tokenizer *t) {
   slot->kind = JSON_TOKEN_NUMBER;
   slot->number = t->partial_number_token;
   t->partial_number_token = (json_number_token){0};
-  t->partial_unicode_token = (json_unicode_token){0};
   t->value_progress = 0;
 }
 
@@ -521,4 +521,25 @@ You can reset the tokenizer if you want to reuse it. */
 bool json_tokenizer_is_done(json_tokenizer *t) {
   json_state state = bfstack_peek(&t->state_stack);
   return state == JSON_STATE_ROOT;
+}
+
+/** If there is some token in building and calling code reached the end of the stream -
+this function can be called to flush the token.
+returns false if token is in invalid state. */
+NODISCARD bool json_tokenizer_flush(json_tokenizer *t) {
+  // this is a hack, but it's better than replicating logic about properly closing every single token
+  if (!json_tokenizer_push(t, ' ')) {
+    return false;
+  }
+  size_t tokens_in_queue = fqueue_get_count(&t->token_queue);
+  if (tokens_in_queue == 1) {
+    fqueue_pop(&t->token_queue); // whitespace
+  } else if (tokens_in_queue == 2) {
+    json_token first_token = *(json_token *)fqueue_pop(&t->token_queue);
+    fqueue_pop(&t->token_queue); // whitespace
+    json_token *slot = fqueue_push(&t->token_queue);
+    *slot = first_token;
+  }
+
+  return true;
 }

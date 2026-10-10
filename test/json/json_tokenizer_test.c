@@ -663,8 +663,8 @@ const char *test_json_tokenizer_stack_limitations() {
   queue q;
   char *long_string_with_repeats;
 
-  TEST_ASSERT(queue_init(&q, test_context, sizeof(json_token), 4));
   setup_test_context_default();
+  TEST_ASSERT(queue_init(&q, test_context, sizeof(json_token), 4));
   TEST_ASSERT(json_tokenizer_init(&t, test_context));
   long_string_with_repeats = string_repeat("[", 1, JSON_MAX_STATE_STACK_LENGTH);
   TEST_ASSERT(!test_json_tokenizer_push_string(&t, &q, long_string_with_repeats));
@@ -684,8 +684,8 @@ const char *test_json_tokenizer_stack_limitations() {
   json_tokenizer_deinit(&t, test_context);
   queue_deinit(&q, test_context);
 
-  TEST_ASSERT(queue_init(&q, test_context, sizeof(json_token), 4));
   setup_test_context_default();
+  TEST_ASSERT(queue_init(&q, test_context, sizeof(json_token), 4));
   TEST_ASSERT(json_tokenizer_init(&t, test_context));
   long_string_with_repeats = string_repeat("{\"a\":", 5, JSON_MAX_STATE_STACK_LENGTH - 2);
   TEST_ASSERT(test_json_tokenizer_push_string(&t, &q, long_string_with_repeats));
