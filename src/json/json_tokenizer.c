@@ -233,23 +233,12 @@ size_t json_tokenizer_render_partial_token(json_tokenizer *t, writer *w) {
     json_detokenizer_write(w, &token);
   }
     return t->value_progress;
-  case JSON_STATE_NUMBER: {
+  case JSON_STATE_NUMBER:
     json_token token;
     token.kind = JSON_TOKEN_NUMBER;
     token.number = t->partial_number_token;
     return json_detokenizer_write(w, &token);
-  }
-  case JSON_STATE_START:
-  case JSON_STATE_ROOT:
-  case JSON_STATE_OBJECT_KV_SEPARATOR:
-  case JSON_STATE_STRING:
-  case JSON_STATE_OBJECT_KEY:
-  case JSON_STATE_OBJECT_KEY_START:
-  case JSON_STATE_VALUE:
-  case JSON_STATE_ARRAY_START:
-  case JSON_STATE_ARRAY_CONTINUE:
-  case JSON_STATE_OBJECT_START:
-  case JSON_STATE_OBJECT_CONTINUE:
+  default:
     // nothing to write, no pending token
     return 0;
   }

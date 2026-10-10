@@ -740,13 +740,136 @@ const char *test_json_tokenizer_state_management() {
   TEST_ASSERT(test_json_tokenizer_will_parse(fmt, "[1], ", times));
   TEST_ASSERT(test_json_tokenizer_will_parse(fmt, "{}, ", times));
   TEST_ASSERT(test_json_tokenizer_will_parse(fmt, "{\"key\":\"value\"}, ", times));
-  TEST_ASSERT(test_json_tokenizer_will_parse(fmt, "\"12345678910\", ", times));
+  TEST_ASSERT(test_json_tokenizer_will_parse(fmt, "\"12345678910, ня!\", ", times));
   TEST_ASSERT(test_json_tokenizer_will_parse(fmt, "\"\\n\\r\\t\\f\\\\\", ", times));
   TEST_ASSERT(test_json_tokenizer_will_parse(fmt, "\"\\u1234\\ubeEF\", ", times));
   TEST_ASSERT(test_json_tokenizer_will_parse(fmt, "123456, ", times));
   TEST_ASSERT(test_json_tokenizer_will_parse(fmt, "123456.123456, ", times));
   TEST_ASSERT(test_json_tokenizer_will_parse(fmt, "123456.123456e1234, ", times));
   TEST_ASSERT(test_json_tokenizer_will_parse(fmt, "-123456.123456E-1234, ", times));
+
+  return NULL;
+}
+
+bool test_json_tokenizer_breakage(const char *src) {
+  writer w;
+  writer tmp_writer;
+  json_tokenizer t;
+  if (!json_tokenizer_init(&t, test_context)) {
+    printf("Failed to init\n");
+    return false;
+  }
+
+  if (!writer_init(&w, test_context, 256, 4)) {
+    printf("Failed to init\n");
+    return false;
+  }
+
+  if (!writer_init(&tmp_writer, test_context, 256, 4)) {
+    printf("Failed to init\n");
+    return false;
+  }
+
+  bool has_breakage = false;
+  size_t bytes_written_before_breakage = 0;
+  for (; src[bytes_written_before_breakage] != 0; bytes_written_before_breakage++) {
+    if (!json_tokenizer_push(&t, src[bytes_written_before_breakage])) {
+      has_breakage = true;
+      break;
+    }
+
+    json_token *token;
+    while (true) {
+      token = json_tokenizer_consume(&t);
+      if (!token) {
+        break;
+      }
+      json_detokenizer_write(&w, token);
+    }
+  }
+
+  json_token *token;
+  while (true) {
+    token = json_tokenizer_consume(&t);
+    if (!token) {
+      break;
+    }
+    json_detokenizer_write(&w, token);
+  }
+
+  if (!has_breakage && json_tokenizer_is_done(&t)) {
+    printf("Expected to had breakage, but didnt: for %s\n", src);
+    return false;
+  }
+
+  size_t bytes_written = json_tokenizer_render_partial_token(&t, &tmp_writer);
+  buffer tmp_result = writer_peek_current_buffer(&tmp_writer);
+  for (size_t i = 0; i < bytes_written; i++) {
+    writer_write_byte(&w, tmp_result.data[i]);
+  }
+  size_t src_len = strlen(src);
+  for (size_t i = bytes_written_before_breakage; i < src_len; i++) {
+    writer_write_byte(&w, src[i]);
+  }
+
+  buffer_or_error reprint_or_error = writer_consume_all_buffers(&w);
+  if (reprint_or_error.is_error) {
+    printf("Error producing buffer\n");
+    return false;
+  }
+  buffer reprint = reprint_or_error.buffer;
+
+  for (size_t i = 0; src[i] != 0 && i < reprint.length; i++) {
+    if ((byte)src[i] != reprint.data[i]) {
+      printf("Failed to reprint (mismatch at %zu: %i vs %i) %s: reprinted as %.*s\n", i, (byte)src[i], reprint.data[i], src, (int)reprint.length, reprint.data);
+      return false;
+    }
+  }
+
+  if (src_len != reprint.length) {
+    printf("Failed to reprint (length mismatch) %s: reprinted as %.*s\n", src, (int)reprint.length, reprint.data);
+    return false;
+  }
+
+  free(reprint.data);
+
+  json_tokenizer_deinit(&t, test_context);
+  writer_deinit(&w, test_context);
+  writer_deinit(&tmp_writer, test_context);
+  return true;
+}
+
+bool test_json_tokenizer_breakage_with_suffixes(const char *src) {
+  size_t src_len = strlen(src);
+  char *input = malloc(sizeof(char) * (src_len + 1));
+  input[src_len] = 0;
+  for (size_t i = 0; i < src_len; i++) {
+    input[i] = 'X';
+  }
+
+  for (size_t i = 0; i < src_len; i++) {
+    if (!test_json_tokenizer_breakage(input)) {
+      return false;
+    }
+    input[i] = src[i];
+  }
+
+  free(input);
+  return true;
+}
+
+const char *test_json_tokenizer_broken_json_recovery() {
+  TEST_ASSERT(test_json_tokenizer_breakage_with_suffixes("true"));
+  TEST_ASSERT(test_json_tokenizer_breakage_with_suffixes("false"));
+  TEST_ASSERT(test_json_tokenizer_breakage_with_suffixes("null"));
+  const char utf8_bom_zeroterminated[4] = {UTF8_BOM[0], UTF8_BOM[1], UTF8_BOM[2], 0};
+  TEST_ASSERT(test_json_tokenizer_breakage_with_suffixes(utf8_bom_zeroterminated));
+  TEST_ASSERT(test_json_tokenizer_breakage_with_suffixes("[-0, -1, -2]"));
+  TEST_ASSERT(test_json_tokenizer_breakage_with_suffixes("[-01.01e02, -1.02e03, -2.03E04]"));
+  TEST_ASSERT(test_json_tokenizer_breakage_with_suffixes("\"\\n\\r\\t\\\"\\\\\""));
+  TEST_ASSERT(test_json_tokenizer_breakage_with_suffixes("\"\\u1234\\uBeEf\""));
+  TEST_ASSERT(test_json_tokenizer_breakage_with_suffixes("\"Привет, мир!\""));
+  TEST_ASSERT(test_json_tokenizer_breakage_with_suffixes("{\"key\":\"value\"}"));
 
   return NULL;
 }

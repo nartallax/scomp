@@ -77,6 +77,7 @@ int main() {
       MAKE_TEST(test_json_tokenizer_bom),
       MAKE_TEST(test_json_tokenizer_stack_limitations),
       MAKE_TEST(test_json_tokenizer_state_management),
+      MAKE_TEST(test_json_tokenizer_broken_json_recovery),
       MAKE_TEST(test_json_tokenizer_allocation_failures),
       MAKE_TEST(test_jsons_of_test_suite),
       MAKE_TEST(test_json_detokenizer_simple),
