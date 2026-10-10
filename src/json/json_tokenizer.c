@@ -119,39 +119,62 @@ constexpr byte _JTOK_NULL_START = _JTOK_NULL_BYTES[0];
 constexpr byte _JTOK_TRUE_START = _JTOK_TRUE_BYTES[0];
 constexpr byte _JTOK_FALSE_START = _JTOK_FALSE_BYTES[0];
 
-// TODO: test what will happen if stack push fails on every value
-// TODO: test what will happen if broken json is detected on every value
 NODISCARD bool _jtok_try_value(json_tokenizer *t, byte b) {
+  bool is_state_updated;
   switch (b) {
   case '"':
-    _jtok_push_simple_token(t, JSON_TOKEN_QUOTES);
-    return _jtok_start_value(t, JSON_STATE_STRING);
+    is_state_updated = _jtok_start_value(t, JSON_STATE_STRING);
+    if (is_state_updated) {
+      _jtok_push_simple_token(t, JSON_TOKEN_QUOTES);
+    }
+    return is_state_updated;
   case '{':
-    _jtok_push_simple_token(t, JSON_TOKEN_OBJECT_OPEN);
-    return _jtok_start_value(t, JSON_STATE_OBJECT_START);
+    is_state_updated = _jtok_start_value(t, JSON_STATE_OBJECT_START);
+    if (is_state_updated) {
+      _jtok_push_simple_token(t, JSON_TOKEN_OBJECT_OPEN);
+    }
+    return is_state_updated;
   case '[':
-    _jtok_push_simple_token(t, JSON_TOKEN_ARRAY_OPEN);
-    return _jtok_start_value(t, JSON_STATE_ARRAY_START);
+    is_state_updated = _jtok_start_value(t, JSON_STATE_ARRAY_START);
+    if (is_state_updated) {
+      _jtok_push_simple_token(t, JSON_TOKEN_ARRAY_OPEN);
+    }
+    return is_state_updated;
   case _JTOK_NULL_START:
-    t->value_progress = 1;
-    return _jtok_start_value(t, JSON_STATE_NULL);
+    is_state_updated = _jtok_start_value(t, JSON_STATE_NULL);
+    if (is_state_updated) {
+      t->value_progress = 1;
+    }
+    return is_state_updated;
   case _JTOK_TRUE_START:
-    t->value_progress = 1;
-    return _jtok_start_value(t, JSON_STATE_TRUE);
+    is_state_updated = _jtok_start_value(t, JSON_STATE_TRUE);
+    if (is_state_updated) {
+      t->value_progress = 1;
+    }
+    return is_state_updated;
   case _JTOK_FALSE_START:
-    t->value_progress = 1;
-    return _jtok_start_value(t, JSON_STATE_FALSE);
+    is_state_updated = _jtok_start_value(t, JSON_STATE_FALSE);
+    if (is_state_updated) {
+      t->value_progress = 1;
+    }
+    return is_state_updated;
   case '-':
-    t->partial_number_token.flags |= JSON_NUMBER_IS_NEGATIVE;
-    return _jtok_start_value(t, JSON_STATE_NUMBER);
+    is_state_updated = _jtok_start_value(t, JSON_STATE_NUMBER);
+    if (is_state_updated) {
+      t->partial_number_token.flags |= JSON_NUMBER_IS_NEGATIVE;
+    }
+    return is_state_updated;
   default:
     if (b >= '0' && b <= '9') {
-      t->value_progress = 1;
-      t->partial_number_token.integer_part = b - '0';
-      if (b == '0') {
-        t->partial_number_token.flags |= JSON_NUMBER_IS_ZERO;
+      is_state_updated = _jtok_start_value(t, JSON_STATE_NUMBER);
+      if (is_state_updated) {
+        t->value_progress = 1;
+        t->partial_number_token.integer_part = b - '0';
+        if (b == '0') {
+          t->partial_number_token.flags |= JSON_NUMBER_IS_ZERO;
+        }
       }
-      return _jtok_start_value(t, JSON_STATE_NUMBER);
+      return is_state_updated;
     }
     return false;
   }
@@ -260,12 +283,13 @@ NODISCARD bool json_tokenizer_push(json_tokenizer *t, byte b) {
   case JSON_STATE_ROOT:
     return _jtok_try_whitespace(t, b);
   case JSON_STATE_START:
-    bfstack_pop(&t->state_stack);
     if (b == UTF8_BOM[0]) {
       t->value_progress = 1;
-      return _jtok_push_state(t, JSON_STATE_BOM);
+      bfstack_replace(&t->state_stack, JSON_STATE_BOM);
+      return true;
     } else {
-      return _jtok_push_state(t, JSON_STATE_VALUE) && json_tokenizer_push(t, b);
+      bfstack_replace(&t->state_stack, JSON_STATE_VALUE);
+      return json_tokenizer_push(t, b);
     }
   case JSON_STATE_VALUE:
     return _jtok_try_value(t, b) || _jtok_try_whitespace(t, b);
@@ -275,7 +299,9 @@ NODISCARD bool json_tokenizer_push(json_tokenizer *t, byte b) {
     }
     // check if BOM is parsed - this will reset the state
     if (t->value_progress == 0) {
-      return _jtok_push_state(t, JSON_STATE_VALUE);
+      bool is_state_updated = _jtok_push_state(t, JSON_STATE_VALUE);
+      assert(is_state_updated && "This state push should be always successful, as we just finished reading BOM, which popped its state");
+      return is_state_updated;
     }
     return true;
   case JSON_STATE_TRUE:
@@ -290,7 +316,7 @@ NODISCARD bool json_tokenizer_push(json_tokenizer *t, byte b) {
       _jtok_pop_state_after_reading_value(t);
       return true;
     }
-    return _jtok_try_whitespace(t, b) || _jtok_try_value(t, b);
+    return _jtok_try_value(t, b) || _jtok_try_whitespace(t, b);
 
   case JSON_STATE_ARRAY_CONTINUE:
     if (b == ']') {
@@ -298,8 +324,10 @@ NODISCARD bool json_tokenizer_push(json_tokenizer *t, byte b) {
       _jtok_pop_state_after_reading_value(t);
       return true;
     } else if (b == ',') {
+      bool is_state_updated = _jtok_push_state(t, JSON_STATE_VALUE);
+      assert(is_state_updated && "This state push should be always successful, as we just finished reading some value, which popped its state");
       _jtok_push_simple_token(t, JSON_TOKEN_COMMA);
-      return _jtok_push_state(t, JSON_STATE_VALUE);
+      return is_state_updated;
     } else {
       return _jtok_try_whitespace(t, b);
     }
@@ -309,8 +337,11 @@ NODISCARD bool json_tokenizer_push(json_tokenizer *t, byte b) {
       _jtok_pop_state_after_reading_value(t);
       return true;
     } else if (b == '"') {
-      _jtok_push_simple_token(t, JSON_TOKEN_QUOTES);
-      return _jtok_push_state(t, JSON_STATE_OBJECT_KEY);
+      bool is_state_updated = _jtok_push_state(t, JSON_STATE_OBJECT_KEY);
+      if (is_state_updated) {
+        _jtok_push_simple_token(t, JSON_TOKEN_QUOTES);
+      }
+      return is_state_updated;
     } else {
       return _jtok_try_whitespace(t, b);
     }
@@ -320,8 +351,10 @@ NODISCARD bool json_tokenizer_push(json_tokenizer *t, byte b) {
       _jtok_pop_state_after_reading_value(t);
       return true;
     } else if (b == ',') {
+      bool is_state_updated = _jtok_push_state(t, JSON_STATE_OBJECT_KEY_START);
+      assert(is_state_updated && "This state push should be always successful, as we just finished reading some value, which popped its state");
       _jtok_push_simple_token(t, JSON_TOKEN_COMMA);
-      return _jtok_push_state(t, JSON_STATE_OBJECT_KEY_START);
+      return is_state_updated;
     } else {
       return _jtok_try_whitespace(t, b);
     }
@@ -369,7 +402,11 @@ NODISCARD bool json_tokenizer_push(json_tokenizer *t, byte b) {
         return true;
       }
       t->value_progress = 1;
-      return _jtok_push_state(t, JSON_STATE_UNICODE_CHARACTER);
+      bool is_state_updated = _jtok_push_state(t, JSON_STATE_UNICODE_CHARACTER);
+      if (!is_state_updated) {
+        t->partial_unicode_token = (json_unicode_token){0};
+      }
+      return is_state_updated;
     }
   case JSON_STATE_UNICODE_CHARACTER:
     if (!utf8_is_valid_continuation_byte(b)) {

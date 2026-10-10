@@ -874,6 +874,113 @@ const char *test_json_tokenizer_broken_json_recovery() {
   return NULL;
 }
 
+bool test_json_tokenizer_stack_push_fail(const char *src, int pushes_before_failure) {
+  writer w;
+  writer tmp_writer;
+  json_tokenizer t;
+  if (!json_tokenizer_init(&t, test_context)) {
+    printf("Failed to init\n");
+    return false;
+  }
+
+  if (!writer_init(&w, test_context, 256, 4)) {
+    printf("Failed to init\n");
+    return false;
+  }
+
+  if (!writer_init(&tmp_writer, test_context, 256, 4)) {
+    printf("Failed to init\n");
+    return false;
+  }
+
+  // bit weird to do it like that, but it's the easiest way to get tokenizer to that state
+  t.state_stack.byte_length = t.state_stack.index + pushes_before_failure;
+  bool has_breakage = false;
+  size_t bytes_written_before_breakage = 0;
+  for (; src[bytes_written_before_breakage] != 0; bytes_written_before_breakage++) {
+    if (!json_tokenizer_push(&t, src[bytes_written_before_breakage])) {
+      has_breakage = true;
+      break;
+    }
+
+    json_token *token;
+    while (true) {
+      token = json_tokenizer_consume(&t);
+      if (!token) {
+        break;
+      }
+      json_detokenizer_write(&w, token);
+    }
+  }
+
+  json_token *token;
+  while (true) {
+    token = json_tokenizer_consume(&t);
+    if (!token) {
+      break;
+    }
+    json_detokenizer_write(&w, token);
+  }
+
+  if (!has_breakage) {
+    printf("Expected to had breakage, but didnt: for %s\n", src);
+    return false;
+  }
+
+  size_t bytes_written = json_tokenizer_render_partial_token(&t, &tmp_writer);
+  buffer tmp_result = writer_peek_current_buffer(&tmp_writer);
+  for (size_t i = 0; i < bytes_written; i++) {
+    writer_write_byte(&w, tmp_result.data[i]);
+  }
+  size_t src_len = strlen(src);
+  for (size_t i = bytes_written_before_breakage; i < src_len; i++) {
+    writer_write_byte(&w, src[i]);
+  }
+
+  buffer_or_error reprint_or_error = writer_consume_all_buffers(&w);
+  if (reprint_or_error.is_error) {
+    printf("Error producing buffer\n");
+    return false;
+  }
+  buffer reprint = reprint_or_error.buffer;
+
+  for (size_t i = 0; src[i] != 0 && i < reprint.length; i++) {
+    if ((byte)src[i] != reprint.data[i]) {
+      printf("Failed to reprint (mismatch at %zu: %i vs %i) %s: reprinted as %.*s\n", i, (byte)src[i], reprint.data[i], src, (int)reprint.length, reprint.data);
+      return false;
+    }
+  }
+
+  if (src_len != reprint.length) {
+    printf("Failed to reprint (length mismatch) %s: reprinted as %.*s\n", src, (int)reprint.length, reprint.data);
+    return false;
+  }
+
+  free(reprint.data);
+
+  json_tokenizer_deinit(&t, test_context);
+  writer_deinit(&w, test_context);
+  writer_deinit(&tmp_writer, test_context);
+  return true;
+}
+
+const char *test_json_tokenizer_stack_push_fails() {
+  TEST_ASSERT(test_json_tokenizer_stack_push_fail("[1,2]", 0));
+  TEST_ASSERT(test_json_tokenizer_stack_push_fail("[\"test\"]", 0));
+  TEST_ASSERT(test_json_tokenizer_stack_push_fail("[{}]", 0));
+  TEST_ASSERT(test_json_tokenizer_stack_push_fail("[[]]", 0));
+  TEST_ASSERT(test_json_tokenizer_stack_push_fail("[null]", 0));
+  TEST_ASSERT(test_json_tokenizer_stack_push_fail("[true]", 0));
+  TEST_ASSERT(test_json_tokenizer_stack_push_fail("[false]", 0));
+  TEST_ASSERT(test_json_tokenizer_stack_push_fail("[-0.1]", 0));
+  TEST_ASSERT(test_json_tokenizer_stack_push_fail("[0]", 0));
+  TEST_ASSERT(test_json_tokenizer_stack_push_fail("{\"key\": 1, \"key2\": 2}", 0));
+  TEST_ASSERT(test_json_tokenizer_stack_push_fail("\"\\n\"", 0));
+  TEST_ASSERT(test_json_tokenizer_stack_push_fail("\"\\u1234\"", 0));
+  TEST_ASSERT(test_json_tokenizer_stack_push_fail("\"Ж\"", 0));
+  return NULL;
+}
+
 const char *test_json_tokenizer_allocation_failures() {
   json_tokenizer t;
   setup_test_context(0);
