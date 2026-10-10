@@ -666,7 +666,7 @@ const char *test_json_tokenizer_stack_limitations() {
   setup_test_context_default();
   TEST_ASSERT(queue_init(&q, test_context, sizeof(json_token), 4));
   TEST_ASSERT(json_tokenizer_init(&t, test_context));
-  long_string_with_repeats = string_repeat("[", 1, JSON_MAX_STATE_STACK_LENGTH);
+  long_string_with_repeats = string_repeat("[", JSON_MAX_STATE_STACK_LENGTH);
   TEST_ASSERT(!test_json_tokenizer_push_string(&t, &q, long_string_with_repeats));
   free(long_string_with_repeats);
   json_tokenizer_deinit(&t, test_context);
@@ -675,7 +675,7 @@ const char *test_json_tokenizer_stack_limitations() {
   setup_test_context_default();
   TEST_ASSERT(queue_init(&q, test_context, sizeof(json_token), 4));
   TEST_ASSERT(json_tokenizer_init(&t, test_context));
-  long_string_with_repeats = string_repeat("[", 1, JSON_MAX_STATE_STACK_LENGTH - 1);
+  long_string_with_repeats = string_repeat("[", JSON_MAX_STATE_STACK_LENGTH - 1);
   TEST_ASSERT(test_json_tokenizer_push_string(&t, &q, long_string_with_repeats));
   free(long_string_with_repeats);
   queue_reset(&q);
@@ -687,7 +687,7 @@ const char *test_json_tokenizer_stack_limitations() {
   setup_test_context_default();
   TEST_ASSERT(queue_init(&q, test_context, sizeof(json_token), 4));
   TEST_ASSERT(json_tokenizer_init(&t, test_context));
-  long_string_with_repeats = string_repeat("{\"a\":", 5, JSON_MAX_STATE_STACK_LENGTH - 2);
+  long_string_with_repeats = string_repeat("{\"a\":", JSON_MAX_STATE_STACK_LENGTH - 2);
   TEST_ASSERT(test_json_tokenizer_push_string(&t, &q, long_string_with_repeats));
   free(long_string_with_repeats);
   queue_reset(&q);
@@ -696,6 +696,57 @@ const char *test_json_tokenizer_stack_limitations() {
   TEST_ASSERT(test_json_consume(&q) == NULL);
   json_tokenizer_deinit(&t, test_context);
   queue_deinit(&q, test_context);
+
+  return NULL;
+}
+
+bool test_json_tokenizer_will_parse(const char *format, const char *base, int times) {
+  char *src = string_repeat_sprintf(format, base, times);
+  json_tokenizer t;
+  if (!json_tokenizer_init(&t, test_context)) {
+    printf("Failed to init\n");
+    return false;
+  }
+
+  for (size_t i = 0; src[i] != 0; i++) {
+    if (!json_tokenizer_push(&t, src[i])) {
+      printf("Failed to push\n");
+      return false;
+    }
+
+    while (json_tokenizer_consume(&t)) {
+      // do nothing with the tokens, just free up the queue.
+    }
+  }
+
+  if (!json_tokenizer_is_done(&t)) {
+    printf("Not done after all is pushed\n");
+    return false;
+  }
+
+  json_tokenizer_deinit(&t, test_context);
+  free(src);
+  return true;
+}
+
+// this tests exists to check if I screwed up in pushing/popping/replacing states somewhere
+const char *test_json_tokenizer_state_management() {
+  size_t times = JSON_MAX_STATE_STACK_LENGTH * 3;
+  const char *fmt = "[%s true]";
+  TEST_ASSERT(test_json_tokenizer_will_parse(fmt, "true, ", times));
+  TEST_ASSERT(test_json_tokenizer_will_parse(fmt, "false, ", times));
+  TEST_ASSERT(test_json_tokenizer_will_parse(fmt, "null, ", times));
+  TEST_ASSERT(test_json_tokenizer_will_parse(fmt, "[], ", times));
+  TEST_ASSERT(test_json_tokenizer_will_parse(fmt, "[1], ", times));
+  TEST_ASSERT(test_json_tokenizer_will_parse(fmt, "{}, ", times));
+  TEST_ASSERT(test_json_tokenizer_will_parse(fmt, "{\"key\":\"value\"}, ", times));
+  TEST_ASSERT(test_json_tokenizer_will_parse(fmt, "\"12345678910\", ", times));
+  TEST_ASSERT(test_json_tokenizer_will_parse(fmt, "\"\\n\\r\\t\\f\\\\\", ", times));
+  TEST_ASSERT(test_json_tokenizer_will_parse(fmt, "\"\\u1234\\ubeEF\", ", times));
+  TEST_ASSERT(test_json_tokenizer_will_parse(fmt, "123456, ", times));
+  TEST_ASSERT(test_json_tokenizer_will_parse(fmt, "123456.123456, ", times));
+  TEST_ASSERT(test_json_tokenizer_will_parse(fmt, "123456.123456e1234, ", times));
+  TEST_ASSERT(test_json_tokenizer_will_parse(fmt, "-123456.123456E-1234, ", times));
 
   return NULL;
 }

@@ -86,7 +86,8 @@ void setup_test_context_default() {
   setup_test_context(-1);
 }
 
-char *string_repeat(const char *base, size_t length, int times) {
+char *string_repeat(const char *base, int times) {
+  size_t length = strlen(base);
   size_t result_length = (times * length) + 1;
   char *result = malloc(sizeof(char) * result_length);
   for (int i = 0; i < times; i++) {
@@ -95,6 +96,15 @@ char *string_repeat(const char *base, size_t length, int times) {
     }
   }
   result[result_length - 1] = 0;
+  return result;
+}
+
+char *string_repeat_sprintf(const char *format, const char *base, int times) {
+  char *rep = string_repeat(base, times);
+  size_t total_len = (strlen(format) * 10) + strlen(rep);
+  char *result = malloc(sizeof(char) * total_len);
+  snprintf(result, total_len, format, rep);
+  free(rep);
   return result;
 }
 

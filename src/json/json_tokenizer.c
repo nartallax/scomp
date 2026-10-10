@@ -344,8 +344,6 @@ NODISCARD bool json_tokenizer_push(json_tokenizer *t, byte b) {
     } else {
       return _jtok_try_whitespace(t, b);
     }
-    // TODO: test for an array with a lot of values, to see if I missed state management somewhere
-    // use all different kinds of values
   case JSON_STATE_OBJECT_KV_SEPARATOR:
     if (b == ':') {
       _jtok_push_simple_token(t, JSON_TOKEN_COLON);
