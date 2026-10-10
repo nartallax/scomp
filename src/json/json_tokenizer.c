@@ -280,8 +280,6 @@ After that you should deinit/reset the tokenizer. */
 NODISCARD bool json_tokenizer_push(json_tokenizer *t, byte b) {
   json_state state = bfstack_peek(&t->state_stack);
   switch (state) {
-  case JSON_STATE_ROOT:
-    return _jtok_try_whitespace(t, b);
   case JSON_STATE_START:
     if (b == UTF8_BOM[0]) {
       t->value_progress = 1;
@@ -535,6 +533,8 @@ NODISCARD bool json_tokenizer_push(json_tokenizer *t, byte b) {
       _jtok_pop_state_after_reading_value(t);
       return json_tokenizer_push(t, b);
     }
+  default: // JSON_STATE_ROOT as default for code coverage reasons
+    return _jtok_try_whitespace(t, b);
   }
 }
 
@@ -558,7 +558,8 @@ NODISCARD bool json_tokenizer_flush(json_tokenizer *t) {
   size_t tokens_in_queue = fqueue_get_count(&t->token_queue);
   if (tokens_in_queue == 1) {
     fqueue_pop(&t->token_queue); // whitespace
-  } else if (tokens_in_queue == 2) {
+  } else {
+    assert(tokens_in_queue == 2 && "Json tokenizer queue was not properly consumed before flushing");
     json_token first_token = *(json_token *)fqueue_pop(&t->token_queue);
     fqueue_pop(&t->token_queue); // whitespace
     json_token *slot = fqueue_push(&t->token_queue);
