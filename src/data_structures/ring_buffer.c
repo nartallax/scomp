@@ -20,7 +20,7 @@ NODISCARD bool ring_buffer_init(ring_buffer *rb, context *context, size_t length
   rb->length_mask = length - 1;
   rb->content_position = 0;
   rb->content = context_allocate_zero_init(context, length, sizeof(byte));
-  return !!rb->content;
+  return rb->content != NULL;
 }
 
 void ring_buffer_deinit(ring_buffer *rb, context *context) {

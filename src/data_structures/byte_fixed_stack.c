@@ -17,7 +17,7 @@ NODISCARD bool bfstack_init(byte_fixed_stack *stack, context *context, size_t it
   stack->byte_length = item_capacity;
   stack->index = 0;
   stack->values = context_allocate(context, stack->byte_length, sizeof(byte));
-  return !!stack->values;
+  return stack->values != NULL;
 }
 
 void bfstack_reset(byte_fixed_stack *stack) {

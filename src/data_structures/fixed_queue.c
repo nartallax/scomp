@@ -33,7 +33,7 @@ NODISCARD bool fqueue_init(fixed_queue *q, context *context, size_t value_size, 
   q->tail = 0;
   q->values = context_allocate(context, length, value_size);
   q->value_size = value_size;
-  return !!q->values;
+  return q->values != NULL;
 }
 
 void *fqueue_push(fixed_queue *q) {

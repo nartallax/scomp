@@ -27,7 +27,6 @@ NODISCARD bool _strcomp_init_base(string_compression_base *base, context *contex
   *base = (string_compression_base){0};
 
   if (!ftable_init(&base->main_symbol_table, context, 258, FTABLE_INIT_ONE | FTABLE_EXCLUDE_EOF)) {
-    // TODO: go over inits everywhere and call deinit instead of repeating all the fields
     _strcomp_deinit_base(base, context);
     return false;
   }

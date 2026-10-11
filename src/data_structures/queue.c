@@ -32,11 +32,8 @@ NODISCARD bool queue_init(queue *q, context *context, size_t value_size, size_t 
   q->context = context;
   q->value_size = value_size;
   q->values = context_allocate(context, q->length, value_size);
-  if (!q->values) {
-    return false;
-  }
 
-  return true;
+  return q->values != NULL;
 }
 
 void queue_reset(queue *q) {

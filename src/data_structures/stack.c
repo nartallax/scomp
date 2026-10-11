@@ -22,11 +22,8 @@ NODISCARD bool stack_init(stack *s, context *context, size_t value_size) {
   s->length = 16;
   s->count = 0;
   s->values = context_allocate(context, s->length, value_size);
-  if (!s->values) {
-    return false;
-  }
 
-  return true;
+  return s->values != NULL;
 }
 
 /** If values are heap-allocated, callers must take care of them, as they will not be deleted in this function */

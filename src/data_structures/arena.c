@@ -22,10 +22,7 @@ NODISCARD bool arena_init(arena *a, context *context) {
   a->context = context;
   a->allocations_count = 0;
   a->data = context_allocate(context, a->length, sizeof(byte));
-  if (!a->data) {
-    return false;
-  }
-  return true;
+  return a->data != NULL;
 }
 
 void arena_deinit(arena *arena, context *context) {

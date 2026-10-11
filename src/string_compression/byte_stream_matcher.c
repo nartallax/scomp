@@ -36,6 +36,12 @@ typedef struct {
 
 constexpr bsm_match BSM_MATCH_EMPTY = {0};
 
+void bsm_deinit(byte_stream_matcher *bsm, context *context) {
+  context_free(context, bsm->hash_head);
+  context_free(context, bsm->hash_prev);
+  ring_buffer_deinit(&bsm->content, context);
+}
+
 NODISCARD bool bsm_init(byte_stream_matcher *bsm, context *context) {
   *bsm = (byte_stream_matcher){0};
 
@@ -43,28 +49,22 @@ NODISCARD bool bsm_init(byte_stream_matcher *bsm, context *context) {
 
   bsm->hash_head = context_allocate_zero_init(context, _BSM_LENGTH, sizeof(uint16_t));
   if (!bsm->hash_head) {
+    bsm_deinit(bsm, context);
     return false;
   }
 
   bsm->hash_prev = context_allocate_zero_init(context, _BSM_LENGTH, sizeof(uint16_t));
   if (!bsm->hash_prev) {
-    context_free(context, bsm->hash_head);
+    bsm_deinit(bsm, context);
     return false;
   }
 
   if (!ring_buffer_init(&bsm->content, context, _BSM_LENGTH_SHIFT)) {
-    context_free(context, bsm->hash_head);
-    context_free(context, bsm->hash_prev);
+    bsm_deinit(bsm, context);
     return false;
   }
 
   return true;
-}
-
-void bsm_deinit(byte_stream_matcher *bsm, context *context) {
-  context_free(context, bsm->hash_head);
-  context_free(context, bsm->hash_prev);
-  ring_buffer_deinit(&bsm->content, context);
 }
 
 // TODO: experiment with different hash functions here
