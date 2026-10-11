@@ -5,6 +5,7 @@
 #include "../context.c"
 #include "../data_structures/ring_buffer.c"
 #include "base.c"
+#include <stdint.h>
 
 typedef struct {
   string_compression_base base;
@@ -75,6 +76,9 @@ void _strcomp_compressor_flush_once(string_compressor *compressor) {
   if (match.length >= _STRCOMP_MIN_BACKREFERENCE_LENGTH) {
     // TODO: subtract stuff to make values smaller
     _strcomp_write_backreference(compressor, match.offset, match.length);
+    if (compressor->bytes_in_buffer < (int32_t)match.length) {
+      printf("%i %zu\n", compressor->bytes_in_buffer, match.length);
+    }
     compressor->bytes_in_buffer -= match.length;
     assert(compressor->bytes_in_buffer >= 0);
     return;

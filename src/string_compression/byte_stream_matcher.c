@@ -118,7 +118,7 @@ size_t _bsm_check_match_starting_at(byte_stream_matcher *bsm, size_t position, r
       // don't read past source buffer end
       // but it's fine to read past match buffer end, because it's zero-initialized and synchronized on decoder and encoder
       // which means even if we accidently read past the end marker - as long as the data at the end matches the source - it's fine
-      return i;
+      return i - 1;
     }
     byte buffer_byte = ring_buffer_get(&bsm->content, position + i);
     byte src_byte = ring_buffer_get(source, src_current_position);
@@ -127,7 +127,7 @@ size_t _bsm_check_match_starting_at(byte_stream_matcher *bsm, size_t position, r
       return i;
     }
   }
-  return _BSM_MATCH_LENGTH_LIMIT;
+  return _BSM_MATCH_LENGTH_LIMIT - 1;
 }
 
 // TODO: I wonder if size_t here instead of uint16_t is bad for performance

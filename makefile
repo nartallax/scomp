@@ -41,6 +41,8 @@ run_test:
 
 .PHONY: run_perf_test
 run_perf_test:
+	#@make clear
+	#@$(CC) -DNDEBUG -O3 -o ./build/test test/test_main.c
 	@make build_test
 	@./build/test p
 
