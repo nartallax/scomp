@@ -53,13 +53,13 @@ size_t json_detokenizer_write(writer *w, json_token *token) {
     writer_write_byte(w, _JTOK_NULL_BYTES[2]);
     writer_write_byte(w, _JTOK_NULL_BYTES[3]);
     return sizeof(_JTOK_NULL_BYTES);
-  case JSON_TOKEN_COMMA:
+  case JSON_TOKEN_VALUE_SEPARATOR:
     writer_write_byte(w, ',');
     return 1;
-  case JSON_TOKEN_QUOTES:
+  case JSON_TOKEN_STRING_DELIMITER:
     writer_write_byte(w, '"');
     return 1;
-  case JSON_TOKEN_COLON:
+  case JSON_TOKEN_KV_SEPARATOR:
     writer_write_byte(w, ':');
     return 1;
   case JSON_TOKEN_WHITESPACE:

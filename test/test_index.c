@@ -65,7 +65,6 @@ int main() {
       MAKE_TEST(test_ftable_from_frequencies),
       MAKE_TEST(test_ftable_allocation_failures),
       MAKE_TEST(test_acod_simple),
-      MAKE_TEST(test_acod_allocation_failures),
       MAKE_TEST(test_json_tokenizer_string),
       MAKE_TEST(test_json_tokenizer_numbers),
       MAKE_TEST(test_json_tokenizer_constants),

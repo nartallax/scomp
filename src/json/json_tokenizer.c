@@ -125,7 +125,7 @@ NODISCARD bool _jtok_try_value(json_tokenizer *t, byte b) {
   case '"':
     is_state_updated = _jtok_start_value(t, JSON_STATE_STRING);
     if (is_state_updated) {
-      _jtok_push_simple_token(t, JSON_TOKEN_QUOTES);
+      _jtok_push_simple_token(t, JSON_TOKEN_STRING_DELIMITER);
     }
     return is_state_updated;
   case '{':
@@ -324,7 +324,7 @@ NODISCARD bool json_tokenizer_push(json_tokenizer *t, byte b) {
     } else if (b == ',') {
       bool is_state_updated = _jtok_push_state(t, JSON_STATE_VALUE);
       assert(is_state_updated && "This state push should be always successful, as we just finished reading some value, which popped its state");
-      _jtok_push_simple_token(t, JSON_TOKEN_COMMA);
+      _jtok_push_simple_token(t, JSON_TOKEN_VALUE_SEPARATOR);
       return is_state_updated;
     } else {
       return _jtok_try_whitespace(t, b);
@@ -337,7 +337,7 @@ NODISCARD bool json_tokenizer_push(json_tokenizer *t, byte b) {
     } else if (b == '"') {
       bool is_state_updated = _jtok_push_state(t, JSON_STATE_OBJECT_KEY);
       if (is_state_updated) {
-        _jtok_push_simple_token(t, JSON_TOKEN_QUOTES);
+        _jtok_push_simple_token(t, JSON_TOKEN_STRING_DELIMITER);
       }
       return is_state_updated;
     } else {
@@ -351,14 +351,14 @@ NODISCARD bool json_tokenizer_push(json_tokenizer *t, byte b) {
     } else if (b == ',') {
       bool is_state_updated = _jtok_push_state(t, JSON_STATE_OBJECT_KEY_START);
       assert(is_state_updated && "This state push should be always successful, as we just finished reading some value, which popped its state");
-      _jtok_push_simple_token(t, JSON_TOKEN_COMMA);
+      _jtok_push_simple_token(t, JSON_TOKEN_VALUE_SEPARATOR);
       return is_state_updated;
     } else {
       return _jtok_try_whitespace(t, b);
     }
   case JSON_STATE_OBJECT_KEY_START:
     if (b == '"') {
-      _jtok_push_simple_token(t, JSON_TOKEN_QUOTES);
+      _jtok_push_simple_token(t, JSON_TOKEN_STRING_DELIMITER);
       bfstack_replace(&t->state_stack, JSON_STATE_OBJECT_KEY);
       return true;
     } else {
@@ -366,7 +366,7 @@ NODISCARD bool json_tokenizer_push(json_tokenizer *t, byte b) {
     }
   case JSON_STATE_OBJECT_KV_SEPARATOR:
     if (b == ':') {
-      _jtok_push_simple_token(t, JSON_TOKEN_COLON);
+      _jtok_push_simple_token(t, JSON_TOKEN_KV_SEPARATOR);
       bfstack_replace(&t->state_stack, JSON_STATE_VALUE);
       return true;
     } else {
@@ -375,7 +375,7 @@ NODISCARD bool json_tokenizer_push(json_tokenizer *t, byte b) {
   case JSON_STATE_STRING:
   case JSON_STATE_OBJECT_KEY:
     if (b == '"') {
-      _jtok_push_simple_token(t, JSON_TOKEN_QUOTES);
+      _jtok_push_simple_token(t, JSON_TOKEN_STRING_DELIMITER);
       if (state == JSON_STATE_OBJECT_KEY) {
         bfstack_replace(&t->state_stack, JSON_STATE_OBJECT_KV_SEPARATOR);
       } else {

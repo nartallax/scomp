@@ -69,7 +69,7 @@ const char *test_json_tokenizer_string() {
   TEST_ASSERT(json_tokenizer_init(&t, test_context));
 
   TEST_ASSERT(test_json_tokenizer_push_string(&t, &q, "\"abcde\""));
-  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_QUOTES);
+  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_STRING_DELIMITER);
   k = test_json_consume(&q);
   TEST_ASSERT(k->kind == JSON_TOKEN_UNICODE_CHARACTER && k->unicode_character.value == 'a' && k->unicode_character.length == 1);
   k = test_json_consume(&q);
@@ -80,13 +80,13 @@ const char *test_json_tokenizer_string() {
   TEST_ASSERT(k->kind == JSON_TOKEN_UNICODE_CHARACTER && k->unicode_character.value == 'd' && k->unicode_character.length == 1);
   k = test_json_consume(&q);
   TEST_ASSERT(k->kind == JSON_TOKEN_UNICODE_CHARACTER && k->unicode_character.value == 'e' && k->unicode_character.length == 1);
-  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_QUOTES);
+  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_STRING_DELIMITER);
   TEST_ASSERT(test_json_consume(&q) == NULL);
   TEST_ASSERT(test_json_tokenizer_reinit(&t));
 
   // correct escaped codepoint
   TEST_ASSERT(test_json_tokenizer_push_string(&t, &q, "\"\\u12aB\""));
-  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_QUOTES);
+  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_STRING_DELIMITER);
   k = test_json_consume(&q);
   uint64_t merged_code = 0;
   merged_code = (merged_code << 8) | 'B';
@@ -94,12 +94,12 @@ const char *test_json_tokenizer_string() {
   merged_code = (merged_code << 8) | '2';
   merged_code = (merged_code << 8) | '1';
   TEST_ASSERT(k->kind == JSON_TOKEN_ESCAPED_UNICODE_CHARCODE && k->unicode_character.value == merged_code);
-  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_QUOTES);
+  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_STRING_DELIMITER);
   TEST_ASSERT(test_json_tokenizer_reinit(&t));
 
   // incorrect escaped codepoint
   TEST_ASSERT(!test_json_tokenizer_push_string(&t, &q, "\"\\uGg//\""));
-  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_QUOTES);
+  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_STRING_DELIMITER);
   TEST_ASSERT(test_json_consume(&q) == NULL);
   TEST_ASSERT(test_json_tokenizer_reinit_nonempty(&t));
 
@@ -107,14 +107,14 @@ const char *test_json_tokenizer_string() {
   const char *bad_escaped_codepoints[4] = {"\"\\uxfff", "\"\\ufxff", "\"\\uffxf", "\"\\ufffx"};
   for (size_t i = 0; i < 4; i++) {
     TEST_ASSERT(!test_json_tokenizer_push_string(&t, &q, bad_escaped_codepoints[i]));
-    TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_QUOTES);
+    TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_STRING_DELIMITER);
     TEST_ASSERT(test_json_consume(&q) == NULL);
     TEST_ASSERT(test_json_tokenizer_reinit_nonempty(&t));
   }
 
   // other escapings
   TEST_ASSERT(test_json_tokenizer_push_string(&t, &q, "\"\\r\\\\\\n\\t\\\"\\/\\b\\f\""));
-  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_QUOTES);
+  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_STRING_DELIMITER);
   k = test_json_consume(&q);
   TEST_ASSERT(k->kind == JSON_TOKEN_ESCAPE_SEQUENCE && k->character.character == 'r');
   k = test_json_consume(&q);
@@ -131,12 +131,12 @@ const char *test_json_tokenizer_string() {
   TEST_ASSERT(k->kind == JSON_TOKEN_ESCAPE_SEQUENCE && k->character.character == 'b');
   k = test_json_consume(&q);
   TEST_ASSERT(k->kind == JSON_TOKEN_ESCAPE_SEQUENCE && k->character.character == 'f');
-  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_QUOTES);
+  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_STRING_DELIMITER);
   TEST_ASSERT(test_json_tokenizer_reinit(&t));
 
   // correct unicode
   TEST_ASSERT(test_json_tokenizer_push_string(&t, &q, "\"Привет, мир!\""));
-  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_QUOTES);
+  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_STRING_DELIMITER);
   k = test_json_consume(&q);
   TEST_ASSERT(k->kind == JSON_TOKEN_UNICODE_CHARACTER && k->unicode_character.value == (0xD0 | (0x9F << 8)));
   k = test_json_consume(&q);
@@ -161,7 +161,7 @@ const char *test_json_tokenizer_string() {
   TEST_ASSERT(k->kind == JSON_TOKEN_UNICODE_CHARACTER && k->unicode_character.value == (0xD1 | (0x80 << 8)));
   k = test_json_consume(&q);
   TEST_ASSERT(k->kind == JSON_TOKEN_UNICODE_CHARACTER && k->unicode_character.value == '!');
-  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_QUOTES);
+  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_STRING_DELIMITER);
   TEST_ASSERT(test_json_tokenizer_reinit(&t));
 
   // unicode with broken continuation bytes
@@ -170,7 +170,7 @@ const char *test_json_tokenizer_string() {
   TEST_ASSERT(sprintf(broken_continuation_bytes_unicode_str, "\"%.*s\"", 6, broken_continuation_bytes_unicode_pair) < 64);
   TEST_ASSERT(!test_json_tokenizer_push_string(&t, &q, broken_continuation_bytes_unicode_str));
   free(broken_continuation_bytes_unicode_str);
-  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_QUOTES);
+  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_STRING_DELIMITER);
   TEST_ASSERT(test_json_consume(&q) == NULL);
   TEST_ASSERT(test_json_tokenizer_reinit_nonempty(&t));
 
@@ -179,7 +179,7 @@ const char *test_json_tokenizer_string() {
   TEST_ASSERT(sprintf(broken_continuation_bytes_unicode_str, "\"\\%.*s\"", 6, broken_continuation_bytes_unicode_pair) < 64);
   TEST_ASSERT(!test_json_tokenizer_push_string(&t, &q, broken_continuation_bytes_unicode_str));
   free(broken_continuation_bytes_unicode_str);
-  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_QUOTES);
+  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_STRING_DELIMITER);
   TEST_ASSERT(test_json_consume(&q) == NULL);
   TEST_ASSERT(test_json_tokenizer_reinit_nonempty(&t));
 
@@ -401,14 +401,14 @@ const char *test_json_tokenizer_array() {
   k = test_json_consume(&q);
   TEST_ASSERT(k->kind == JSON_TOKEN_NUMBER && k->number.integer_part == 1);
   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_WHITESPACE);
-  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_COMMA);
+  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_VALUE_SEPARATOR);
   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_WHITESPACE);
   k = test_json_consume(&q);
   TEST_ASSERT(k->kind == JSON_TOKEN_NUMBER && k->number.integer_part == 2);
-  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_COMMA);
+  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_VALUE_SEPARATOR);
   k = test_json_consume(&q);
   TEST_ASSERT(k->kind == JSON_TOKEN_NUMBER && k->number.integer_part == 3);
-  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_COMMA);
+  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_VALUE_SEPARATOR);
   k = test_json_consume(&q);
   TEST_ASSERT(k->kind == JSON_TOKEN_NUMBER && k->number.integer_part == 4);
   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_ARRAY_CLOSE);
@@ -431,10 +431,10 @@ const char *test_json_tokenizer_array() {
   TEST_ASSERT(test_json_tokenizer_push_string(&t, &q, "[true, false, null]"));
   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_ARRAY_OPEN);
   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_TRUE);
-  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_COMMA);
+  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_VALUE_SEPARATOR);
   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_WHITESPACE);
   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_FALSE);
-  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_COMMA);
+  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_VALUE_SEPARATOR);
   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_WHITESPACE);
   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_NULL);
   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_ARRAY_CLOSE);
@@ -448,7 +448,7 @@ const char *test_json_tokenizer_array() {
   TEST_ASSERT(!test_json_tokenizer_push_string(&t, &q, "[1,,]"));
   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_ARRAY_OPEN);
   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_NUMBER);
-  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_COMMA);
+  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_VALUE_SEPARATOR);
   TEST_ASSERT(test_json_consume(&q) == NULL);
   TEST_ASSERT(test_json_tokenizer_reinit_nonempty(&t));
 
@@ -486,18 +486,18 @@ const char *test_json_tokenizer_object() {
 
   TEST_ASSERT(test_json_tokenizer_push_string(&t, &q, "{\"width\":15, \"is_good\":true}"));
   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_OBJECT_OPEN);
-  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_QUOTES);
+  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_STRING_DELIMITER);
   TEST_ASSERT(test_json_consume(&q)->unicode_character.value == 'w');
   TEST_ASSERT(test_json_consume(&q)->unicode_character.value == 'i');
   TEST_ASSERT(test_json_consume(&q)->unicode_character.value == 'd');
   TEST_ASSERT(test_json_consume(&q)->unicode_character.value == 't');
   TEST_ASSERT(test_json_consume(&q)->unicode_character.value == 'h');
-  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_QUOTES);
-  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_COLON);
+  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_STRING_DELIMITER);
+  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_KV_SEPARATOR);
   TEST_ASSERT(test_json_consume(&q)->number.integer_part == 15);
-  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_COMMA);
+  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_VALUE_SEPARATOR);
   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_WHITESPACE);
-  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_QUOTES);
+  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_STRING_DELIMITER);
   TEST_ASSERT(test_json_consume(&q)->unicode_character.value == 'i');
   TEST_ASSERT(test_json_consume(&q)->unicode_character.value == 's');
   TEST_ASSERT(test_json_consume(&q)->unicode_character.value == '_');
@@ -505,8 +505,8 @@ const char *test_json_tokenizer_object() {
   TEST_ASSERT(test_json_consume(&q)->unicode_character.value == 'o');
   TEST_ASSERT(test_json_consume(&q)->unicode_character.value == 'o');
   TEST_ASSERT(test_json_consume(&q)->unicode_character.value == 'd');
-  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_QUOTES);
-  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_COLON);
+  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_STRING_DELIMITER);
+  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_KV_SEPARATOR);
   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_TRUE);
   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_OBJECT_CLOSE);
   TEST_ASSERT(test_json_tokenizer_reinit(&t));
@@ -531,7 +531,7 @@ const char *test_json_tokenizer_whitespaces() {
   TEST_ASSERT(test_json_tokenizer_push_string(&t, &q, "[1, \n\r\t2]"));
   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_ARRAY_OPEN);
   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_NUMBER);
-  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_COMMA);
+  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_VALUE_SEPARATOR);
   k = test_json_consume(&q);
   TEST_ASSERT(k->kind == JSON_TOKEN_WHITESPACE && k->character.character == ' ');
   k = test_json_consume(&q);
@@ -592,19 +592,19 @@ const char *test_json_tokenizer_nesting() {
   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_WHITESPACE);
   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_OBJECT_OPEN);
   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_WHITESPACE);
-  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_QUOTES);
+  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_STRING_DELIMITER);
   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_UNICODE_CHARACTER);
-  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_QUOTES);
+  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_STRING_DELIMITER);
   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_WHITESPACE);
-  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_COLON);
+  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_KV_SEPARATOR);
   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_WHITESPACE);
   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_OBJECT_OPEN);
   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_WHITESPACE);
-  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_QUOTES);
+  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_STRING_DELIMITER);
   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_UNICODE_CHARACTER);
-  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_QUOTES);
+  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_STRING_DELIMITER);
   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_WHITESPACE);
-  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_COLON);
+  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_KV_SEPARATOR);
   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_WHITESPACE);
   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_ARRAY_OPEN);
   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_WHITESPACE);
@@ -612,11 +612,11 @@ const char *test_json_tokenizer_nesting() {
   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_WHITESPACE);
   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_OBJECT_OPEN);
   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_WHITESPACE);
-  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_QUOTES);
+  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_STRING_DELIMITER);
   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_UNICODE_CHARACTER);
-  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_QUOTES);
+  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_STRING_DELIMITER);
   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_WHITESPACE);
-  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_COLON);
+  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_KV_SEPARATOR);
   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_WHITESPACE);
   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_NULL);
   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_WHITESPACE);

@@ -24,17 +24,17 @@ constexpr byte _JTOK_NULL_BYTES[] = {'n', 'u', 'l', 'l'};
 // this may require moving around parts of some structures, to jiggle alignment rules a bit
 typedef enum {
   // simple tokens
-  JSON_TOKEN_OBJECT_OPEN = 1, // {
-  JSON_TOKEN_OBJECT_CLOSE,    // }
-  JSON_TOKEN_ARRAY_OPEN,      // [
-  JSON_TOKEN_ARRAY_CLOSE,     // ]
-  JSON_TOKEN_TRUE,            // true
-  JSON_TOKEN_FALSE,           // false
-  JSON_TOKEN_NULL,            // null
-  JSON_TOKEN_COMMA,           // element separator // TODO: rename to value_separator
-  JSON_TOKEN_QUOTES,          // string start or end // TODO: rename to string_delimiter
-  JSON_TOKEN_COLON,           // : separator between key and value // TODO: rename to key_value_separator
-  JSON_TOKEN_BOM,             // byte-order mark that may appear at the start of the JSON
+  JSON_TOKEN_OBJECT_OPEN = 1,  // {
+  JSON_TOKEN_OBJECT_CLOSE,     // }
+  JSON_TOKEN_ARRAY_OPEN,       // [
+  JSON_TOKEN_ARRAY_CLOSE,      // ]
+  JSON_TOKEN_TRUE,             // true
+  JSON_TOKEN_FALSE,            // false
+  JSON_TOKEN_NULL,             // null
+  JSON_TOKEN_VALUE_SEPARATOR,  // ',' - element separator
+  JSON_TOKEN_STRING_DELIMITER, // '"' - string start or end
+  JSON_TOKEN_KV_SEPARATOR,     // ':' - separator between key and value
+  JSON_TOKEN_BOM,              // byte-order mark that may appear at the start of the JSON
 
   // character tokens
   JSON_TOKEN_WHITESPACE,      // ' ', '\n', '\r', '\t' between elements and commas
