@@ -11,18 +11,18 @@ clear:
 .PHONY: build_test
 build_test:
 	@make clear
-	@$(CC) -O3 -g -o ./build/test test/test_index.c
+	@$(CC) -O3 -g -o ./build/test test/test_main.c
 
 .PHONY: build_test_for_debug
 build_test_for_debug:
 	@make clear
-	@$(CC) -O0 -g $(FSANITIZE) -o ./build/test test/test_index.c
+	@$(CC) -O0 -g $(FSANITIZE) -o ./build/test test/test_main.c
 
 .PHONY: build_test_for_coverage
 build_test_for_coverage:
 	@make clear
 	@# -DNDEBUG here because I don't want to calculate code coverage on asserts
-	@$(CC) -DNDEBUG -O3 -fprofile-instr-generate -fcoverage-mapping $(FSANITIZE) -g -o ./build/test test/test_index.c
+	@$(CC) -DNDEBUG -O3 -fprofile-instr-generate -fcoverage-mapping $(FSANITIZE) -g -o ./build/test test/test_main.c
 
 .PHONY: run_test_for_coverage
 run_test_for_coverage: 
@@ -38,6 +38,11 @@ build:
 run_test:
 	@make build_test
 	@./build/test
+
+.PHONY: run_perf_test
+run_perf_test:
+	@make build_test
+	@./build/test p
 
 .PHONY: coverage
 coverage:

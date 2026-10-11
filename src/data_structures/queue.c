@@ -113,5 +113,7 @@ void *queue_peek(queue *queue) {
 
 void *queue_peek_tail(queue *queue) {
   assert(queue_get_count(queue) > 0 && "Queue should not underflow on tail peek");
-  return queue->values + ((queue->tail - 1) * queue->value_size);
+  // TODO: bitwise mask here
+  size_t index = ((queue->tail + queue->length) - 1) % queue->length;
+  return queue->values + (index * queue->value_size);
 }

@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <time.h>
 
 #define TEST_ASSERT(expr)                                                                                                                                                                              \
   do {                                                                                                                                                                                                 \
@@ -180,4 +181,17 @@ bool ends_with(const char *string, const char *suffix) {
   }
 
   return strcmp(string + string_length - suffix_length, suffix) == 0;
+}
+
+#define TIME_STRUCT struct timespec
+
+TIME_STRUCT get_current_time() {
+  TIME_STRUCT result;
+  timespec_get(&result, TIME_UTC);
+  return result;
+}
+
+double get_time_diff(TIME_STRUCT start, TIME_STRUCT end) {
+  double seconds = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
+  return seconds;
 }

@@ -2,11 +2,10 @@
 #include "test_utils.c"
 #include <stdio.h>
 
-int main() {
-  size_t tester_count = sizeof normal_tests / sizeof normal_tests[0];
+int run_test_suite(const test *tests, size_t tester_count) {
   size_t failed_tests = 0;
   for (size_t i = 0; i < tester_count; i++) {
-    test current_test = normal_tests[i];
+    test current_test = tests[i];
     setup_test_context_default();
     const char *test_result = current_test.tester();
     if (test_result != NULL) {
@@ -22,5 +21,15 @@ int main() {
   } else {
     printf("All tests passed.\n");
     return 0;
+  }
+}
+
+int main(int argc, const char **argv) {
+  if (argc > 1 && argv[1][0] == 'p') {
+    // perf suite
+    return run_test_suite(perf_tests, sizeof perf_tests / sizeof perf_tests[0]);
+  } else {
+    // normal suite
+    return run_test_suite(normal_tests, sizeof normal_tests / sizeof normal_tests[0]);
   }
 }
