@@ -14,7 +14,6 @@ size_t _jdet_write_int(writer *w, uint64_t value) {
   return result;
 }
 
-// TODO: tests for output length
 size_t json_detokenizer_write(writer *w, json_token *token) {
   switch (token->kind) {
   case JSON_TOKEN_OBJECT_OPEN:
