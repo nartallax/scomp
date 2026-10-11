@@ -98,6 +98,7 @@ NODISCARD bool strdecomp_push_bit(string_decompressor *decomp, byte bit) {
     for (int64_t i = 0; i < length; i++) {
       byte b = ring_buffer_get(&decomp->base.buffer, start_index + i);
       writer_write_byte(decomp->writer, b);
+      ring_buffer_push(&decomp->base.buffer, b);
     }
   }
 

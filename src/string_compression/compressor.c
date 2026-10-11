@@ -56,9 +56,6 @@ void _strcomp_write_uint(string_compressor *compressor, uint64_t value) {
 // TODO: think about better ways of writing backreferences. this is very suboptimal
 // do it like deflate does it?
 void _strcomp_write_backreference(string_compressor *compressor, uint64_t offset, uint64_t length) {
-  // TODO: writing a backreference does not populate lookback buffer
-  // maybe it should? adjust decompressor too if yes
-  // printf("writing char: %zu\n", _STRCOMP_BACKREFERENCE_SYMBOL);
   acod_encoder_write(compressor->encoder, &compressor->base.main_symbol_table, _STRCOMP_BACKREFERENCE_SYMBOL);
   ftable_increment(&compressor->base.main_symbol_table, _STRCOMP_BACKREFERENCE_SYMBOL);
   _strcomp_write_uint(compressor, offset);
@@ -76,9 +73,14 @@ void _strcomp_compressor_flush_once(string_compressor *compressor) {
   if (match.length >= _STRCOMP_MIN_BACKREFERENCE_LENGTH) {
     // TODO: subtract stuff to make values smaller
     _strcomp_write_backreference(compressor, match.offset, match.length);
-    if (compressor->bytes_in_buffer < (int32_t)match.length) {
-      printf("%i %zu\n", compressor->bytes_in_buffer, match.length);
+
+    // update bsm with values from backreference
+    int64_t end = buffer_start + match.length;
+    for (int64_t i = buffer_start; i < end; i++) {
+      byte b = ring_buffer_get(&compressor->base.buffer, i);
+      bsm_push(&compressor->bsm, b);
     }
+
     compressor->bytes_in_buffer -= match.length;
     assert(compressor->bytes_in_buffer >= 0);
     return;
