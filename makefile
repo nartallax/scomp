@@ -46,6 +46,14 @@ run_perf_test:
 	@#make build_test
 	@./build/test p
 
+.PHONY: profile_perf_test
+profile_perf_test:
+	@#sudo sysctl -w kernel.perf_event_paranoid=1
+	@make clear
+	@$(CC) -DNDEBUG -O3 -g -fno-omit-frame-pointer -o ./build/test test/test_main.c
+	@ulimit -n 65536 && valgrind --tool=callgrind ./build/test p
+	@kcachegrind callgrind.out.*
+
 .PHONY: coverage
 coverage:
 	@make run_test_for_coverage
