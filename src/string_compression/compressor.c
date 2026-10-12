@@ -62,6 +62,12 @@ void _strcomp_write_backreference(string_compressor *compressor, uint64_t offset
   _strcomp_write_uint(compressor, length);
 }
 
+bool _strcomp_is_viable_backreference(bsm_match match) {
+  // second part of this expression is sanity check
+  // sometimes backreference length is small enough so writing two numbers this backreference consists of is longer than the sequence itself
+  return match.length >= _STRCOMP_MIN_BACKREFERENCE_LENGTH && match.length > (match.offset / _STRCOMP_ALLOWED_OFFSET_PER_BACKREFERENCE_BYTE);
+}
+
 void _strcomp_compressor_flush_once(string_compressor *compressor) {
   int64_t buffer_start = (int64_t)ring_buffer_get_index(&compressor->base.buffer) - compressor->bytes_in_buffer;
   if (buffer_start < 0) {
@@ -70,7 +76,8 @@ void _strcomp_compressor_flush_once(string_compressor *compressor) {
   // if we can't even properly take hash of the bytes - don't attempt to find anything
   bsm_match match = (compressor->bytes_in_buffer < _BSM_HASH_LENGTH_BYTES) ? BSM_MATCH_EMPTY : bsm_find_match(&compressor->bsm, &compressor->base.buffer, buffer_start);
 
-  if (match.length >= _STRCOMP_MIN_BACKREFERENCE_LENGTH) {
+  // if (match.length >= _STRCOMP_MIN_BACKREFERENCE_LENGTH) {
+  if (_strcomp_is_viable_backreference(match)) {
     // TODO: subtract stuff to make values smaller
     _strcomp_write_backreference(compressor, match.offset, match.length);
 

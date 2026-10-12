@@ -10,6 +10,7 @@ constexpr symbol _STRCOMP_EOF_SYMBOL = 257;
 constexpr symbol _STRCOMP_BIT_TERMINATOR_SYMBOL = 2;
 // TODO: tune this
 constexpr size_t _STRCOMP_MIN_BACKREFERENCE_LENGTH = 6;
+constexpr size_t _STRCOMP_ALLOWED_OFFSET_PER_BACKREFERENCE_BYTE = 7500;
 
 typedef struct {
   ftable main_symbol_table;

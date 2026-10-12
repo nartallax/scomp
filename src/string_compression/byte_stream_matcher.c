@@ -150,11 +150,15 @@ bsm_match bsm_find_match(byte_stream_matcher *bsm, ring_buffer *source, size_t s
   for (size_t i = 0; i < _BSM_MAX_HYPOTHESIS; i++) {
     // printf("searching for hash %hu at %zu (attempt %zu)\n", hash, position, i);
     size_t length = _bsm_check_match_starting_at(bsm, position, source, source_position);
+    size_t match_position = position;
+    position = bsm->hash_prev[position];
+
     if (length < _BSM_HASH_LENGTH_BYTES) {
       seq_misses++;
       if (seq_misses == _BSM_SEQUENTIAL_MISSES_LIMIT) {
         break;
       }
+      continue;
     } else {
       seq_misses = 0;
     }
@@ -169,13 +173,12 @@ bsm_match bsm_find_match(byte_stream_matcher *bsm, ring_buffer *source, size_t s
       // printf("abs pos: %zu\n", position);
       result.length = length;
       // TODO: bit mask here?
-      int64_t offset = (int64_t)buffer_end_position - (int64_t)position;
+      int64_t offset = (int64_t)buffer_end_position - (int64_t)match_position;
       if (offset < 0) {
         offset += (int64_t)_BSM_LENGTH;
       }
       result.offset = offset;
     }
-    position = bsm->hash_prev[position];
   }
   return result;
 }

@@ -9,6 +9,7 @@
 #include "data_structures/queue_test.c"
 #include "data_structures/ring_buffer_test.c"
 #include "data_structures/stack_test.c"
+#include "math_test.c"
 #include "string_compression/byte_stream_matcher_test.c"
 #include "string_compression/string_compressor_perf_test.c"
 #include "string_compression/string_compressor_test.c"
@@ -46,6 +47,7 @@ brotli -q 11:		2319899			29.397s
 */
 
 test normal_tests[] = {
+    MAKE_TEST(test_most_significant_bit),
     MAKE_TEST(test_context_double_error),
     MAKE_TEST(test_utf8_simple),
     MAKE_TEST(test_fenwick_tree_simple),
