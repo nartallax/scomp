@@ -10,7 +10,9 @@ constexpr size_t _BSM_LENGTH_SHIFT = 16; // 16 bits of length = 64kb of lookback
 constexpr size_t _BSM_LENGTH = 1 << _BSM_LENGTH_SHIFT;
 constexpr size_t _BSM_LENGTH_MASK = _BSM_LENGTH - 1;
 // TODO: tune
-constexpr size_t _BSM_LOOKBACK_LENGTH = 10;
+constexpr size_t _BSM_MAX_HYPOTHESIS = 1000;
+constexpr size_t _BSM_SEQUENTIAL_MISSES_LIMIT = 3;
+
 constexpr size_t _BSM_MATCH_LENGTH_SHIFT = 9; // not based on anything
 constexpr size_t _BSM_MATCH_LENGTH_LIMIT = 1 << _BSM_MATCH_LENGTH_SHIFT;
 constexpr int32_t _BSM_HASH_LENGTH_BYTES = 4;
@@ -144,9 +146,18 @@ bsm_match bsm_find_match(byte_stream_matcher *bsm, ring_buffer *source, size_t s
   size_t buffer_end_position = ring_buffer_get_index(&bsm->content);
   size_t position = bsm->hash_head[hash];
   bsm_match result = {0};
-  for (size_t i = 0; i < _BSM_LOOKBACK_LENGTH; i++) {
+  int seq_misses = 0;
+  for (size_t i = 0; i < _BSM_MAX_HYPOTHESIS; i++) {
     // printf("searching for hash %hu at %zu (attempt %zu)\n", hash, position, i);
     size_t length = _bsm_check_match_starting_at(bsm, position, source, source_position);
+    if (length < _BSM_HASH_LENGTH_BYTES) {
+      seq_misses++;
+      if (seq_misses == _BSM_SEQUENTIAL_MISSES_LIMIT) {
+        break;
+      }
+    } else {
+      seq_misses = 0;
+    }
 
     // it's tempting to test if `length < hash bytes length` here, and early-exit
     // but this means that sometimes, when hash collision occurs, a match is lost
