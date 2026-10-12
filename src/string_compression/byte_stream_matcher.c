@@ -9,7 +9,8 @@
 constexpr size_t _BSM_LENGTH_SHIFT = 16; // 16 bits of length = 64kb of lookback
 constexpr size_t _BSM_LENGTH = 1 << _BSM_LENGTH_SHIFT;
 constexpr size_t _BSM_LENGTH_MASK = _BSM_LENGTH - 1;
-constexpr size_t _BSM_LOOKBACK_LENGTH = 3;
+// TODO: tune
+constexpr size_t _BSM_LOOKBACK_LENGTH = 10;
 constexpr size_t _BSM_MATCH_LENGTH_SHIFT = 9; // not based on anything
 constexpr size_t _BSM_MATCH_LENGTH_LIMIT = 1 << _BSM_MATCH_LENGTH_SHIFT;
 constexpr int32_t _BSM_HASH_LENGTH_BYTES = 4;
@@ -86,13 +87,16 @@ uint16_t _bsm_calc_hash_at(ring_buffer *rb, size_t position) {
   return (uint16_t)hash;
 }
 
+// TODO: tests about searching matching sequences in the past
+// as in, I want best sequence to be found in hash_prev
 void _bsm_update_hash_chain(byte_stream_matcher *bsm, uint16_t index, byte new_byte) {
   uint16_t hash = _bsm_update_rolling_hash(bsm, new_byte);
-  uint16_t prev_pos = bsm->hash_prev[hash];
+  uint16_t prev_pos = bsm->hash_head[hash];
 
   // the hash we just calculated is effective for strings starting _BSM_HASH_LENGTH_BYTES bytes back in the stream
   // which means we need to shift the position back
   // TODO: consider converting constants to int64_t too?
+  // TODO: bit mask here?
   int64_t target_index_intermediate = (int64_t)index - (int64_t)_BSM_HASH_LENGTH_BYTES + 1;
   uint16_t target_index = (uint16_t)(target_index_intermediate < 0 ? target_index_intermediate + (int64_t)_BSM_LENGTH : target_index_intermediate);
 
@@ -141,11 +145,19 @@ bsm_match bsm_find_match(byte_stream_matcher *bsm, ring_buffer *source, size_t s
   size_t position = bsm->hash_head[hash];
   bsm_match result = {0};
   for (size_t i = 0; i < _BSM_LOOKBACK_LENGTH; i++) {
-    // printf("searching for hash %hu at %zu\n", hash, position);
+    // printf("searching for hash %hu at %zu (attempt %zu)\n", hash, position, i);
     size_t length = _bsm_check_match_starting_at(bsm, position, source, source_position);
+
+    // it's tempting to test if `length < hash bytes length` here, and early-exit
+    // but this means that sometimes, when hash collision occurs, a match is lost
+    // as matches earlier in the stream may have the same hash as unrelated text later in the stream
+    // and this will form chain of hashes in which first and last hashes point to a sequence with the start we are searching for,
+    // but hash in the middle would point to unrelated sequence
+
     if (length > result.length) {
       // printf("abs pos: %zu\n", position);
       result.length = length;
+      // TODO: bit mask here?
       int64_t offset = (int64_t)buffer_end_position - (int64_t)position;
       if (offset < 0) {
         offset += (int64_t)_BSM_LENGTH;
