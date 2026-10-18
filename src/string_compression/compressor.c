@@ -54,14 +54,17 @@ void _strcomp_write_uint(string_compressor *compressor, ftable *ftables, uint64_
 void _strcomp_write_backreference(string_compressor *compressor, uint64_t offset, uint64_t length) {
   acod_encoder_write(compressor->encoder, &compressor->base.main_symbol_table, _STRCOMP_BACKREFERENCE_SYMBOL);
   ftable_increment(&compressor->base.main_symbol_table, _STRCOMP_BACKREFERENCE_SYMBOL);
-  _strcomp_write_uint(compressor, compressor->base.backref_offset_ftables, offset);
+  _strcomp_write_uint(compressor, compressor->base.backref_offset_ftables, offset - length);
   _strcomp_write_uint(compressor, compressor->base.backref_length_ftables, length);
 }
 
 bool _strcomp_is_viable_backreference(bsm_match match) {
   // second part of this expression is sanity check
   // sometimes backreference length is small enough so writing two numbers this backreference consists of is longer than the sequence itself
-  return match.length >= _STRCOMP_MIN_BACKREFERENCE_LENGTH && match.length > (match.offset / _STRCOMP_ALLOWED_OFFSET_PER_BACKREFERENCE_BYTE);
+  // last part exists only because backreference matcher can return references that loop around the ring buffer
+  // this is perfectly valid and would work, but we then subtract length from the offset, so to keep the value unsigned, we disallow those matches
+  // (they should be extremely rare anyway)
+  return match.length >= _STRCOMP_MIN_BACKREFERENCE_LENGTH && match.length > (match.offset / _STRCOMP_ALLOWED_OFFSET_PER_BACKREFERENCE_BYTE) && match.offset >= match.length;
 }
 
 void _strcomp_compressor_flush_once(string_compressor *compressor) {
