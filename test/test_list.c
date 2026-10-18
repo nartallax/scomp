@@ -10,6 +10,7 @@
 #include "data_structures/ring_buffer_test.c"
 #include "data_structures/stack_test.c"
 #include "math_test.c"
+#include "string_compression/backreferences_test.c"
 #include "string_compression/byte_stream_matcher_test.c"
 #include "string_compression/string_compressor_perf_test.c"
 #include "string_compression/string_compressor_test.c"
@@ -104,7 +105,8 @@ test normal_tests[] = {
     MAKE_TEST(test_bsm_allocation_failures),
     MAKE_TEST(test_bsm_wraps),
     MAKE_TEST(test_string_compression_simple),
-    MAKE_TEST(test_string_compression_allocation_failures)
+    MAKE_TEST(test_string_compression_allocation_failures),
+    MAKE_TEST(test_string_compression_backreference_write_data)
     // tests go here
 };
 

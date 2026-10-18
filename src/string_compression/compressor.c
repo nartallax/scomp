@@ -37,29 +37,25 @@ NODISCARD bool strcomp_init(string_compressor *compressor, context *context, aco
   return true;
 }
 
-void _strcomp_write_uint(string_compressor *compressor, uint64_t value) {
-  while (value > 0) {
-    byte bit = value & 1;
-    // printf("writing bit: %i\n", bit);
-    acod_encoder_write(compressor->encoder, &compressor->base.raw_bit_with_terminator_table, bit);
-    // TODO: think about pre-initializing this table instead of learning on the actual stream
-    // maybe it would be something like 8,8,1
-    // using frequency tables like that should be very unefficient, unless we batch updates
-    ftable_increment(&compressor->base.raw_bit_with_terminator_table, bit);
-    value = value >> 1;
+void _strcomp_write_uint(string_compressor *compressor, ftable *ftables, uint64_t value) {
+  ftable *table = &ftables[0];
+  for (int i = 0; value > 0; i++) {
+    byte part = value & _STRCOMP_UINT_SYMBOL_MASK;
+    value = value >> _STRCOMP_UINT_SYMBOL_BITS_COUNT;
+    table = &ftables[i];
+    acod_encoder_write(compressor->encoder, table, part);
+    ftable_increment(table, part);
   }
-  // printf("writing bit: %zu\n", _STRCOMP_BIT_TERMINATOR_SYMBOL);
-  acod_encoder_write(compressor->encoder, &compressor->base.raw_bit_with_terminator_table, _STRCOMP_BIT_TERMINATOR_SYMBOL);
-  ftable_increment(&compressor->base.raw_bit_with_terminator_table, _STRCOMP_BIT_TERMINATOR_SYMBOL);
+  // printf("write: terminator %zu\n", _STRCOMP_UINT_TERMINATOR_SYMBOL);
+  acod_encoder_write(compressor->encoder, table, _STRCOMP_UINT_TERMINATOR_SYMBOL);
+  ftable_increment(table, _STRCOMP_UINT_TERMINATOR_SYMBOL);
 }
 
-// TODO: think about better ways of writing backreferences. this is very suboptimal
-// do it like deflate does it?
 void _strcomp_write_backreference(string_compressor *compressor, uint64_t offset, uint64_t length) {
   acod_encoder_write(compressor->encoder, &compressor->base.main_symbol_table, _STRCOMP_BACKREFERENCE_SYMBOL);
   ftable_increment(&compressor->base.main_symbol_table, _STRCOMP_BACKREFERENCE_SYMBOL);
-  _strcomp_write_uint(compressor, offset);
-  _strcomp_write_uint(compressor, length);
+  _strcomp_write_uint(compressor, compressor->base.backref_offset_ftables, offset);
+  _strcomp_write_uint(compressor, compressor->base.backref_length_ftables, length);
 }
 
 bool _strcomp_is_viable_backreference(bsm_match match) {
@@ -76,7 +72,6 @@ void _strcomp_compressor_flush_once(string_compressor *compressor) {
   // if we can't even properly take hash of the bytes - don't attempt to find anything
   bsm_match match = (compressor->bytes_in_buffer < _BSM_HASH_LENGTH_BYTES) ? BSM_MATCH_EMPTY : bsm_find_match(&compressor->bsm, &compressor->base.buffer, buffer_start);
 
-  // if (match.length >= _STRCOMP_MIN_BACKREFERENCE_LENGTH) {
   if (_strcomp_is_viable_backreference(match)) {
     // TODO: subtract stuff to make values smaller
     _strcomp_write_backreference(compressor, match.offset, match.length);
