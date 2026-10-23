@@ -70,15 +70,14 @@ void _strcomp_write_uint(string_compressor *compressor, ftable *table, ftable *l
 void _strcomp_write_backreference(string_compressor *compressor, uint64_t offset, uint64_t length) {
   acod_encoder_write(compressor->encoder, &compressor->base.main_symbol_table, _STRCOMP_BACKREFERENCE_SYMBOL);
   ftable_increment(&compressor->base.main_symbol_table, _STRCOMP_BACKREFERENCE_SYMBOL);
-  _strcomp_write_uint(compressor, &compressor->base.backref_offset_length, &compressor->base.backref_offset_last_part, offset - length);
+  // we could, in theory, subtract length from offset, to make the number smaller
+  // but then we'll have to deal with byte_stream_matcher returning matches that pass the ring buffer boundary; matches with offset < length
+  // we can forbid such matches, but then we'll have performance problems on repeated data that aligns with ring buffer size and perfectly loops
+  // because we would have to reject those over and over again and write the data instead, which is slow and harms the compression
+  // of course it won't happen in actual data, only in synthetic data; but the compressor should be resilient to such attacks
+  // (and also, subtracting length from offset doesn't add much to compression quality. it's something about 0.05%)
+  _strcomp_write_uint(compressor, &compressor->base.backref_offset_length, &compressor->base.backref_offset_last_part, offset);
   _strcomp_write_uint(compressor, &compressor->base.backref_length_length, &compressor->base.backref_length_last_part, length);
-}
-
-bool _strcomp_is_viable_backreference(bsm_match match) {
-  // last part exists only because backreference matcher can return references that loop around the ring buffer
-  // this is perfectly valid and would work, but we then subtract length from the offset, so to keep the value unsigned, we disallow those matches
-  // (they should be extremely rare anyway)
-  return match.length >= _STRCOMP_MIN_BACKREFERENCE_LENGTH && match.offset >= match.length;
 }
 
 void _strcomp_compressor_flush_once(string_compressor *compressor) {
@@ -89,7 +88,7 @@ void _strcomp_compressor_flush_once(string_compressor *compressor) {
   // if we can't even properly take hash of the bytes - don't attempt to find anything
   bsm_match match = (compressor->bytes_in_buffer < _BSM_HASH_LENGTH_BYTES) ? BSM_MATCH_EMPTY : bsm_find_match(&compressor->bsm, &compressor->input_buffer, buffer_start);
 
-  if (_strcomp_is_viable_backreference(match)) {
+  if (match.length >= _STRCOMP_MIN_BACKREFERENCE_LENGTH) {
     _strcomp_write_backreference(compressor, match.offset, match.length);
 
     // update bsm with values from backreference

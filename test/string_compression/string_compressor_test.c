@@ -140,7 +140,10 @@ const char *test_string_compression_wrapping() {
   TEST_ASSERT(_test_strcomp_comp_decomp(str));
 
   for (size_t i = 0; i < buffer_length + 10; i++) {
-    str[i] = '0' + (i % 10);
+    // 8 here because if source data repeats every 8 bytes - then it will perfectly loop over the ring buffer
+    // which may cause BSM to return matches that go past recently written bits into the territory of old written bits
+    // and that's a special case I'd like to test
+    str[i] = '0' + (i % 8);
   }
   str[buffer_length + 10] = 0;
   TEST_ASSERT(_test_strcomp_comp_decomp(str));

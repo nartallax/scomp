@@ -10,13 +10,12 @@ constexpr size_t _BSM_LENGTH_SHIFT = 16; // 16 bits of length = 64kb of lookback
 constexpr size_t _BSM_LENGTH = 1 << _BSM_LENGTH_SHIFT;
 constexpr size_t _BSM_LENGTH_MASK = _BSM_LENGTH - 1;
 
-// tuneable values
-constexpr int64_t _BSM_MAX_HYPOTHESIS = 1000;
-constexpr int64_t _BSM_SEQUENTIAL_MISSES_LIMIT = 3;       // TODO: this value should be settings...? it's not too impactful, but still
-constexpr int64_t _BSM_SEQUENTAL_NONINCREMENT_LIMIT = 10; // TODO: should we have only one limit? three different limits is too many
-constexpr int64_t _BSM_MATCH_LENGTH_SHIFT = 12;           // consider making it multiple of _STRCOMP_UINT_SYMBOL_BITS_COUNT
+// tuneable value
+constexpr int64_t _BSM_MAX_HYPOTHESIS = 20;     // TODO: settings?
+constexpr int64_t _BSM_MATCH_LENGTH_SHIFT = 12; // consider making it multiple of _STRCOMP_UINT_SYMBOL_BITS_COUNT
 
 constexpr int64_t _BSM_MATCH_LENGTH_LIMIT = 1 << _BSM_MATCH_LENGTH_SHIFT;
+constexpr int64_t _BSM_GOOD_ENOUGH_MATCH_LENGTH = _BSM_MATCH_LENGTH_LIMIT / 2;
 constexpr int32_t _BSM_HASH_LENGTH_BYTES = 4; // only tune with the algo
 
 /** A structure that stores last N bytes of a stream and helps to search it */
@@ -125,6 +124,7 @@ int64_t _bsm_check_match_starting_at(byte_stream_matcher *bsm, int64_t position,
   if (src_end < source_position) {
     src_end += (int64_t)ring_buffer_get_length(source);
   }
+  // printf("start: %zi; end %zi\n", source_position, src_end);
   for (size_t length = 0; length < _BSM_MATCH_LENGTH_LIMIT; length++) {
     int64_t src_current_position = source_position + length;
     if (src_current_position == src_end) {
@@ -153,24 +153,12 @@ bsm_match bsm_find_match(byte_stream_matcher *bsm, ring_buffer *source, size_t s
   int64_t buffer_end_position = ring_buffer_get_index(&bsm->content);
   int64_t position = bsm->hash_head[hash];
   bsm_match result = {0};
-  int seq_misses = 0;
-  int seq_nonincrements = 0;
+  // printf("starting match search\n");
   for (int64_t i = 0; i < _BSM_MAX_HYPOTHESIS; i++) {
     // printf("searching for hash %hu at %zu (attempt %zu)\n", hash, position, i);
     int64_t length = _bsm_check_match_starting_at(bsm, position, source, source_position);
     int64_t match_position = position;
     position = bsm->hash_prev[position];
-
-    // TODO: also introduce a limit for sequental non-misses that do not increase resulting length?
-    if (length < _BSM_HASH_LENGTH_BYTES) {
-      seq_misses++;
-      if (seq_misses == _BSM_SEQUENTIAL_MISSES_LIMIT) {
-        break;
-      }
-      continue;
-    } else {
-      seq_misses = 0;
-    }
 
     // it's tempting to test if `length < hash bytes length` here, and early-exit
     // but this means that sometimes, when hash collision occurs, a match is lost
@@ -179,7 +167,7 @@ bsm_match bsm_find_match(byte_stream_matcher *bsm, ring_buffer *source, size_t s
     // but hash in the middle would point to unrelated sequence
 
     if (length > result.length) {
-      seq_nonincrements = 0;
+      // printf("len: %zi\n", length);
       // printf("abs pos: %zu\n", position);
       result.length = length;
       // TODO: bit mask here?
@@ -188,9 +176,12 @@ bsm_match bsm_find_match(byte_stream_matcher *bsm, ring_buffer *source, size_t s
         offset += (int64_t)_BSM_LENGTH;
       }
       result.offset = offset;
-    } else {
-      seq_nonincrements++;
-      if (seq_nonincrements == _BSM_SEQUENTAL_NONINCREMENT_LIMIT) {
+
+      if (result.length >= _BSM_GOOD_ENOUGH_MATCH_LENGTH) {
+        // this condition is here mostly for synthetic data
+        // on synthetic data, it's possible that we will have ridiculously long matches every time
+        // and to break this pattern, we would accept first "long enough" match
+        // (doesn't harm compression ratio on actual data btw)
         break;
       }
     }
