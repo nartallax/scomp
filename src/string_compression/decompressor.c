@@ -90,7 +90,7 @@ NODISCARD bool strdecomp_push_bit(string_decompressor *decomp, byte bit) {
     decomp->state = _STRDECOMP_STATE_SYMBOL;
     decomp->uint_symbol_count = 0;
 
-    int64_t start_index = (int64_t)ring_buffer_get_index(&decomp->base.buffer) - (int64_t)decomp->offset + (int64_t)decomp->length;
+    int64_t start_index = (int64_t)ring_buffer_get_index(&decomp->base.buffer) - ((int64_t)decomp->offset + (int64_t)decomp->length);
     if (start_index < 0) {
       start_index += ring_buffer_get_length(&decomp->base.buffer);
     }

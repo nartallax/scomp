@@ -76,7 +76,6 @@ void _strcomp_compressor_flush_once(string_compressor *compressor) {
   bsm_match match = (compressor->bytes_in_buffer < _BSM_HASH_LENGTH_BYTES) ? BSM_MATCH_EMPTY : bsm_find_match(&compressor->bsm, &compressor->base.buffer, buffer_start);
 
   if (_strcomp_is_viable_backreference(match)) {
-    // TODO: subtract stuff to make values smaller
     _strcomp_write_backreference(compressor, match.offset, match.length);
 
     // update bsm with values from backreference
