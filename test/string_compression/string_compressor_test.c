@@ -1,4 +1,5 @@
 #pragma once
+#include "../../src/string_compression/byte_stream_matcher.c"
 #include "../../src/string_compression/compressor.c"
 #include "../../src/string_compression/decompressor.c"
 #include "../../src/writer.c"
@@ -119,8 +120,32 @@ bool _test_strcomp_comp_decomp(const char *src) {
 }
 
 const char *test_string_compression_simple() {
-  // TEST_ASSERT(_test_strcomp_comp_decomp("0123456789"));
+  TEST_ASSERT(_test_strcomp_comp_decomp("0123456789"));
   TEST_ASSERT(_test_strcomp_comp_decomp("01234567890123456789012345678901234567890123456789"));
+  TEST_ASSERT(_test_strcomp_comp_decomp("0123456789A0123456789B0123456789C"));
+  return NULL;
+}
+
+const char *test_string_compression_wrapping() {
+  size_t buffer_length = 1 << _BSM_LENGTH_SHIFT;
+  char *str = malloc(sizeof(char) * (buffer_length + 11));
+  for (size_t i = 0; i < buffer_length - 15; i++) {
+    str[i] = '0';
+  }
+  for (size_t i = 0; i < 10; i++) {
+    str[i + (buffer_length - 15)] = '0' + i;
+    str[i + (buffer_length - 5)] = '0' + i;
+  }
+  str[buffer_length + 10] = 0;
+  TEST_ASSERT(_test_strcomp_comp_decomp(str));
+
+  for (size_t i = 0; i < buffer_length + 10; i++) {
+    str[i] = '0' + (i % 10);
+  }
+  str[buffer_length + 10] = 0;
+  TEST_ASSERT(_test_strcomp_comp_decomp(str));
+
+  free(str);
   return NULL;
 }
 

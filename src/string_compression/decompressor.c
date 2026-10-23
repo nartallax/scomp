@@ -4,7 +4,6 @@
 #include "../writer.c"
 #include "base.c"
 #include <stdbool.h>
-#include <stdio.h>
 
 typedef enum {
   _STRDECOMP_STATE_CHARACTER = 0,
@@ -14,15 +13,22 @@ typedef enum {
 } _strcomp_state;
 
 typedef struct {
+  // buffer that stores received characters and supplies sequence values for backreferences
+  ring_buffer lookback_buffer;
   string_compression_base base;
   writer *writer;
   acod_decoder *decoder;
   _strcomp_state state;
-  uint64_t length;
-  uint64_t offset;
+  int64_t length;
+  int64_t offset;
   byte uint_read_symbol_count;
   byte uint_total_symbol_count;
 } string_decompressor;
+
+void strdecomp_deinit(string_decompressor *decomp, context *context) {
+  ring_buffer_deinit(&decomp->lookback_buffer, context);
+  _strcomp_deinit_base(&decomp->base, context);
+}
 
 NODISCARD bool strdecomp_init(string_decompressor *decomp, context *context, writer *writer, acod_decoder *decoder) {
   *decomp = (string_decompressor){0};
@@ -33,11 +39,19 @@ NODISCARD bool strdecomp_init(string_decompressor *decomp, context *context, wri
   decomp->length = 0;
   decomp->offset = 0;
   decomp->uint_read_symbol_count = 0;
-  return _strcomp_init_base(&decomp->base, context);
-}
+  decomp->uint_total_symbol_count = 0;
 
-void strdecomp_deinit(string_decompressor *decomp, context *context) {
-  _strcomp_deinit_base(&decomp->base, context);
+  if (!_strcomp_init_base(&decomp->base, context)) {
+    strdecomp_deinit(decomp, context);
+    return false;
+  }
+
+  if (!ring_buffer_init(&decomp->lookback_buffer, context, _BSM_LENGTH_SHIFT)) {
+    strdecomp_deinit(decomp, context);
+    return false;
+  }
+
+  return true;
 }
 
 // returns true in case of EOF
@@ -55,21 +69,21 @@ NODISCARD bool _strdecomp_read_character_symbol(string_decompressor *decomp) {
   }
 
   writer_write_byte(decomp->writer, (byte)s);
-  ring_buffer_push(&decomp->base.buffer, (byte)s);
+  ring_buffer_push(&decomp->lookback_buffer, (byte)s);
 
   return false;
 }
 
 void _strdecomp_materialize_existing_backreference(string_decompressor *decomp) {
-  int64_t start_index = (int64_t)ring_buffer_get_index(&decomp->base.buffer) - ((int64_t)decomp->offset + (int64_t)decomp->length);
+  int64_t start_index = (int64_t)ring_buffer_get_index(&decomp->lookback_buffer) - (decomp->offset + decomp->length);
   if (start_index < 0) {
-    start_index += ring_buffer_get_length(&decomp->base.buffer);
+    start_index += (int64_t)ring_buffer_get_length(&decomp->lookback_buffer);
   }
   int64_t length = decomp->length;
   for (int64_t i = 0; i < length; i++) {
-    byte b = ring_buffer_get(&decomp->base.buffer, start_index + i);
+    byte b = ring_buffer_get(&decomp->lookback_buffer, start_index + i);
     writer_write_byte(decomp->writer, b);
-    ring_buffer_push(&decomp->base.buffer, b);
+    ring_buffer_push(&decomp->lookback_buffer, b);
   }
 }
 
@@ -94,7 +108,7 @@ void _strdecomp_read_backreference_symbol(string_decompressor *decomp) {
       part = acod_decoder_read(decomp->decoder, &decomp->base.uint_parts);
     }
 
-    uint64_t *field = decomp->state & _STRDECOMP_STATE_OFFSET ? &decomp->offset : &decomp->length;
+    int64_t *field = decomp->state & _STRDECOMP_STATE_OFFSET ? &decomp->offset : &decomp->length;
     *field |= (part << (decomp->uint_read_symbol_count * _STRCOMP_UINT_SYMBOL_BITS_COUNT));
     decomp->uint_read_symbol_count++;
     return;

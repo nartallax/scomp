@@ -7,7 +7,7 @@
 
 // tuneables
 constexpr size_t _STRCOMP_UINT_SYMBOL_BITS_COUNT = 4; // one symbol, which is part of uint, contains this much bits of information
-constexpr size_t _STRCOMP_MIN_BACKREFERENCE_LENGTH = 5;
+constexpr int64_t _STRCOMP_MIN_BACKREFERENCE_LENGTH = 5;
 
 constexpr symbol _STRCOMP_BACKREFERENCE_SYMBOL = 256;
 constexpr symbol _STRCOMP_EOF_SYMBOL = 257; // TODO: use real eof?
@@ -15,8 +15,8 @@ constexpr size_t _STRCOMP_UINT_SYMBOL_MASK = (1 << _STRCOMP_UINT_SYMBOL_BITS_COU
 constexpr size_t _STRCOMP_UINT_TERMINATOR_SYMBOL = 1 << _STRCOMP_UINT_SYMBOL_BITS_COUNT;
 
 typedef struct {
+  // frequency table for just characters, start-of-backreference symbol, or EOF
   ftable main_symbol_table;
-  ring_buffer buffer;
 
   // ..._length frequency tables are used when writing amount of symbols part of backreference (offset or length) will use
   // uint (offset or length) is broken into groups of bits; each group is used as a symbol
@@ -41,18 +41,12 @@ void _strcomp_deinit_base(string_compression_base *base, context *context) {
   ftable_deinit(&base->backref_length_last_part, context);
   ftable_deinit(&base->backref_length_length, context);
   ftable_deinit(&base->backref_offset_length, context);
-  ring_buffer_deinit(&base->buffer, context);
 }
 
 NODISCARD bool _strcomp_init_base(string_compression_base *base, context *context) {
   *base = (string_compression_base){0};
 
   if (!ftable_init(&base->main_symbol_table, context, _STRCOMP_EOF_SYMBOL + 1, FTABLE_INIT_ONE | FTABLE_EXCLUDE_EOF)) {
-    _strcomp_deinit_base(base, context);
-    return false;
-  }
-
-  if (!ring_buffer_init(&base->buffer, context, _BSM_MATCH_LENGTH_SHIFT)) {
     _strcomp_deinit_base(base, context);
     return false;
   }

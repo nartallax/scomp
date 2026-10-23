@@ -9,6 +9,8 @@
 #include <stdint.h>
 
 typedef struct {
+  // buffer that will be searched for sequences that can be replaced by a backreference
+  ring_buffer input_buffer;
   string_compression_base base;
   acod_encoder *encoder;
   // TODO: rethink data types everywhere. why can't everything be int32_t?
@@ -20,6 +22,7 @@ typedef struct {
 // TODO: unite flush and deinit, like with acod
 void strcomp_deinit(string_compressor *compressor, context *context) {
   bsm_deinit(&compressor->bsm, context);
+  ring_buffer_deinit(&compressor->input_buffer, context);
   _strcomp_deinit_base(&compressor->base, context);
 }
 
@@ -31,6 +34,11 @@ NODISCARD bool strcomp_init(string_compressor *compressor, context *context, aco
   }
 
   if (!bsm_init(&compressor->bsm, context)) {
+    strcomp_deinit(compressor, context);
+    return false;
+  }
+
+  if (!ring_buffer_init(&compressor->input_buffer, context, _BSM_MATCH_LENGTH_SHIFT)) {
     strcomp_deinit(compressor, context);
     return false;
   }
@@ -72,12 +80,12 @@ bool _strcomp_is_viable_backreference(bsm_match match) {
 }
 
 void _strcomp_compressor_flush_once(string_compressor *compressor) {
-  int64_t buffer_start = (int64_t)ring_buffer_get_index(&compressor->base.buffer) - compressor->bytes_in_buffer;
+  int64_t buffer_start = (int64_t)ring_buffer_get_index(&compressor->input_buffer) - compressor->bytes_in_buffer;
   if (buffer_start < 0) {
-    buffer_start += (int64_t)_BSM_MATCH_LENGTH_LIMIT;
+    buffer_start += _BSM_MATCH_LENGTH_LIMIT;
   }
   // if we can't even properly take hash of the bytes - don't attempt to find anything
-  bsm_match match = (compressor->bytes_in_buffer < _BSM_HASH_LENGTH_BYTES) ? BSM_MATCH_EMPTY : bsm_find_match(&compressor->bsm, &compressor->base.buffer, buffer_start);
+  bsm_match match = (compressor->bytes_in_buffer < _BSM_HASH_LENGTH_BYTES) ? BSM_MATCH_EMPTY : bsm_find_match(&compressor->bsm, &compressor->input_buffer, buffer_start);
 
   if (_strcomp_is_viable_backreference(match)) {
     _strcomp_write_backreference(compressor, match.offset, match.length);
@@ -85,7 +93,7 @@ void _strcomp_compressor_flush_once(string_compressor *compressor) {
     // update bsm with values from backreference
     int64_t end = buffer_start + match.length;
     for (int64_t i = buffer_start; i < end; i++) {
-      byte b = ring_buffer_get(&compressor->base.buffer, i);
+      byte b = ring_buffer_get(&compressor->input_buffer, i);
       bsm_push(&compressor->bsm, b);
     }
 
@@ -94,8 +102,7 @@ void _strcomp_compressor_flush_once(string_compressor *compressor) {
     return;
   }
 
-  byte first_byte = ring_buffer_get(&compressor->base.buffer, buffer_start);
-  // printf("writing char: %i\n", first_byte);
+  byte first_byte = ring_buffer_get(&compressor->input_buffer, buffer_start);
   acod_encoder_write(compressor->encoder, &compressor->base.main_symbol_table, first_byte);
   ftable_increment(&compressor->base.main_symbol_table, first_byte);
   bsm_push(&compressor->bsm, first_byte);
@@ -106,8 +113,8 @@ void _strcomp_compressor_flush_once(string_compressor *compressor) {
 /** Put a byte in compressor's buffer.
 This may result in some symbols being written out, or not. */
 void strcomp_write(string_compressor *compressor, byte b) {
+  ring_buffer_push(&compressor->input_buffer, b);
   compressor->bytes_in_buffer++;
-  ring_buffer_push(&compressor->base.buffer, b);
   if (compressor->bytes_in_buffer == _BSM_MATCH_LENGTH_LIMIT - 1) {
     _strcomp_compressor_flush_once(compressor);
   }

@@ -11,11 +11,11 @@ constexpr size_t _BSM_LENGTH = 1 << _BSM_LENGTH_SHIFT;
 constexpr size_t _BSM_LENGTH_MASK = _BSM_LENGTH - 1;
 
 // tuneable values
-constexpr size_t _BSM_MAX_HYPOTHESIS = 1000;
-constexpr size_t _BSM_SEQUENTIAL_MISSES_LIMIT = 3; // TODO: this value should be settings...? it's not too impactful, but still
-constexpr size_t _BSM_MATCH_LENGTH_SHIFT = 12;     // consider making it multiple of _STRCOMP_UINT_SYMBOL_BITS_COUNT
+constexpr int64_t _BSM_MAX_HYPOTHESIS = 1000;
+constexpr int64_t _BSM_SEQUENTIAL_MISSES_LIMIT = 3; // TODO: this value should be settings...? it's not too impactful, but still
+constexpr int64_t _BSM_MATCH_LENGTH_SHIFT = 12;     // consider making it multiple of _STRCOMP_UINT_SYMBOL_BITS_COUNT
 
-constexpr size_t _BSM_MATCH_LENGTH_LIMIT = 1 << _BSM_MATCH_LENGTH_SHIFT;
+constexpr int64_t _BSM_MATCH_LENGTH_LIMIT = 1 << _BSM_MATCH_LENGTH_SHIFT;
 constexpr int32_t _BSM_HASH_LENGTH_BYTES = 4; // only tune with the algo
 
 /** A structure that stores last N bytes of a stream and helps to search it */
@@ -34,8 +34,8 @@ typedef struct {
 
 typedef struct {
   // TODO: smaller ints here? see comment about positions_by_hash
-  uint64_t offset;
-  uint64_t length;
+  int64_t offset;
+  int64_t length;
 } bsm_match;
 
 constexpr bsm_match BSM_MATCH_EMPTY = {0};
@@ -117,10 +117,10 @@ void bsm_push(byte_stream_matcher *bsm, byte b) {
   _bsm_update_hash_chain(bsm, position, b);
 }
 
-size_t _bsm_check_match_starting_at(byte_stream_matcher *bsm, size_t position, ring_buffer *source, size_t source_position) {
-  size_t src_end = ring_buffer_get_index(source);
+int64_t _bsm_check_match_starting_at(byte_stream_matcher *bsm, int64_t position, ring_buffer *source, int64_t source_position) {
+  int64_t src_end = (int64_t)ring_buffer_get_index(source);
   for (size_t i = 0; i < _BSM_MATCH_LENGTH_LIMIT; i++) {
-    size_t src_current_position = source_position + i;
+    int64_t src_current_position = source_position + i;
     if (src_current_position == src_end) {
       // don't read past source buffer end
       // but it's fine to read past match buffer end, because it's zero-initialized and synchronized on decoder and encoder
@@ -144,16 +144,17 @@ bsm_match bsm_find_match(byte_stream_matcher *bsm, ring_buffer *source, size_t s
   // but there totally will be misses, and maybe it's cheaper to handle them rather than to have generic algo
   uint16_t hash = _bsm_calc_hash_at(source, source_position);
   // printf("searching for hash %hu\n", hash);
-  size_t buffer_end_position = ring_buffer_get_index(&bsm->content);
-  size_t position = bsm->hash_head[hash];
+  int64_t buffer_end_position = ring_buffer_get_index(&bsm->content);
+  int64_t position = bsm->hash_head[hash];
   bsm_match result = {0};
   int seq_misses = 0;
-  for (size_t i = 0; i < _BSM_MAX_HYPOTHESIS; i++) {
+  for (int64_t i = 0; i < _BSM_MAX_HYPOTHESIS; i++) {
     // printf("searching for hash %hu at %zu (attempt %zu)\n", hash, position, i);
-    size_t length = _bsm_check_match_starting_at(bsm, position, source, source_position);
-    size_t match_position = position;
+    int64_t length = _bsm_check_match_starting_at(bsm, position, source, source_position);
+    int64_t match_position = position;
     position = bsm->hash_prev[position];
 
+    // TODO: also introduce a limit for sequental non-misses that do not increase resulting length?
     if (length < _BSM_HASH_LENGTH_BYTES) {
       seq_misses++;
       if (seq_misses == _BSM_SEQUENTIAL_MISSES_LIMIT) {
