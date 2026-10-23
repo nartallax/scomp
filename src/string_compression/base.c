@@ -5,15 +5,14 @@
 #include "../data_structures/ring_buffer.c"
 #include "byte_stream_matcher.c"
 
+// tuneables
+constexpr size_t _STRCOMP_UINT_SYMBOL_BITS_COUNT = 4; // one symbol, which is part of uint, contains this much bits of information
+constexpr size_t _STRCOMP_MIN_BACKREFERENCE_LENGTH = 5;
+
 constexpr symbol _STRCOMP_BACKREFERENCE_SYMBOL = 256;
-constexpr symbol _STRCOMP_EOF_SYMBOL = 257;           // TODO: use real eof?
-constexpr size_t _STRCOMP_UINT_SYMBOL_BITS_COUNT = 3; // one symbol, which is part of uint, contains this much bits of information
+constexpr symbol _STRCOMP_EOF_SYMBOL = 257; // TODO: use real eof?
 constexpr size_t _STRCOMP_UINT_SYMBOL_MASK = (1 << _STRCOMP_UINT_SYMBOL_BITS_COUNT) - 1;
 constexpr size_t _STRCOMP_UINT_TERMINATOR_SYMBOL = 1 << _STRCOMP_UINT_SYMBOL_BITS_COUNT;
-
-// TODO: tune this
-constexpr size_t _STRCOMP_MIN_BACKREFERENCE_LENGTH = 6;
-constexpr size_t _STRCOMP_ALLOWED_OFFSET_PER_BACKREFERENCE_BYTE = 7500;
 
 typedef struct {
   ftable main_symbol_table;

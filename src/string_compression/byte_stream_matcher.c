@@ -9,13 +9,14 @@
 constexpr size_t _BSM_LENGTH_SHIFT = 16; // 16 bits of length = 64kb of lookback
 constexpr size_t _BSM_LENGTH = 1 << _BSM_LENGTH_SHIFT;
 constexpr size_t _BSM_LENGTH_MASK = _BSM_LENGTH - 1;
-// TODO: tune
+
+// tuneable values
 constexpr size_t _BSM_MAX_HYPOTHESIS = 1000;
 constexpr size_t _BSM_SEQUENTIAL_MISSES_LIMIT = 3;
+constexpr size_t _BSM_MATCH_LENGTH_SHIFT = 12; // consider making it multiple of _STRCOMP_UINT_SYMBOL_BITS_COUNT
 
-constexpr size_t _BSM_MATCH_LENGTH_SHIFT = 9; // not based on anything
 constexpr size_t _BSM_MATCH_LENGTH_LIMIT = 1 << _BSM_MATCH_LENGTH_SHIFT;
-constexpr int32_t _BSM_HASH_LENGTH_BYTES = 4;
+constexpr int32_t _BSM_HASH_LENGTH_BYTES = 4; // only tune with the algo
 
 /** A structure that stores last N bytes of a stream and helps to search it */
 typedef struct {

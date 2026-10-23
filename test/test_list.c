@@ -35,14 +35,14 @@ TODO: rm this once tests are in place
 ru_news_feed:
 src: 						67132088		-
 gzip -1:				14105463		0.545s
-gzip -9:				11629087		1.491s
+gzip -9:				11629087		1.491s  24.24%
 brotli -q 1: 		11113255	 	0.137s
 brotli -q 11: 	2896963 		58.262s
 
 fda_recalls:
 src:						29888764    -
 gzip -1:				9042674			0.326s
-gzip -9:				7246580			1.308s
+gzip -9:				7246580			1.308s  17.32%
 brotli -q 1:		7316679			0.100s
 brotli -q 11:		2319899			29.397s
 */

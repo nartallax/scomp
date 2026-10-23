@@ -65,12 +65,10 @@ void _strcomp_write_backreference(string_compressor *compressor, uint64_t offset
 }
 
 bool _strcomp_is_viable_backreference(bsm_match match) {
-  // second part of this expression is sanity check
-  // sometimes backreference length is small enough so writing two numbers this backreference consists of is longer than the sequence itself
   // last part exists only because backreference matcher can return references that loop around the ring buffer
   // this is perfectly valid and would work, but we then subtract length from the offset, so to keep the value unsigned, we disallow those matches
   // (they should be extremely rare anyway)
-  return match.length >= _STRCOMP_MIN_BACKREFERENCE_LENGTH && match.length > (match.offset / _STRCOMP_ALLOWED_OFFSET_PER_BACKREFERENCE_BYTE) && match.offset >= match.length;
+  return match.length >= _STRCOMP_MIN_BACKREFERENCE_LENGTH && match.offset >= match.length;
 }
 
 void _strcomp_compressor_flush_once(string_compressor *compressor) {
