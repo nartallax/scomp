@@ -4,6 +4,7 @@
 #include "../commons.c"
 #include "../context.c"
 #include "../data_structures/ring_buffer.c"
+#include "../math.c"
 #include "base.c"
 #include <stdint.h>
 
@@ -37,25 +38,25 @@ NODISCARD bool strcomp_init(string_compressor *compressor, context *context, aco
   return true;
 }
 
-void _strcomp_write_uint(string_compressor *compressor, ftable *ftables, uint64_t value) {
-  ftable *table = &ftables[0];
-  for (int i = 0; value > 0; i++) {
+void _strcomp_write_uint(string_compressor *compressor, ftable *table, uint64_t value) {
+  int bit_index = most_significant_bit_index(value);
+  symbol length_symbols_symbol = (bit_index + (int)_STRCOMP_UINT_SYMBOL_BITS_COUNT) / _STRCOMP_UINT_SYMBOL_BITS_COUNT;
+  acod_encoder_write(compressor->encoder, table, length_symbols_symbol);
+  ftable_increment(table, length_symbols_symbol);
+
+  while (value > 0) {
     byte part = value & _STRCOMP_UINT_SYMBOL_MASK;
     value = value >> _STRCOMP_UINT_SYMBOL_BITS_COUNT;
-    table = &ftables[i];
-    acod_encoder_write(compressor->encoder, table, part);
-    ftable_increment(table, part);
+    acod_encoder_write(compressor->encoder, &compressor->base.uint_parts, part);
+    ftable_increment(&compressor->base.uint_parts, part);
   }
-  // printf("write: terminator %zu\n", _STRCOMP_UINT_TERMINATOR_SYMBOL);
-  acod_encoder_write(compressor->encoder, table, _STRCOMP_UINT_TERMINATOR_SYMBOL);
-  ftable_increment(table, _STRCOMP_UINT_TERMINATOR_SYMBOL);
 }
 
 void _strcomp_write_backreference(string_compressor *compressor, uint64_t offset, uint64_t length) {
   acod_encoder_write(compressor->encoder, &compressor->base.main_symbol_table, _STRCOMP_BACKREFERENCE_SYMBOL);
   ftable_increment(&compressor->base.main_symbol_table, _STRCOMP_BACKREFERENCE_SYMBOL);
-  _strcomp_write_uint(compressor, compressor->base.backref_offset_ftables, offset - length);
-  _strcomp_write_uint(compressor, compressor->base.backref_length_ftables, length);
+  _strcomp_write_uint(compressor, &compressor->base.backref_offset_length, offset - length);
+  _strcomp_write_uint(compressor, &compressor->base.backref_length_length, length);
 }
 
 bool _strcomp_is_viable_backreference(bsm_match match) {
