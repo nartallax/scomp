@@ -26,6 +26,8 @@ void bfstack_reset(byte_fixed_stack *stack) {
 
 void bfstack_deinit(byte_fixed_stack *stack, context *context) {
   context_free(context, stack->values);
+
+  *stack = (byte_fixed_stack){0};
 }
 
 void bfstack_push(byte_fixed_stack *stack, byte value) {

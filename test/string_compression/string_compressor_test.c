@@ -127,7 +127,7 @@ const char *test_string_compression_simple() {
 }
 
 const char *test_string_compression_wrapping() {
-  size_t buffer_length = 1 << _BSM_LENGTH_SHIFT;
+  size_t buffer_length = (1 << _BSM_LENGTH_SHIFT) * 2;
   char *str = malloc(sizeof(char) * (buffer_length + 11));
   for (size_t i = 0; i < buffer_length - 15; i++) {
     str[i] = '0';
@@ -150,5 +150,40 @@ const char *test_string_compression_wrapping() {
 }
 
 const char *test_string_compression_allocation_failures() {
+  int comp_alloc_count = 16;
+  for (int i = 0; i <= comp_alloc_count; i++) {
+    string_compressor comp;
+    acod_encoder encoder;
+    writer writer;
+    setup_test_context_default();
+    TEST_ASSERT(writer_init(&writer, test_context, 10, 3));
+    acod_encoder_init(&encoder, &writer);
+    update_test_context_for_alloc_failure(i);
+    bool is_last = i == comp_alloc_count;
+    TEST_ASSERT(is_last == strcomp_init(&comp, test_context, &encoder));
+    if (is_last) {
+      strcomp_deinit(&comp, test_context);
+    }
+    acod_encoder_deinit(&encoder);
+    writer_deinit(&writer, test_context);
+  }
+
+  int decomp_alloc_count = 13;
+  for (int i = 0; i <= decomp_alloc_count; i++) {
+    string_decompressor decomp;
+    acod_decoder decoder;
+    writer writer;
+    setup_test_context_default();
+    TEST_ASSERT(writer_init(&writer, test_context, 10, 3));
+    acod_decoder_init(&decoder);
+    update_test_context_for_alloc_failure(i);
+    bool is_last = i == decomp_alloc_count;
+    TEST_ASSERT(is_last == strdecomp_init(&decomp, test_context, &writer, &decoder));
+    if (is_last) {
+      strdecomp_deinit(&decomp, test_context);
+    }
+    writer_deinit(&writer, test_context);
+  }
+
   return NULL;
 }

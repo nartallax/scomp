@@ -87,8 +87,10 @@ void ftable_increment(ftable *table, symbol symbol) {
 }
 
 void ftable_deinit(ftable *table, context *context) {
-  ftree_deinit(table->frequencies, context);
+  ftree_deinit(&table->frequencies, context);
   context_free(context, table->compaction_buffer);
+
+  *table = (ftable){0};
 }
 
 NODISCARD bool ftable_init(ftable *table, context *context, symbol length, ftable_flags init_flags) {

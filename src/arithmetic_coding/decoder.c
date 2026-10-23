@@ -1,6 +1,6 @@
 #pragma once
 #include "../commons.c"
-#include "base.c"
+#include "arithmetic_coding_base.c"
 #include "constants.c"
 #include "frequency_table.c"
 #include <assert.h>

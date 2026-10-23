@@ -12,8 +12,9 @@ constexpr size_t _BSM_LENGTH_MASK = _BSM_LENGTH - 1;
 
 // tuneable values
 constexpr int64_t _BSM_MAX_HYPOTHESIS = 1000;
-constexpr int64_t _BSM_SEQUENTIAL_MISSES_LIMIT = 3; // TODO: this value should be settings...? it's not too impactful, but still
-constexpr int64_t _BSM_MATCH_LENGTH_SHIFT = 12;     // consider making it multiple of _STRCOMP_UINT_SYMBOL_BITS_COUNT
+constexpr int64_t _BSM_SEQUENTIAL_MISSES_LIMIT = 3;       // TODO: this value should be settings...? it's not too impactful, but still
+constexpr int64_t _BSM_SEQUENTAL_NONINCREMENT_LIMIT = 10; // TODO: should we have only one limit? three different limits is too many
+constexpr int64_t _BSM_MATCH_LENGTH_SHIFT = 12;           // consider making it multiple of _STRCOMP_UINT_SYMBOL_BITS_COUNT
 
 constexpr int64_t _BSM_MATCH_LENGTH_LIMIT = 1 << _BSM_MATCH_LENGTH_SHIFT;
 constexpr int32_t _BSM_HASH_LENGTH_BYTES = 4; // only tune with the algo
@@ -44,6 +45,8 @@ void bsm_deinit(byte_stream_matcher *bsm, context *context) {
   context_free(context, bsm->hash_head);
   context_free(context, bsm->hash_prev);
   ring_buffer_deinit(&bsm->content, context);
+
+  *bsm = (byte_stream_matcher){0};
 }
 
 NODISCARD bool bsm_init(byte_stream_matcher *bsm, context *context) {
@@ -119,19 +122,22 @@ void bsm_push(byte_stream_matcher *bsm, byte b) {
 
 int64_t _bsm_check_match_starting_at(byte_stream_matcher *bsm, int64_t position, ring_buffer *source, int64_t source_position) {
   int64_t src_end = (int64_t)ring_buffer_get_index(source);
-  for (size_t i = 0; i < _BSM_MATCH_LENGTH_LIMIT; i++) {
-    int64_t src_current_position = source_position + i;
+  if (src_end < source_position) {
+    src_end += (int64_t)ring_buffer_get_length(source);
+  }
+  for (size_t length = 0; length < _BSM_MATCH_LENGTH_LIMIT; length++) {
+    int64_t src_current_position = source_position + length;
     if (src_current_position == src_end) {
       // don't read past source buffer end
       // but it's fine to read past match buffer end, because it's zero-initialized and synchronized on decoder and encoder
       // which means even if we accidently read past the end marker - as long as the data at the end matches the source - it's fine
-      return i;
+      return length;
     }
-    byte buffer_byte = ring_buffer_get(&bsm->content, position + i);
+    byte buffer_byte = ring_buffer_get(&bsm->content, position + length);
     byte src_byte = ring_buffer_get(source, src_current_position);
     // printf("checking positions: src_pos=%zu match_pos=%zu: %i =?= %i\n", src_current_position, position + 1, src_byte, buffer_byte);
     if (buffer_byte != src_byte) {
-      return i;
+      return length;
     }
   }
   return _BSM_MATCH_LENGTH_LIMIT - 1;
@@ -148,6 +154,7 @@ bsm_match bsm_find_match(byte_stream_matcher *bsm, ring_buffer *source, size_t s
   int64_t position = bsm->hash_head[hash];
   bsm_match result = {0};
   int seq_misses = 0;
+  int seq_nonincrements = 0;
   for (int64_t i = 0; i < _BSM_MAX_HYPOTHESIS; i++) {
     // printf("searching for hash %hu at %zu (attempt %zu)\n", hash, position, i);
     int64_t length = _bsm_check_match_starting_at(bsm, position, source, source_position);
@@ -172,6 +179,7 @@ bsm_match bsm_find_match(byte_stream_matcher *bsm, ring_buffer *source, size_t s
     // but hash in the middle would point to unrelated sequence
 
     if (length > result.length) {
+      seq_nonincrements = 0;
       // printf("abs pos: %zu\n", position);
       result.length = length;
       // TODO: bit mask here?
@@ -180,6 +188,11 @@ bsm_match bsm_find_match(byte_stream_matcher *bsm, ring_buffer *source, size_t s
         offset += (int64_t)_BSM_LENGTH;
       }
       result.offset = offset;
+    } else {
+      seq_nonincrements++;
+      if (seq_nonincrements == _BSM_SEQUENTAL_NONINCREMENT_LIMIT) {
+        break;
+      }
     }
   }
   return result;

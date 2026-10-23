@@ -25,6 +25,8 @@ NODISCARD bool ring_buffer_init(ring_buffer *rb, context *context, size_t length
 
 void ring_buffer_deinit(ring_buffer *rb, context *context) {
   context_free(context, rb->content);
+
+  *rb = (ring_buffer){0};
 }
 
 /** Get index of next free byte in the buffer */

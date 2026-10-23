@@ -17,6 +17,8 @@ typedef struct {
 
 void fqueue_deinit(fixed_queue *q, context *context) {
   context_free(context, q->values);
+
+  *q = (fixed_queue){0};
 }
 
 void fqueue_reset(fixed_queue *q) {

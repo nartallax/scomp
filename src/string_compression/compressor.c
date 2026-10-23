@@ -5,7 +5,7 @@
 #include "../context.c"
 #include "../data_structures/ring_buffer.c"
 #include "../math.c"
-#include "base.c"
+#include "string_compression_base.c"
 #include <stdint.h>
 
 typedef struct {
@@ -24,6 +24,8 @@ void strcomp_deinit(string_compressor *compressor, context *context) {
   bsm_deinit(&compressor->bsm, context);
   ring_buffer_deinit(&compressor->input_buffer, context);
   _strcomp_deinit_base(&compressor->base, context);
+
+  *compressor = (string_compressor){0};
 }
 
 NODISCARD bool strcomp_init(string_compressor *compressor, context *context, acod_encoder *encoder) {

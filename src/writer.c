@@ -91,6 +91,8 @@ void writer_deinit(writer *w, context *context) {
     context_free(context, *slot);
   }
   queue_deinit(&w->free_buffers, context);
+
+  *w = (writer){0};
 }
 
 NODISCARD bool writer_init(writer *w, context *context, size_t single_buffer_byte_size, size_t queues_size_shift) {

@@ -42,8 +42,10 @@ void queue_reset(queue *q) {
 }
 
 /** If the items in the queue are heap-allocated, delete them manually first */
-void queue_deinit(queue *queue, context *context) {
-  context_free(context, queue->values);
+void queue_deinit(queue *q, context *context) {
+  context_free(context, q->values);
+
+  *q = (queue){0};
 }
 
 /** Returns amount of items in queue. */

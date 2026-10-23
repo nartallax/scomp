@@ -24,8 +24,10 @@ NODISCARD bool ftree_init(ftree *tree, context *context, int64_t size) {
   return tree->data != NULL;
 }
 
-void ftree_deinit(ftree tree, context *context) {
-  context_free(context, tree.data);
+void ftree_deinit(ftree *tree, context *context) {
+  context_free(context, tree->data);
+
+  *tree = (ftree){0};
 }
 
 // TODO: passing tree by value everywhere goes against other places in this repo

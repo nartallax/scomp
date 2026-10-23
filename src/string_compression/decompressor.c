@@ -2,7 +2,7 @@
 #include "../arithmetic_coding/decoder.c"
 #include "../commons.c"
 #include "../writer.c"
-#include "base.c"
+#include "string_compression_base.c"
 #include <stdbool.h>
 
 typedef enum {
@@ -28,6 +28,8 @@ typedef struct {
 void strdecomp_deinit(string_decompressor *decomp, context *context) {
   ring_buffer_deinit(&decomp->lookback_buffer, context);
   _strcomp_deinit_base(&decomp->base, context);
+
+  *decomp = (string_decompressor){0};
 }
 
 NODISCARD bool strdecomp_init(string_decompressor *decomp, context *context, writer *writer, acod_decoder *decoder) {

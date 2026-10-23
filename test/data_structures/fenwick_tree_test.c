@@ -46,8 +46,8 @@ const char *test_fenwick_tree_simple() {
   }
 
   free(source_array);
-  ftree_deinit(tree, test_context);
-  ftree_deinit(tree_from_source, test_context);
+  ftree_deinit(&tree, test_context);
+  ftree_deinit(&tree_from_source, test_context);
 
   return NULL;
 }
@@ -61,7 +61,7 @@ const char *test_fenwick_tree_max_range() {
     ftree_add(tree, size - 1, 1);
     uint64_t sum = ftree_sum(tree, size - 1);
     TEST_ASSERT(sum == 2);
-    ftree_deinit(tree, test_context);
+    ftree_deinit(&tree, test_context);
   }
   return NULL;
 }
@@ -71,7 +71,7 @@ const char *test_fenwick_tree_range_sum_cornercase() {
   TEST_ASSERT(ftree_init(&tree, test_context, 5));
   ftree_add(tree, 1, 1);
   TEST_ASSERT(ftree_range_sum(tree, 2, 1) == 0);
-  ftree_deinit(tree, test_context);
+  ftree_deinit(&tree, test_context);
   return NULL;
 }
 

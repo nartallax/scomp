@@ -2,7 +2,6 @@
 #include "../arithmetic_coding/frequency_table.c"
 #include "../commons.c"
 #include "../context.c"
-#include "../data_structures/ring_buffer.c"
 #include "byte_stream_matcher.c"
 
 // tuneables

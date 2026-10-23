@@ -1,7 +1,7 @@
 #pragma once
 #include "../commons.c"
 #include "../writer.c"
-#include "base.c"
+#include "arithmetic_coding_base.c"
 #include "constants.c"
 #include "frequency_table.c"
 #include <assert.h>
@@ -47,6 +47,8 @@ Must be called before deleting underlying writer.
 Returns true if finalized successfully. */
 void acod_encoder_deinit(acod_encoder *encoder) {
   _acod_encoder_finalize(encoder);
+
+  *encoder = (acod_encoder){0};
 }
 
 /** Writes a single symbol with the encoder.
@@ -56,9 +58,6 @@ void acod_encoder_write(acod_encoder *encoder, ftable *frequencies, symbol symbo
 
   while (encoder->state.stage == ACOD_STAGE_SHIFT) {
     byte bit = encoder->state.low >> (ACOD_STATE_SIZE_BITS - 1);
-    if (bit > 1) {
-      printf("%i %zu %zu\n", bit, symbol, frequencies->frequencies.size);
-    }
     _acod_encoder_write_shift_bit(encoder, bit);
     _acod_perform_shift(&encoder->state);
   }

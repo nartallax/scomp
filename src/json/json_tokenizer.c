@@ -20,6 +20,8 @@ typedef struct {
 void json_tokenizer_deinit(json_tokenizer *t, context *context) {
   bfstack_deinit(&t->state_stack, context);
   fqueue_deinit(&t->token_queue, context);
+
+  *t = (json_tokenizer){0};
 }
 
 /** Should be called on already-initialized tokenizer to reset its state to initial.

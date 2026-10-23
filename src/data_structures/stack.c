@@ -27,8 +27,10 @@ NODISCARD bool stack_init(stack *s, context *context, size_t value_size) {
 }
 
 /** If values are heap-allocated, callers must take care of them, as they will not be deleted in this function */
-void stack_deinit(stack *stack, context *context) {
-  context_free(context, stack->values);
+void stack_deinit(stack *s, context *context) {
+  context_free(context, s->values);
+
+  *s = (stack){0};
 }
 
 NODISCARD bool _stack_maybe_grow(stack *stack) {
