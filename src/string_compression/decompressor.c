@@ -4,6 +4,7 @@
 #include "../writer.c"
 #include "base.c"
 #include <stdbool.h>
+#include <stdio.h>
 
 typedef enum {
   _STRDECOMP_STATE_CHARACTER = 0,
@@ -44,7 +45,6 @@ NODISCARD bool _strdecomp_read_character_symbol(string_decompressor *decomp) {
   ftable *table = &decomp->base.main_symbol_table;
   symbol s = acod_decoder_read(decomp->decoder, table);
   ftable_increment(table, s);
-  // printf("reading char: %zu\n", s);
   if (s == _STRCOMP_BACKREFERENCE_SYMBOL) {
     decomp->state = _STRDECOMP_STATE_OFFSET | _STRDECOMP_STATE_START;
     return false;
@@ -104,14 +104,13 @@ void _strdecomp_read_backreference_symbol(string_decompressor *decomp) {
   decomp->uint_total_symbol_count = 0;
   decomp->uint_read_symbol_count = 0;
   if (decomp->state & _STRDECOMP_STATE_OFFSET) {
-    decomp->state = _STRDECOMP_STATE_LENGTH & _STRDECOMP_STATE_START;
+    decomp->state = _STRDECOMP_STATE_LENGTH | _STRDECOMP_STATE_START;
   } else {
     _strdecomp_materialize_existing_backreference(decomp);
     decomp->length = 0;
     decomp->offset = 0;
     decomp->state = _STRDECOMP_STATE_CHARACTER;
   }
-  return;
 }
 
 /** Returns true if pushing this bit resulted in reading EOF symbol */
