@@ -38,25 +38,30 @@ NODISCARD bool strcomp_init(string_compressor *compressor, context *context, aco
   return true;
 }
 
-void _strcomp_write_uint(string_compressor *compressor, ftable *table, uint64_t value) {
+void _strcomp_write_uint(string_compressor *compressor, ftable *table, ftable *last_part_table, uint64_t value) {
   int bit_index = most_significant_bit_index(value);
   symbol length_symbols_symbol = (bit_index + (int)_STRCOMP_UINT_SYMBOL_BITS_COUNT) / _STRCOMP_UINT_SYMBOL_BITS_COUNT;
   acod_encoder_write(compressor->encoder, table, length_symbols_symbol);
   ftable_increment(table, length_symbols_symbol);
 
-  while (value > 0) {
+  for (symbol i = 0; i < length_symbols_symbol; i++) {
     byte part = value & _STRCOMP_UINT_SYMBOL_MASK;
     value = value >> _STRCOMP_UINT_SYMBOL_BITS_COUNT;
-    acod_encoder_write(compressor->encoder, &compressor->base.uint_parts, part);
-    ftable_increment(&compressor->base.uint_parts, part);
+    bool is_last_part = i == (length_symbols_symbol - 1);
+    if (is_last_part) {
+      acod_encoder_write(compressor->encoder, last_part_table, part);
+      ftable_increment(last_part_table, part);
+    } else {
+      acod_encoder_write(compressor->encoder, &compressor->base.uint_parts, part);
+    }
   }
 }
 
 void _strcomp_write_backreference(string_compressor *compressor, uint64_t offset, uint64_t length) {
   acod_encoder_write(compressor->encoder, &compressor->base.main_symbol_table, _STRCOMP_BACKREFERENCE_SYMBOL);
   ftable_increment(&compressor->base.main_symbol_table, _STRCOMP_BACKREFERENCE_SYMBOL);
-  _strcomp_write_uint(compressor, &compressor->base.backref_offset_length, offset - length);
-  _strcomp_write_uint(compressor, &compressor->base.backref_length_length, length);
+  _strcomp_write_uint(compressor, &compressor->base.backref_offset_length, &compressor->base.backref_offset_last_part, offset - length);
+  _strcomp_write_uint(compressor, &compressor->base.backref_length_length, &compressor->base.backref_length_last_part, length);
 }
 
 bool _strcomp_is_viable_backreference(bsm_match match) {

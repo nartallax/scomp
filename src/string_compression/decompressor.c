@@ -84,9 +84,17 @@ void _strdecomp_read_backreference_symbol(string_decompressor *decomp) {
 
   if (decomp->uint_read_symbol_count < decomp->uint_total_symbol_count) {
     // reading a part of an offset or length uint
-    symbol part = acod_decoder_read(decomp->decoder, &decomp->base.uint_parts);
-    ftable_increment(&decomp->base.uint_parts, part);
-    uint64_t *field = decomp->state == _STRDECOMP_STATE_OFFSET ? &decomp->offset : &decomp->length;
+    bool is_last_part = decomp->uint_read_symbol_count == decomp->uint_total_symbol_count - 1;
+    symbol part;
+    if (is_last_part) {
+      ftable *last_part_table = decomp->state & _STRDECOMP_STATE_OFFSET ? &decomp->base.backref_offset_last_part : &decomp->base.backref_length_last_part;
+      part = acod_decoder_read(decomp->decoder, last_part_table);
+      ftable_increment(last_part_table, part);
+    } else {
+      part = acod_decoder_read(decomp->decoder, &decomp->base.uint_parts);
+    }
+
+    uint64_t *field = decomp->state & _STRDECOMP_STATE_OFFSET ? &decomp->offset : &decomp->length;
     *field |= (part << (decomp->uint_read_symbol_count * _STRCOMP_UINT_SYMBOL_BITS_COUNT));
     decomp->uint_read_symbol_count++;
     return;

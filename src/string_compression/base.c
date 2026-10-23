@@ -18,14 +18,28 @@ constexpr size_t _STRCOMP_ALLOWED_OFFSET_PER_BACKREFERENCE_BYTE = 7500;
 typedef struct {
   ftable main_symbol_table;
   ring_buffer buffer;
-  ftable uint_parts;
+
+  // ..._length frequency tables are used when writing amount of symbols part of backreference (offset or length) will use
+  // uint (offset or length) is broken into groups of bits; each group is used as a symbol
   ftable backref_offset_length;
   ftable backref_length_length;
+  // this table is used when writing all groups of bits of offset or length but last
+  // it's always stays at 1; when we are using this table, probability of each symbol is equal,
+  // so there's no reason to increment it.
+  ftable uint_parts;
+  // ..._last_part tables are used when writing last group of bits of offset or length.
+  // those tables are incremented after use;
+  // last group of symbols is the most significant, and is much more likely to be skewed
+  // (because offsets and lengths are not equally distributed - smaller offsets are much more likely)
+  ftable backref_offset_last_part;
+  ftable backref_length_last_part;
 } string_compression_base;
 
 void _strcomp_deinit_base(string_compression_base *base, context *context) {
   ftable_deinit(&base->main_symbol_table, context);
   ftable_deinit(&base->uint_parts, context);
+  ftable_deinit(&base->backref_offset_last_part, context);
+  ftable_deinit(&base->backref_length_last_part, context);
   ftable_deinit(&base->backref_length_length, context);
   ftable_deinit(&base->backref_offset_length, context);
   ring_buffer_deinit(&base->buffer, context);
@@ -45,6 +59,16 @@ NODISCARD bool _strcomp_init_base(string_compression_base *base, context *contex
   }
 
   if (!ftable_init(&base->uint_parts, context, (1 << _STRCOMP_UINT_SYMBOL_BITS_COUNT), FTABLE_INIT_ONE | FTABLE_EXCLUDE_EOF)) {
+    _strcomp_deinit_base(base, context);
+    return false;
+  }
+
+  if (!ftable_init(&base->backref_offset_last_part, context, (1 << _STRCOMP_UINT_SYMBOL_BITS_COUNT), FTABLE_INIT_ONE | FTABLE_EXCLUDE_EOF)) {
+    _strcomp_deinit_base(base, context);
+    return false;
+  }
+
+  if (!ftable_init(&base->backref_length_last_part, context, (1 << _STRCOMP_UINT_SYMBOL_BITS_COUNT), FTABLE_INIT_ONE | FTABLE_EXCLUDE_EOF)) {
     _strcomp_deinit_base(base, context);
     return false;
   }
