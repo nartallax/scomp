@@ -1,16 +1,78 @@
 #pragma once
 #include "../../src/string_compression/compressor.c"
+#include "../../src/string_compression/decompressor.c"
 #include "../../src/writer.c"
 #include "../test_utils.c"
+#include <limits.h>
+
+const char *strcomp_perf_test_process_buffer(size_t *total_bytes_compressed, buffer b, string_decompressor *decomp) {
+  *total_bytes_compressed += b.length;
+
+  for (size_t i = 0; i < b.length; i++) {
+    byte c = b.data[i];
+    for (int j = 0; j < CHAR_BIT; j++) {
+      TEST_ASSERT(!strdecomp_push_bit(decomp, c & 1));
+      c = c >> 1;
+    }
+  }
+
+  return NULL;
+}
+
+void strcomp_perf_test_write_zeroes_until_eof(string_decompressor *decomp) {
+  while (true) {
+    if (strdecomp_push_bit(decomp, 0)) {
+      return;
+    }
+  }
+}
+
+const char *strcomp_perf_test_compare_to_file(buffer b, const char *path) {
+  // FILE *out_file = fopen("/tmp/out.json", "w");
+  // TEST_ASSERT(fwrite(b.data, 1, b.length, out_file) == b.length);
+  // fclose(out_file);
+
+  FILE *src_file = fopen(path, "r");
+  TEST_ASSERT(src_file);
+
+  bool is_success = true;
+  size_t bytes_read;
+  char read_buffer[4096];
+  size_t buffer_pos = 0;
+  while (is_success && (bytes_read = fread(read_buffer, 1, sizeof(read_buffer), src_file)) > 0) {
+    if (b.length < buffer_pos + bytes_read) {
+      is_success = false;
+      break;
+    }
+    for (size_t i = 0; i < bytes_read; i++) {
+      if (b.data[buffer_pos + i] != (byte)read_buffer[i]) {
+        printf("At %zu, expected %c (%i), but got %c (%i)\n", buffer_pos + i, read_buffer[i], read_buffer[i], b.data[buffer_pos + i], b.data[buffer_pos + i]);
+        is_success = false;
+        break;
+      }
+    }
+    buffer_pos += bytes_read;
+  }
+  fclose(src_file);
+
+  TEST_ASSERT(is_success);
+  return NULL;
+}
 
 const char *test_string_compression_on_a_file(const char *path) {
   TIME_STRUCT start_time = get_current_time();
-  writer w;
-  TEST_ASSERT(writer_init(&w, test_context, 16 * 1024, 4));
+  writer comp_writer;
+  TEST_ASSERT(writer_init(&comp_writer, test_context, 16 * 1024, 4));
+  writer decomp_writer;
+  TEST_ASSERT(writer_init(&decomp_writer, test_context, 16 * 1024, 4));
   acod_encoder encoder;
-  acod_encoder_init(&encoder, &w);
+  acod_encoder_init(&encoder, &comp_writer);
+  acod_decoder decoder;
+  acod_decoder_init(&decoder);
   string_compressor comp;
   TEST_ASSERT(strcomp_init(&comp, test_context, &encoder));
+  string_decompressor decomp;
+  TEST_ASSERT(strdecomp_init(&decomp, test_context, &decomp_writer, &decoder));
 
   FILE *src_file = fopen(path, "r");
   TEST_ASSERT(src_file);
@@ -27,11 +89,12 @@ const char *test_string_compression_on_a_file(const char *path) {
 
       buffer b;
       while (true) {
-        b = writer_consume_full_buffer(&w);
+        b = writer_consume_full_buffer(&comp_writer);
         if (b.length == 0) {
           break;
         }
-        total_bytes_compressed += b.length;
+
+        TEST_ASSERT(!strcomp_perf_test_process_buffer(&total_bytes_compressed, b, &decomp));
       }
     }
 
@@ -39,19 +102,29 @@ const char *test_string_compression_on_a_file(const char *path) {
       break;
     }
   }
+  fclose(src_file);
 
   strcomp_flush(&comp);
   strcomp_deinit(&comp, test_context);
   acod_encoder_deinit(&encoder);
-  buffer_or_error result = writer_consume_all_buffers(&w);
+  buffer_or_error result = writer_consume_all_buffers(&comp_writer);
   TEST_ASSERT(!result.is_error);
-  writer_deinit(&w, test_context);
+  TEST_ASSERT(!strcomp_perf_test_process_buffer(&total_bytes_compressed, result.buffer, &decomp));
+  strcomp_perf_test_write_zeroes_until_eof(&decomp);
+  writer_deinit(&comp_writer, test_context);
+
+  strdecomp_deinit(&decomp, test_context);
+  buffer_or_error decomp_result = writer_consume_all_buffers(&decomp_writer);
+  TEST_ASSERT(!decomp_result.is_error);
+  TEST_ASSERT(!strcomp_perf_test_compare_to_file(decomp_result.buffer, path));
 
   TIME_STRUCT end_time = get_current_time();
   double timediff_seconds = get_time_diff(start_time, end_time);
 
-  printf("Compressed %s from %zu to %zu (%.02f%%) in %.03f seconds\n", path, total_bytes_read, total_bytes_compressed, ((double)total_bytes_compressed / (double)total_bytes_read) * 100.0,
-         timediff_seconds);
+  double compression_ratio = ((double)total_bytes_compressed / (double)total_bytes_read);
+  printf("Compressed %s from %zu to %zu (%.02f%%) in %.03f seconds\n", path, total_bytes_read, total_bytes_compressed, compression_ratio * 100.0, timediff_seconds);
+
+  TEST_ASSERT(compression_ratio < 0.25);
 
   return NULL;
 }

@@ -124,6 +124,17 @@ int64_t _bsm_check_match_starting_at(byte_stream_matcher *bsm, int64_t position,
   if (src_end < source_position) {
     src_end += (int64_t)ring_buffer_get_length(source);
   }
+
+  int64_t search_end = ring_buffer_get_index(&bsm->content);
+  if (search_end < position) {
+    search_end += (int64_t)ring_buffer_get_length(&bsm->content);
+  }
+  int64_t dist_to_search_end = search_end - position;
+  int64_t dist_to_src_end = src_end - source_position;
+  if (dist_to_search_end < dist_to_src_end) {
+    src_end = source_position + dist_to_search_end;
+  }
+
   // printf("start: %zi; end %zi\n", source_position, src_end);
   for (size_t length = 0; length < _BSM_MATCH_LENGTH_LIMIT; length++) {
     int64_t src_current_position = source_position + length;

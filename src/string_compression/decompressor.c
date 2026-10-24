@@ -82,6 +82,7 @@ void _strdecomp_materialize_existing_backreference(string_decompressor *decomp) 
     start_index += (int64_t)ring_buffer_get_length(&decomp->lookback_buffer);
   }
   int64_t length = decomp->length;
+
   for (int64_t i = 0; i < length; i++) {
     byte b = ring_buffer_get(&decomp->lookback_buffer, start_index + i);
     writer_write_byte(decomp->writer, b);

@@ -7,6 +7,7 @@
             "type": "lldb",
             "request": "launch",
             "program": "${workspaceFolder}/build/test",
+            // "args": ["p"],
             "args": [],
             "cwd": "${workspaceFolder}",
             "stopOnEntry": false
