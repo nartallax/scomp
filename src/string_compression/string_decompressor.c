@@ -65,7 +65,7 @@ NODISCARD bool _strdecomp_read_character_symbol(string_decompressor *decomp) {
     return false;
   }
 
-  if (s == _STRCOMP_EOF_SYMBOL) {
+  if (s == ftable_get_eof_symbol(&decomp->base.main_symbol_table)) {
     return true;
   }
 

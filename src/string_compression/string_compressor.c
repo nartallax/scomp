@@ -119,7 +119,7 @@ void strcomp_flush(string_compressor *compressor) {
   while (compressor->bytes_in_buffer > 0) {
     _strcomp_compressor_flush_once(compressor);
   }
-  // printf("writing char: %zu\n", _STRCOMP_EOF_SYMBOL);
-  acod_encoder_write(compressor->encoder, &compressor->base.main_symbol_table, _STRCOMP_EOF_SYMBOL);
-  ftable_increment(&compressor->base.main_symbol_table, _STRCOMP_EOF_SYMBOL);
+  symbol eof = ftable_get_eof_symbol(&compressor->base.main_symbol_table);
+  acod_encoder_write(compressor->encoder, &compressor->base.main_symbol_table, eof);
+  ftable_increment(&compressor->base.main_symbol_table, eof);
 }

@@ -3,13 +3,13 @@
 #include "../commons.c"
 #include "../context.c"
 #include "byte_stream_matcher.c"
+#include <limits.h>
 
 // tuneables
 constexpr int64 _STRCOMP_UINT_SYMBOL_BITS_COUNT = 4; // one symbol, which is part of uint, contains this much bits of information
 constexpr int64 _STRCOMP_MIN_BACKREFERENCE_LENGTH = 5;
 
 constexpr symbol _STRCOMP_BACKREFERENCE_SYMBOL = 256;
-constexpr symbol _STRCOMP_EOF_SYMBOL = 257; // TODO: use real eof?
 constexpr int64 _STRCOMP_UINT_SYMBOL_MASK = (1 << _STRCOMP_UINT_SYMBOL_BITS_COUNT) - 1;
 constexpr int64 _STRCOMP_UINT_TERMINATOR_SYMBOL = 1 << _STRCOMP_UINT_SYMBOL_BITS_COUNT;
 
@@ -45,7 +45,7 @@ void _strcomp_deinit_base(string_compression_base *base, context *context) {
 NODISCARD bool _strcomp_init_base(string_compression_base *base, context *context) {
   *base = (string_compression_base){0};
 
-  if (!ftable_init(&base->main_symbol_table, context, _STRCOMP_EOF_SYMBOL + 1, FTABLE_INIT_ONE | FTABLE_EXCLUDE_EOF)) {
+  if (!ftable_init(&base->main_symbol_table, context, _STRCOMP_BACKREFERENCE_SYMBOL + 1, FTABLE_INIT_ONE | FTABLE_INCLUDE_EOF)) {
     _strcomp_deinit_base(base, context);
     return false;
   }
