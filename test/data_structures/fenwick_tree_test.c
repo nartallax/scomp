@@ -2,7 +2,6 @@
 #include "../../src/data_structures/fenwick_tree.c"
 #include "../test_utils.c"
 #include <stdint.h>
-#include <stdio.h>
 #include <string.h>
 
 const char *test_fenwick_tree_simple() {
