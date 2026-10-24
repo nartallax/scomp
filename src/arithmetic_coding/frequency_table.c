@@ -16,13 +16,11 @@
 // will it harm/improve general case? will it improve focused case?
 // also limiting N to small-ish numbers may allow us to reduce bit width of symbol_frequency, which is good for cpu cache
 
-typedef enum {
-  // TODO: consider removing implicit eof like this completely, no real use for it
-  FTABLE_INCLUDE_EOF = 1 << 0,
-  FTABLE_EXCLUDE_EOF = (1 << 1),
-  FTABLE_INIT_ZERO = (1 << 2),
-  FTABLE_INIT_ONE = (1 << 3)
-} ftable_flags;
+typedef int32_t ftable_flags;
+constexpr ftable_flags FTABLE_INCLUDE_EOF = 1 << 0;
+constexpr ftable_flags FTABLE_EXCLUDE_EOF = 1 << 1;
+constexpr ftable_flags FTABLE_INIT_ZERO = 1 << 2;
+constexpr ftable_flags FTABLE_INIT_ONE = 1 << 3;
 
 /** Frequency table - a table (aka map) of symbol frequencies (symbol -> symbol_frequency).
 Each symbol has a frequency, which is a non-negative integer.
@@ -47,8 +45,8 @@ symbol _ftable_get_eof_length_padding(int init_flags) {
 // Divides all frequencies by half, rounding up.
 // This allows to avoid overflows on long sequences, at cost of losing some precision
 void _ftable_divide_by_half(ftable *table) {
-  symbol length = ftree_length(table->frequencies);
-  ftree_to_source_array(table->frequencies, table->compaction_buffer);
+  symbol length = ftree_length(&table->frequencies);
+  ftree_to_source_array(&table->frequencies, table->compaction_buffer);
 
   symbol_frequency new_total = 0;
   for (symbol i = 0; i < length; i++) {
@@ -61,11 +59,11 @@ void _ftable_divide_by_half(ftable *table) {
     new_total += freq;
   }
 
-  ftree_fill_from_source_frequencies(table->frequencies, table->compaction_buffer, 0);
+  ftree_fill_from_source_frequencies(&table->frequencies, table->compaction_buffer, 0);
   table->total = new_total;
 }
 
-void ftable_halve_until_total_below_limit(ftable *table, symbol limit) {
+void ftable_halve_until_total_below_limit(ftable *table, symbol_frequency limit) {
   while (table->total >= limit) {
     _ftable_divide_by_half(table);
   }
@@ -83,7 +81,7 @@ void ftable_increment(ftable *table, symbol symbol) {
   ftable_halve_until_total_below_limit(table, ACOD_MAX_TOTAL);
 
   table->total += 1;
-  ftree_add(table->frequencies, symbol, 1);
+  ftree_add(&table->frequencies, symbol, 1);
 }
 
 void ftable_deinit(ftable *table, context *context) {
@@ -103,7 +101,7 @@ NODISCARD bool ftable_init(ftable *table, context *context, symbol length, ftabl
     return false;
   }
 
-  table->compaction_buffer = context_allocate(context, ftree_length(table->frequencies), sizeof(symbol_frequency));
+  table->compaction_buffer = context_allocate(context, ftree_length(&table->frequencies), sizeof(symbol_frequency));
   if (!table->compaction_buffer) {
     ftable_deinit(table, context);
     return false;
@@ -127,7 +125,7 @@ NODISCARD bool ftable_init(ftable *table, context *context, symbol length, ftabl
 
 /** Returns the number of symbols in this frequency table. Includes EOF marker, if present. */
 symbol _ftable_get_symbol_limit(ftable *table) {
-  return ftree_length(table->frequencies);
+  return ftree_length(&table->frequencies);
 }
 
 /** Returns the number of symbols that invoking code can use.
@@ -143,7 +141,7 @@ symbol ftable_get_symbol_count(ftable *table) {
 Frequencies are expected to be array of values excluding EOF, even if the EOF flag is passed */
 void ftable_fill_from_frequencies(ftable *table, symbol_frequency *frequencies) {
   symbol length = ftable_get_symbol_count(table);
-  ftree_fill_from_source_frequencies(table->frequencies, frequencies, table->is_eof_included ? 1 : 0);
+  ftree_fill_from_source_frequencies(&table->frequencies, frequencies, table->is_eof_included ? 1 : 0);
   symbol_frequency total = 0;
   for (symbol i = 0; i < length; i++) {
     total += frequencies[i];
@@ -162,7 +160,7 @@ symbol ftable_get_eof_symbol(ftable *table) {
 }
 
 symbol_frequency ftable_get_frequency(ftable *table, symbol symbol) {
-  return ftree_get(table->frequencies, symbol);
+  return ftree_get(&table->frequencies, symbol);
 }
 
 /** Returns the sum of the frequencies of all the symbols strictly below the specified symbol value. */
@@ -171,10 +169,10 @@ symbol_frequency ftable_get_low(ftable *table, symbol symbol) {
     // frequency range always starts at 0, and this avoids overflow
     return 0;
   }
-  return ftree_sum(table->frequencies, symbol - 1);
+  return ftree_sum(&table->frequencies, symbol - 1);
 }
 
 /** Returns the sum of the frequencies of the specified symbol and all the symbols below. */
 symbol_frequency ftable_get_high(ftable *table, symbol symbol) {
-  return ftree_sum(table->frequencies, symbol);
+  return ftree_sum(&table->frequencies, symbol);
 }

@@ -1,4 +1,5 @@
 #pragma once
+#include "commons.c"
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -10,9 +11,10 @@ typedef void *(*calloc_fn)(size_t, size_t);
 typedef void *(*realloc_fn)(void *, size_t);
 typedef void (*free_fn)(void *);
 
+// TODO: error codes
 typedef struct {
   char message[512];
-  size_t message_length;
+  int64_t message_length;
   /** False when there's no error */
   bool is_present;
 } error;

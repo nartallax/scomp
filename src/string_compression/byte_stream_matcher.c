@@ -6,9 +6,9 @@
 #include <limits.h>
 #include <stdint.h>
 
-constexpr size_t _BSM_LENGTH_SHIFT = 16; // 16 bits of length = 64kb of lookback. not easily tuneable
-constexpr size_t _BSM_LENGTH = 1 << _BSM_LENGTH_SHIFT;
-constexpr size_t _BSM_LENGTH_MASK = _BSM_LENGTH - 1;
+constexpr int64_t _BSM_LENGTH_SHIFT = 16; // 16 bits of length = 64kb of lookback. not easily tuneable
+constexpr int64_t _BSM_LENGTH = 1 << _BSM_LENGTH_SHIFT;
+constexpr int64_t _BSM_LENGTH_MASK = _BSM_LENGTH - 1;
 
 // tuneable value
 constexpr int64_t _BSM_MAX_HYPOTHESIS = 20;     // TODO: settings?
@@ -16,7 +16,7 @@ constexpr int64_t _BSM_MATCH_LENGTH_SHIFT = 12; // consider making it multiple o
 
 constexpr int64_t _BSM_MATCH_LENGTH_LIMIT = 1 << _BSM_MATCH_LENGTH_SHIFT;
 constexpr int64_t _BSM_GOOD_ENOUGH_MATCH_LENGTH = _BSM_MATCH_LENGTH_LIMIT / 2;
-constexpr int32_t _BSM_HASH_LENGTH_BYTES = 4; // only tune with the algo
+constexpr int64_t _BSM_HASH_LENGTH_BYTES = 4; // only tune with the algo
 
 /** A structure that stores last N bytes of a stream and helps to search it */
 typedef struct {
@@ -73,34 +73,24 @@ NODISCARD bool bsm_init(byte_stream_matcher *bsm, context *context) {
   return true;
 }
 
-// TODO: experiment with different hash functions here
-// for example, some implementations of DEFLATE use only first 3 bytes, which may make hash more useful. or not.
-// in either case, if we go with hash over last 4 bytes - with current implementation, the first byte only appears as 4 bits in it
-// which may cause more collisions. or not.
 uint16_t _bsm_update_rolling_hash(byte_stream_matcher *bsm, byte new_byte) {
-  return bsm->rolling_hash = (uint16_t)(((uint64_t)bsm->rolling_hash << 4) ^ new_byte);
+  return bsm->rolling_hash = ((bsm->rolling_hash << 4) ^ new_byte);
 }
 
-uint16_t _bsm_calc_hash_at(ring_buffer *rb, size_t position) {
-  // TODO: try manually unrolling the loop?
-  // return (uint16_t)((uint64_t)ring_buffer_get(rb, position) << 12) ^ ((uint64_t)ring_buffer_get(rb, position + 1) << 8) ^ ((uint64_t)ring_buffer_get(rb, position + 2) << 4) ^
-  //        ((uint64_t)ring_buffer_get(rb, position + 3) << 0);
-  uint64_t hash = 0;
-  for (size_t i = 0; i < _BSM_HASH_LENGTH_BYTES; i++) {
+uint16_t _bsm_calc_hash_at(ring_buffer *rb, int64_t position) {
+  uint16_t hash = 0;
+  for (int64_t i = 0; i < _BSM_HASH_LENGTH_BYTES; i++) {
     hash = (hash << 4) ^ ring_buffer_get(rb, position + i);
   }
-  return (uint16_t)hash;
+  return hash;
 }
 
-// TODO: tests about searching matching sequences in the past
-// as in, I want best sequence to be found in hash_prev
 void _bsm_update_hash_chain(byte_stream_matcher *bsm, uint16_t index, byte new_byte) {
   uint16_t hash = _bsm_update_rolling_hash(bsm, new_byte);
   uint16_t prev_pos = bsm->hash_head[hash];
 
   // the hash we just calculated is effective for strings starting _BSM_HASH_LENGTH_BYTES bytes back in the stream
   // which means we need to shift the position back
-  // TODO: consider converting constants to int64_t too?
   // TODO: bit mask here?
   int64_t target_index_intermediate = (int64_t)index - (int64_t)_BSM_HASH_LENGTH_BYTES + 1;
   uint16_t target_index = (uint16_t)(target_index_intermediate < 0 ? target_index_intermediate + (int64_t)_BSM_LENGTH : target_index_intermediate);
@@ -120,15 +110,15 @@ void bsm_push(byte_stream_matcher *bsm, byte b) {
 }
 
 int64_t _bsm_check_match_starting_at(byte_stream_matcher *bsm, int64_t position, ring_buffer *source, int64_t source_position) {
-  int64_t src_end = (int64_t)ring_buffer_get_index(source);
+  int64_t src_end = ring_buffer_get_index(source);
   if (src_end < source_position) {
-    src_end += (int64_t)ring_buffer_get_length(source);
+    src_end += ring_buffer_get_length(source);
   }
   int64_t dist_to_src_end = src_end - source_position;
 
   int64_t search_end = ring_buffer_get_index(&bsm->content);
   if (search_end < position) {
-    search_end += (int64_t)ring_buffer_get_length(&bsm->content);
+    search_end += ring_buffer_get_length(&bsm->content);
   }
   int64_t dist_to_search_end = search_end - position;
 
@@ -137,10 +127,10 @@ int64_t _bsm_check_match_starting_at(byte_stream_matcher *bsm, int64_t position,
   // which is bad in two ways - it will break the (offset - length) logic on write, and it will cause search buffer overwrites on read
   // and also we must not read past max match limit, because we won't be able to write match longer than that;
   // but that last limitation is implied by length of source buffer - there's no reason to have source buffer longer than that
-  size_t length_limit = dist_to_search_end < dist_to_src_end ? dist_to_search_end : dist_to_src_end;
+  int64_t length_limit = dist_to_search_end < dist_to_src_end ? dist_to_search_end : dist_to_src_end;
 
   // printf("start: %zi; end %zi\n", source_position, src_end);
-  for (size_t length = 0; length < length_limit; length++) {
+  for (int64_t length = 0; length < length_limit; length++) {
     int64_t src_current_position = source_position + length;
     byte buffer_byte = ring_buffer_get(&bsm->content, position + length);
     byte src_byte = ring_buffer_get(source, src_current_position);
@@ -152,8 +142,7 @@ int64_t _bsm_check_match_starting_at(byte_stream_matcher *bsm, int64_t position,
   return length_limit;
 }
 
-// TODO: I wonder if size_t here instead of uint16_t is bad for performance
-bsm_match bsm_find_match(byte_stream_matcher *bsm, ring_buffer *source, size_t source_position) {
+bsm_match bsm_find_match(byte_stream_matcher *bsm, ring_buffer *source, int64_t source_position) {
   // TODO: think about detecting invalid positions, or clearing them on push
   // as it is right now, this function just assumes there will be no hash misses/invalid pointers
   // but there totally will be misses, and maybe it's cheaper to handle them rather than to have generic algo

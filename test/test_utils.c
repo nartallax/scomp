@@ -167,14 +167,14 @@ const char *get_filename(const char *path) {
 }
 
 bool starts_with(const char *string, const char *prefix) {
-  size_t prefix_length = strlen(prefix);
+  int64_t prefix_length = strlen(prefix);
 
   return strncmp(string, prefix, prefix_length) == 0;
 }
 
 bool ends_with(const char *string, const char *suffix) {
-  size_t string_length = strlen(string);
-  size_t suffix_length = strlen(suffix);
+  int64_t string_length = strlen(string);
+  int64_t suffix_length = strlen(suffix);
 
   if (suffix_length > string_length) {
     return false;

@@ -11,7 +11,7 @@ const char *test_json_print_token(json_token *t) {
   }
   json_detokenizer_write(&w, t);
   buffer b = writer_peek_current_buffer(&w);
-  for (size_t i = 0; i < b.length; i++) {
+  for (int64_t i = 0; i < b.length; i++) {
     test_json_print_buffer[i] = b.data[i];
   }
   test_json_print_buffer[b.length] = 0;
@@ -105,7 +105,7 @@ const char *test_json_tokenizer_string() {
 
   // incorrect escaped codepoints in all four positions
   const char *bad_escaped_codepoints[4] = {"\"\\uxfff", "\"\\ufxff", "\"\\uffxf", "\"\\ufffx"};
-  for (size_t i = 0; i < 4; i++) {
+  for (int64_t i = 0; i < 4; i++) {
     TEST_ASSERT(!test_json_tokenizer_push_string(&t, &q, bad_escaped_codepoints[i]));
     TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_STRING_DELIMITER);
     TEST_ASSERT(test_json_consume(&q) == NULL);
@@ -708,7 +708,7 @@ bool test_json_tokenizer_will_parse(const char *format, const char *base, int ti
     return false;
   }
 
-  for (size_t i = 0; src[i] != 0; i++) {
+  for (int64_t i = 0; src[i] != 0; i++) {
     if (!json_tokenizer_push(&t, src[i])) {
       printf("Failed to push\n");
       return false;
@@ -731,7 +731,7 @@ bool test_json_tokenizer_will_parse(const char *format, const char *base, int ti
 
 // this tests exists to check if I screwed up in pushing/popping/replacing states somewhere
 const char *test_json_tokenizer_state_management() {
-  size_t times = JSON_MAX_STATE_STACK_LENGTH * 3;
+  int64_t times = JSON_MAX_STATE_STACK_LENGTH * 3;
   const char *fmt = "[%s true]";
   TEST_ASSERT(test_json_tokenizer_will_parse(fmt, "true, ", times));
   TEST_ASSERT(test_json_tokenizer_will_parse(fmt, "false, ", times));
@@ -771,7 +771,7 @@ bool test_json_tokenizer_breakage(const char *src) {
   }
 
   bool has_breakage = false;
-  size_t bytes_written_before_breakage = 0;
+  int64_t bytes_written_before_breakage = 0;
   for (; src[bytes_written_before_breakage] != 0; bytes_written_before_breakage++) {
     if (!json_tokenizer_push(&t, src[bytes_written_before_breakage])) {
       has_breakage = true;
@@ -802,13 +802,13 @@ bool test_json_tokenizer_breakage(const char *src) {
     return false;
   }
 
-  size_t bytes_written = json_tokenizer_render_partial_token(&t, &tmp_writer);
+  int64_t bytes_written = json_tokenizer_render_partial_token(&t, &tmp_writer);
   buffer tmp_result = writer_peek_current_buffer(&tmp_writer);
-  for (size_t i = 0; i < bytes_written; i++) {
+  for (int64_t i = 0; i < bytes_written; i++) {
     writer_write_byte(&w, tmp_result.data[i]);
   }
-  size_t src_len = strlen(src);
-  for (size_t i = bytes_written_before_breakage; i < src_len; i++) {
+  int64_t src_len = strlen(src);
+  for (int64_t i = bytes_written_before_breakage; i < src_len; i++) {
     writer_write_byte(&w, src[i]);
   }
 
@@ -819,7 +819,7 @@ bool test_json_tokenizer_breakage(const char *src) {
   }
   buffer reprint = reprint_or_error.buffer;
 
-  for (size_t i = 0; src[i] != 0 && i < reprint.length; i++) {
+  for (int64_t i = 0; src[i] != 0 && i < reprint.length; i++) {
     if ((byte)src[i] != reprint.data[i]) {
       printf("Failed to reprint (mismatch at %zu: %i vs %i) %s: reprinted as %.*s\n", i, (byte)src[i], reprint.data[i], src, (int)reprint.length, reprint.data);
       return false;
@@ -840,14 +840,14 @@ bool test_json_tokenizer_breakage(const char *src) {
 }
 
 bool test_json_tokenizer_breakage_with_suffixes(const char *src) {
-  size_t src_len = strlen(src);
+  int64_t src_len = strlen(src);
   char *input = malloc(sizeof(char) * (src_len + 1));
   input[src_len] = 0;
-  for (size_t i = 0; i < src_len; i++) {
+  for (int64_t i = 0; i < src_len; i++) {
     input[i] = 'X';
   }
 
-  for (size_t i = 0; i < src_len; i++) {
+  for (int64_t i = 0; i < src_len; i++) {
     if (!test_json_tokenizer_breakage(input)) {
       return false;
     }
@@ -896,7 +896,7 @@ bool test_json_tokenizer_stack_push_fail(const char *src, int pushes_before_fail
   // bit weird to do it like that, but it's the easiest way to get tokenizer to that state
   t.state_stack.byte_length = t.state_stack.index + pushes_before_failure;
   bool has_breakage = false;
-  size_t bytes_written_before_breakage = 0;
+  int64_t bytes_written_before_breakage = 0;
   for (; src[bytes_written_before_breakage] != 0; bytes_written_before_breakage++) {
     if (!json_tokenizer_push(&t, src[bytes_written_before_breakage])) {
       has_breakage = true;
@@ -927,13 +927,13 @@ bool test_json_tokenizer_stack_push_fail(const char *src, int pushes_before_fail
     return false;
   }
 
-  size_t bytes_written = json_tokenizer_render_partial_token(&t, &tmp_writer);
+  int64_t bytes_written = json_tokenizer_render_partial_token(&t, &tmp_writer);
   buffer tmp_result = writer_peek_current_buffer(&tmp_writer);
-  for (size_t i = 0; i < bytes_written; i++) {
+  for (int64_t i = 0; i < bytes_written; i++) {
     writer_write_byte(&w, tmp_result.data[i]);
   }
-  size_t src_len = strlen(src);
-  for (size_t i = bytes_written_before_breakage; i < src_len; i++) {
+  int64_t src_len = strlen(src);
+  for (int64_t i = bytes_written_before_breakage; i < src_len; i++) {
     writer_write_byte(&w, src[i]);
   }
 
@@ -944,7 +944,7 @@ bool test_json_tokenizer_stack_push_fail(const char *src, int pushes_before_fail
   }
   buffer reprint = reprint_or_error.buffer;
 
-  for (size_t i = 0; src[i] != 0 && i < reprint.length; i++) {
+  for (int64_t i = 0; src[i] != 0 && i < reprint.length; i++) {
     if ((byte)src[i] != reprint.data[i]) {
       printf("Failed to reprint (mismatch at %zu: %i vs %i) %s: reprinted as %.*s\n", i, (byte)src[i], reprint.data[i], src, (int)reprint.length, reprint.data);
       return false;

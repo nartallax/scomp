@@ -11,7 +11,7 @@ typedef struct {
   _acod_state state;
   // The current raw code bits being buffered, which is always in the range [low, high].
   symbol_frequency code;
-  int base_bits_received;
+  int32_t base_bits_received;
 } acod_decoder;
 
 void acod_decoder_init(acod_decoder *decoder) {

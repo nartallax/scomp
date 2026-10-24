@@ -1,14 +1,14 @@
 #pragma once
-#include "../../src/string_compression/compressor.c"
-#include "../../src/string_compression/decompressor.c"
+#include "../../src/string_compression/string_compressor.c"
+#include "../../src/string_compression/string_decompressor.c"
 #include "../../src/writer.c"
 #include "../test_utils.c"
 #include <limits.h>
 
-const char *strcomp_perf_test_process_buffer(size_t *total_bytes_compressed, buffer b, string_decompressor *decomp) {
+const char *strcomp_perf_test_process_buffer(int64_t *total_bytes_compressed, buffer b, string_decompressor *decomp) {
   *total_bytes_compressed += b.length;
 
-  for (size_t i = 0; i < b.length; i++) {
+  for (int64_t i = 0; i < b.length; i++) {
     byte c = b.data[i];
     for (int j = 0; j < CHAR_BIT; j++) {
       TEST_ASSERT(!strdecomp_push_bit(decomp, c & 1));
@@ -36,15 +36,15 @@ const char *strcomp_perf_test_compare_to_file(buffer b, const char *path) {
   TEST_ASSERT(src_file);
 
   bool is_success = true;
-  size_t bytes_read;
+  int64_t bytes_read;
   char read_buffer[4096];
-  size_t buffer_pos = 0;
+  int64_t buffer_pos = 0;
   while (is_success && (bytes_read = fread(read_buffer, 1, sizeof(read_buffer), src_file)) > 0) {
     if (b.length < buffer_pos + bytes_read) {
       is_success = false;
       break;
     }
-    for (size_t i = 0; i < bytes_read; i++) {
+    for (int64_t i = 0; i < bytes_read; i++) {
       if (b.data[buffer_pos + i] != (byte)read_buffer[i]) {
         printf("At %zu, expected %c (%i), but got %c (%i)\n", buffer_pos + i, read_buffer[i], read_buffer[i], b.data[buffer_pos + i], b.data[buffer_pos + i]);
         is_success = false;
@@ -78,13 +78,13 @@ const char *test_string_compression_on_a_file(const char *path) {
   TEST_ASSERT(src_file);
 
   bool is_success = true;
-  size_t bytes_read;
-  size_t total_bytes_compressed = 0;
-  size_t total_bytes_read = 0;
+  int64_t bytes_read;
+  int64_t total_bytes_compressed = 0;
+  int64_t total_bytes_read = 0;
   char read_buffer[4096];
   while (is_success && (bytes_read = fread(read_buffer, 1, sizeof(read_buffer), src_file)) > 0) {
     total_bytes_read += bytes_read;
-    for (size_t i = 0; i < bytes_read; i++) {
+    for (int64_t i = 0; i < bytes_read; i++) {
       strcomp_write(&comp, read_buffer[i]);
 
       buffer b;

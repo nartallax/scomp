@@ -5,13 +5,13 @@
 #include "byte_stream_matcher.c"
 
 // tuneables
-constexpr size_t _STRCOMP_UINT_SYMBOL_BITS_COUNT = 4; // one symbol, which is part of uint, contains this much bits of information
+constexpr int64_t _STRCOMP_UINT_SYMBOL_BITS_COUNT = 4; // one symbol, which is part of uint, contains this much bits of information
 constexpr int64_t _STRCOMP_MIN_BACKREFERENCE_LENGTH = 5;
 
 constexpr symbol _STRCOMP_BACKREFERENCE_SYMBOL = 256;
 constexpr symbol _STRCOMP_EOF_SYMBOL = 257; // TODO: use real eof?
-constexpr size_t _STRCOMP_UINT_SYMBOL_MASK = (1 << _STRCOMP_UINT_SYMBOL_BITS_COUNT) - 1;
-constexpr size_t _STRCOMP_UINT_TERMINATOR_SYMBOL = 1 << _STRCOMP_UINT_SYMBOL_BITS_COUNT;
+constexpr int64_t _STRCOMP_UINT_SYMBOL_MASK = (1 << _STRCOMP_UINT_SYMBOL_BITS_COUNT) - 1;
+constexpr int64_t _STRCOMP_UINT_TERMINATOR_SYMBOL = 1 << _STRCOMP_UINT_SYMBOL_BITS_COUNT;
 
 typedef struct {
   // frequency table for just characters, start-of-backreference symbol, or EOF

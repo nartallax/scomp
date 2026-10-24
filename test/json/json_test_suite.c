@@ -10,11 +10,10 @@ int json_test_suite_failures = 0;
 
 const int json_test_suite_expected_files = 318;
 
-typedef enum {
-  JSON_SUITE_FAILURE = 1,
-  JSON_SUITE_SUCCESS = 2,
-  JSON_SUITE_IMPLEMENTATION_DEPENDENT = 3
-} json_suite_expected_result;
+typedef byte json_suite_expected_result;
+constexpr json_suite_expected_result JSON_SUITE_FAILURE = 1;
+constexpr json_suite_expected_result JSON_SUITE_SUCCESS = 2;
+constexpr json_suite_expected_result JSON_SUITE_IMPLEMENTATION_DEPENDENT = 3;
 
 bool test_parse_json_suite_path(const char *path, json_suite_expected_result *expected_result_slot, const char **filename_slot) {
   if (!ends_with(path, ".json")) {
@@ -58,10 +57,10 @@ buffer test_feed_file_into_tokenizer_detokenizer(const char *path, const char *f
   }
 
   bool is_success = true;
-  size_t bytes_read;
+  int64_t bytes_read;
   char read_buffer[4096];
   while (is_success && (bytes_read = fread(read_buffer, 1, sizeof(read_buffer), src_file)) > 0) {
-    for (size_t i = 0; i < bytes_read; i++) {
+    for (int64_t i = 0; i < bytes_read; i++) {
       if (!json_tokenizer_push(&t, read_buffer[i])) {
         is_success = false;
         break;
@@ -128,12 +127,12 @@ bool test_buffer_equals_to_file(const char *path, buffer b) {
     return false;
   }
 
-  size_t index = 0;
-  size_t bytes_read;
+  int64_t index = 0;
+  int64_t bytes_read;
   bool is_different = false;
   char read_buffer[4096];
   while (!is_different && (bytes_read = fread(read_buffer, 1, sizeof(read_buffer), src_file)) > 0) {
-    for (size_t i = 0; i < bytes_read; i++) {
+    for (int64_t i = 0; i < bytes_read; i++) {
       if (b.data[index + i] != (byte)read_buffer[i]) {
         is_different = true;
         break;

@@ -25,15 +25,15 @@ json_token test_string_to_single_json_token(const char *str) {
 
 bool test_json_detokenizer_with_token(json_token token, const char *expected_result) {
   writer w;
-  size_t expected_result_length = strlen(expected_result);
+  int64_t expected_result_length = strlen(expected_result);
   TEST_ASSERT(writer_init(&w, test_context, 1024, 4));
-  size_t written_bytes_count = json_detokenizer_write(&w, &token);
+  int64_t written_bytes_count = json_detokenizer_write(&w, &token);
   buffer result = writer_consume_all_buffers(&w).buffer;
   char *result_str = malloc(sizeof(char) * (result.length + 1));
   strncpy(result_str, (const char *)result.data, result.length);
   free(result.data);
   result_str[result.length] = 0;
-  size_t i = 0;
+  int64_t i = 0;
   for (; expected_result[i] != 0; i++) {
     if (i >= result.length) {
       printf("Result shorter than expected: %s != %s\n", result_str, expected_result);

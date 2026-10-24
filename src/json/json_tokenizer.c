@@ -204,8 +204,7 @@ NODISCARD bool _jtok_advance_parsing_of_fixed_token(json_tokenizer *t, byte b, c
   return true;
 }
 
-constexpr uint64_t _JTOK_NOT_A_HEX_CHARACTER = 0xff;
-uint64_t _jtok_is_hex(byte hex_char) {
+bool _jtok_is_hex(byte hex_char) {
   return (hex_char >= '0' && hex_char <= '9') || (hex_char >= 'a' && hex_char <= 'f') || (hex_char >= 'A' && hex_char <= 'F');
 }
 
@@ -222,7 +221,7 @@ State of the tokenizer is not changed by this.
 
 Returns amount of meaningful bytes written.
 It's possible that more bytes were written, but caller should only use meaningful bytes. */
-size_t json_tokenizer_render_partial_token(json_tokenizer *t, writer *w) {
+int64_t json_tokenizer_render_partial_token(json_tokenizer *t, writer *w) {
   json_state state = bfstack_peek(&t->state_stack);
   switch (state) {
   case JSON_STATE_BOM:
@@ -387,7 +386,7 @@ NODISCARD bool json_tokenizer_push(json_tokenizer *t, byte b) {
     } else if (b == '\\') {
       return _jtok_push_state(t, JSON_STATE_ESCAPED_CHARACTER);
     } else {
-      size_t utf8_length = utf8_get_sequence_length_by_first_byte(b);
+      int64_t utf8_length = utf8_get_sequence_length_by_first_byte(b);
       if (utf8_length == 0) {
         return false;
       }
@@ -557,7 +556,7 @@ NODISCARD bool json_tokenizer_flush(json_tokenizer *t) {
   if (!json_tokenizer_push(t, ' ')) {
     return false;
   }
-  size_t tokens_in_queue = fqueue_get_count(&t->token_queue);
+  int64_t tokens_in_queue = fqueue_get_count(&t->token_queue);
   if (tokens_in_queue == 1) {
     fqueue_pop(&t->token_queue); // whitespace
   } else {

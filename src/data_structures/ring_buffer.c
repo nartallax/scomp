@@ -5,18 +5,18 @@
 
 typedef struct {
   byte *content;
-  size_t content_position;
-  size_t length_mask;
+  int64_t content_position;
+  int64_t length_mask;
 } ring_buffer;
 
-size_t ring_buffer_get_length(ring_buffer *rb) {
+int64_t ring_buffer_get_length(ring_buffer *rb) {
   return rb->length_mask + 1;
 }
 
-NODISCARD bool ring_buffer_init(ring_buffer *rb, context *context, size_t length_shift) {
+NODISCARD bool ring_buffer_init(ring_buffer *rb, context *context, int64_t length_shift) {
   *rb = (ring_buffer){0};
 
-  size_t length = (size_t)1 << length_shift;
+  int64_t length = 1 << length_shift;
   rb->length_mask = length - 1;
   rb->content_position = 0;
   rb->content = context_allocate_zero_init(context, length, sizeof(byte));
@@ -30,7 +30,7 @@ void ring_buffer_deinit(ring_buffer *rb, context *context) {
 }
 
 /** Get index of next free byte in the buffer */
-size_t ring_buffer_get_index(ring_buffer *rb) {
+int64_t ring_buffer_get_index(ring_buffer *rb) {
   return rb->content_position;
 }
 
@@ -41,6 +41,6 @@ void ring_buffer_push(ring_buffer *rb, byte b) {
 
 /** Returns a byte from the ring buffer.
 Index may be bigger than the length of the buffer and will be truncated */
-byte ring_buffer_get(ring_buffer *rb, size_t index) {
+byte ring_buffer_get(ring_buffer *rb, int64_t index) {
   return rb->content[index & rb->length_mask];
 }

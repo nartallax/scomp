@@ -6,12 +6,11 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-typedef enum {
-  ACOD_STAGE_SHIFT = 1,
-  ACOD_STAGE_UNDERFLOW,
-  ACOD_STAGE_READY,
-  ACOD_STAGE_PREPARATION
-} _acod_stage;
+typedef byte _acod_stage;
+constexpr _acod_stage ACOD_STAGE_SHIFT = 1;
+constexpr _acod_stage ACOD_STAGE_UNDERFLOW = 2;
+constexpr _acod_stage ACOD_STAGE_READY = 3;
+constexpr _acod_stage ACOD_STAGE_PREPARATION = 4;
 
 typedef struct {
   symbol_frequency high;

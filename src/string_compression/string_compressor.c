@@ -13,7 +13,6 @@ typedef struct {
   ring_buffer input_buffer;
   string_compression_base base;
   acod_encoder *encoder;
-  // TODO: rethink data types everywhere. why can't everything be int32_t?
   int32_t bytes_in_buffer;
   byte_stream_matcher bsm;
 } string_compressor;
@@ -48,8 +47,8 @@ NODISCARD bool strcomp_init(string_compressor *compressor, context *context, aco
   return true;
 }
 
-void _strcomp_write_uint(string_compressor *compressor, ftable *table, ftable *last_part_table, uint64_t value) {
-  int bit_index = most_significant_bit_index(value);
+void _strcomp_write_int(string_compressor *compressor, ftable *table, ftable *last_part_table, int64_t value) {
+  int64_t bit_index = most_significant_bit_index(value);
   symbol length_symbols_symbol = (bit_index + (int)_STRCOMP_UINT_SYMBOL_BITS_COUNT) / _STRCOMP_UINT_SYMBOL_BITS_COUNT;
   acod_encoder_write(compressor->encoder, table, length_symbols_symbol);
   ftable_increment(table, length_symbols_symbol);
@@ -67,11 +66,11 @@ void _strcomp_write_uint(string_compressor *compressor, ftable *table, ftable *l
   }
 }
 
-void _strcomp_write_backreference(string_compressor *compressor, uint64_t offset, uint64_t length) {
+void _strcomp_write_backreference(string_compressor *compressor, int64_t offset, int64_t length) {
   acod_encoder_write(compressor->encoder, &compressor->base.main_symbol_table, _STRCOMP_BACKREFERENCE_SYMBOL);
   ftable_increment(&compressor->base.main_symbol_table, _STRCOMP_BACKREFERENCE_SYMBOL);
-  _strcomp_write_uint(compressor, &compressor->base.backref_offset_length, &compressor->base.backref_offset_last_part, offset - length);
-  _strcomp_write_uint(compressor, &compressor->base.backref_length_length, &compressor->base.backref_length_last_part, length);
+  _strcomp_write_int(compressor, &compressor->base.backref_offset_length, &compressor->base.backref_offset_last_part, offset - length);
+  _strcomp_write_int(compressor, &compressor->base.backref_length_length, &compressor->base.backref_length_last_part, length);
 }
 
 void _strcomp_compressor_flush_once(string_compressor *compressor) {

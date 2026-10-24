@@ -3,18 +3,18 @@
 #include "../writer.c"
 #include "json_base.c"
 
-size_t _jdet_write_int(writer *w, uint64_t value) {
+int64_t _jdet_write_uint(writer *w, uint64_t value) {
   uint64_t rem = value % 10;
   value = value / 10;
-  size_t result = 1;
+  int64_t result = 1;
   if (value) {
-    result += _jdet_write_int(w, value);
+    result += _jdet_write_uint(w, value);
   }
   writer_write_byte(w, '0' + rem);
   return result;
 }
 
-size_t json_detokenizer_write(writer *w, json_token *token) {
+int64_t json_detokenizer_write(writer *w, json_token *token) {
   switch (token->kind) {
   case JSON_TOKEN_OBJECT_OPEN:
     writer_write_byte(w, '{');
@@ -70,7 +70,7 @@ size_t json_detokenizer_write(writer *w, json_token *token) {
     return 2;
   case JSON_TOKEN_UNICODE_CHARACTER: {
     uint64_t chars = token->unicode_character.value;
-    for (size_t i = 0; i < token->unicode_character.length; i++) {
+    for (int64_t i = 0; i < token->unicode_character.length; i++) {
       writer_write_byte(w, chars & 0xff);
       chars = chars >> 8;
     }
@@ -87,7 +87,7 @@ size_t json_detokenizer_write(writer *w, json_token *token) {
   }
     return 6;
   default:
-    size_t result = 0;
+    int64_t result = 0;
     // case JSON_TOKEN_NUMBER: as default for code coverage reasons
     // integer part
     if (token->number.flags & JSON_NUMBER_IS_NEGATIVE) {
@@ -95,7 +95,7 @@ size_t json_detokenizer_write(writer *w, json_token *token) {
       result++;
     }
     if (token->number.integer_part != 0 || (token->number.flags & JSON_NUMBER_IS_ZERO)) {
-      result += _jdet_write_int(w, token->number.integer_part);
+      result += _jdet_write_uint(w, token->number.integer_part);
     }
 
     // fraction part
@@ -107,7 +107,7 @@ size_t json_detokenizer_write(writer *w, json_token *token) {
       }
       result += token->number.fraction_leading_zeroes;
       if (token->number.fraction_part != 0) {
-        result += _jdet_write_int(w, token->number.fraction_part);
+        result += _jdet_write_uint(w, token->number.fraction_part);
       }
     }
 
@@ -124,7 +124,7 @@ size_t json_detokenizer_write(writer *w, json_token *token) {
       }
       result += token->number.exponent_leading_zeroes;
       if (token->number.exponent_part != 0) {
-        result += _jdet_write_int(w, token->number.exponent_part);
+        result += _jdet_write_uint(w, token->number.exponent_part);
       }
     }
 

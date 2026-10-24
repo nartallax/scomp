@@ -6,7 +6,6 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include <stdio.h>
 #include <string.h>
 
 /** Writer is a structure that receives bytes and bits from various producers.
@@ -16,14 +15,14 @@ Buffers can be reused via `writer_supply_...()` methods. */
 typedef struct {
   context *context;
   queue buffers;
-  size_t current_bit_index;
-  size_t single_buffer_byte_size;
+  int32_t current_bit_index;
+  int64_t single_buffer_byte_size;
   queue free_buffers;
 } writer;
 
 typedef struct {
   byte *data;
-  size_t length;
+  int64_t length;
 } buffer;
 
 constexpr buffer EMPTY_BUFFER = (buffer){.data = NULL, .length = 0};
@@ -68,7 +67,7 @@ void _writer_maybe_allocate_next_buffer(writer *writer) {
   }
 }
 
-size_t writer_get_bytes_stored(writer *writer) {
+int64_t writer_get_bytes_stored(writer *writer) {
   int buffer_count = (int)queue_get_count(&writer->buffers);
   if (buffer_count > 0) {
     // there should always be at least 1 buffer
@@ -95,7 +94,7 @@ void writer_deinit(writer *w, context *context) {
   *w = (writer){0};
 }
 
-NODISCARD bool writer_init(writer *w, context *context, size_t single_buffer_byte_size, size_t queues_size_shift) {
+NODISCARD bool writer_init(writer *w, context *context, int64_t single_buffer_byte_size, int64_t queues_size_shift) {
   *w = (writer){0};
 
   w->single_buffer_byte_size = single_buffer_byte_size;
@@ -167,7 +166,7 @@ NODISCARD buffer_or_error writer_consume_nonempty_buffer(writer *writer) {
   if (writer->current_bit_index == 0) {
     return EMPTY_ERROR_BUFFER;
   }
-  size_t bit_index = writer->current_bit_index;
+  int64_t bit_index = writer->current_bit_index;
   // allocating before pop, to avoid losing data
   _writer_allocate_next_buffer(writer);
   if (context_is_errored(writer->context)) {
@@ -184,8 +183,8 @@ Returns buffer of length zero if no bytes are left to be consumed, of if there w
 Writer won't track byte array returned, it's up for caller to `free()` it. Internal buffers (not returned from this function) are freed by the writer.
 Restriction about partially-written bytes apply, see comments to `writer_consume_nonempty_buffer` */
 NODISCARD buffer_or_error writer_consume_all_buffers(writer *writer) {
-  size_t length = writer_get_bytes_stored(writer);
-  size_t index = 0;
+  int64_t length = writer_get_bytes_stored(writer);
+  int64_t index = 0;
   byte *bytes = context_allocate(writer->context, length, sizeof(byte));
   if (!bytes) {
     return ERROR_ERROR_BUFFER;

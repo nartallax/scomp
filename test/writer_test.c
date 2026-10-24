@@ -183,7 +183,7 @@ const char *test_writer_allocation_failure() {
 
   setup_test_context(3);
   TEST_ASSERT(writer_init(w, test_context, 2, 4));
-  size_t queue_default_length = w->buffers.length;
+  int64_t queue_default_length = w->buffers.length;
   writer_write_byte(w, 1);
   buffer_or_error b = writer_consume_all_buffers(w);
   TEST_ASSERT(b.buffer.length == 0 && b.buffer.data == NULL && b.is_error);

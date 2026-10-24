@@ -11,19 +11,19 @@ Because of that, its api does not operate with values themselves, but rather wit
 typedef struct {
   context *context;
   /** Size of one element. */
-  size_t value_size;
+  int64_t value_size;
   /** Storage for queue's contents.
   It's typed as byte array to make pointer arithmetics easier. */
   byte *values;
   // length of the `values` array, in elements. is always power-of-two.
-  size_t length;
+  int64_t length;
   // head is the last occupied spot in values array
-  size_t head;
+  int64_t head;
   // tail is first free spot in values array
-  size_t tail;
+  int64_t tail;
 } queue;
 
-NODISCARD bool queue_init(queue *q, context *context, size_t value_size, size_t starting_length_shift) {
+NODISCARD bool queue_init(queue *q, context *context, int64_t value_size, int64_t starting_length_shift) {
   *q = (queue){0};
 
   q->length = 1 << starting_length_shift;
@@ -49,31 +49,31 @@ void queue_deinit(queue *q, context *context) {
 }
 
 /** Returns amount of items in queue. */
-size_t queue_get_count(queue *queue) {
+int64_t queue_get_count(queue *queue) {
   return queue->head <= queue->tail ? queue->tail - queue->head : queue->tail + queue->length - queue->head;
 }
 
-size_t _queue_increment(queue *queue, size_t i) {
+int64_t _queue_increment(queue *queue, int64_t i) {
   return (i + 1) & (queue->length - 1);
 }
 
 NODISCARD bool _queue_maybe_grow(queue *queue) {
-  size_t count = queue_get_count(queue);
+  int64_t count = queue_get_count(queue);
   if (count < queue->length - 1) {
     return true;
   }
 
-  size_t new_length = queue->length * 2;
+  int64_t new_length = queue->length * 2;
   byte *new_values = context_allocate(queue->context, new_length, queue->value_size);
   if (!new_values) {
     return false;
   }
 
-  size_t i = 0;
-  size_t qsize = queue->value_size;
+  int64_t i = 0;
+  int64_t qsize = queue->value_size;
   // TODO: cringe. use realloc and move only segment that touches the end of the array
-  for (size_t pointer = queue->head; pointer != queue->tail; pointer = _queue_increment(queue, pointer)) {
-    for (size_t byte_pointer = 0; byte_pointer < queue->value_size; byte_pointer++) {
+  for (int64_t pointer = queue->head; pointer != queue->tail; pointer = _queue_increment(queue, pointer)) {
+    for (int64_t byte_pointer = 0; byte_pointer < queue->value_size; byte_pointer++) {
       new_values[(i * qsize) + byte_pointer] = queue->values[(pointer * qsize) + byte_pointer];
     }
     i++;
@@ -116,6 +116,6 @@ void *queue_peek(queue *queue) {
 void *queue_peek_tail(queue *queue) {
   assert(queue_get_count(queue) > 0 && "Queue should not underflow on tail peek");
   // TODO: bitwise mask here
-  size_t index = ((queue->tail + queue->length) - 1) % queue->length;
+  int64_t index = ((queue->tail + queue->length) - 1) % queue->length;
   return queue->values + (index * queue->value_size);
 }

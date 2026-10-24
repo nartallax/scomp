@@ -3,14 +3,14 @@
 #include "../context.c"
 #include <assert.h>
 
-constexpr size_t ARENA_DEFAULT_LENGTH = 1024;
+constexpr int64_t ARENA_DEFAULT_LENGTH = 1024;
 
 // TODO: do we still need it?
 typedef struct {
   context *context;
   byte *data;
-  size_t offset;
-  size_t length;
+  int64_t offset;
+  int64_t length;
   int allocations_count;
 } arena;
 
@@ -36,9 +36,9 @@ Returns offset. Offset can be turned into pointer with `arena_offset_to_pointer(
 Offsets are valid until arena resets.
 
 Returns 0 on allocation errors. */
-size_t arena_allocate(arena *arena, size_t byte_size) {
+int64_t arena_allocate(arena *arena, int64_t byte_size) {
   while (arena->offset + byte_size >= arena->length) {
-    size_t new_length = arena->length * 2;
+    int64_t new_length = arena->length * 2;
     byte *new_data = context_reallocate(arena->context, arena->data, new_length, sizeof(byte));
     if (!new_data) {
       return 0;
@@ -47,7 +47,7 @@ size_t arena_allocate(arena *arena, size_t byte_size) {
     arena->length = new_length;
   }
 
-  size_t result = arena->offset;
+  int64_t result = arena->offset;
   arena->offset += byte_size;
   arena->allocations_count++;
   return result + 1;
@@ -55,7 +55,7 @@ size_t arena_allocate(arena *arena, size_t byte_size) {
 
 /** Converts offset (see `arena_allocate()`) into pointer of usable memory.
 Don't store the pointer between `arena_allocate()` calls, as it may be invalidated on arena growth. */
-void *arena_offset_to_pointer(arena *arena, size_t offset) {
+void *arena_offset_to_pointer(arena *arena, int64_t offset) {
   assert(offset > 0 && "Zero offset is invalid");
   return arena->data + (offset - 1);
 }

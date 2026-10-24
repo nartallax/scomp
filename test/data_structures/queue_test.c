@@ -47,8 +47,8 @@ const char *test_queue_overflow_while_wrapping() {
   queue *q = malloc(sizeof(queue));
   TEST_ASSERT(queue_init(q, test_context, sizeof(const char *), 4));
 
-  size_t default_length = q->length;
-  for (size_t i = 0; i < default_length - 1; i++) {
+  int64_t default_length = q->length;
+  for (int64_t i = 0; i < default_length - 1; i++) {
     _test_queue_push(q, "a");
   }
 
@@ -61,26 +61,26 @@ const char *test_queue_overflow_while_wrapping() {
   TEST_ASSERT(queue_get_count(q) == default_length - 4);
   TEST_ASSERT(q->length == default_length);
 
-  for (size_t i = 0; i < 7; i++) {
+  for (int64_t i = 0; i < 7; i++) {
     _test_queue_push(q, "b");
   }
 
   TEST_ASSERT(queue_get_count(q) == default_length + 3);
   TEST_ASSERT(q->length == default_length * 2);
-  for (size_t i = 0; i < default_length - 4; i++) {
+  for (int64_t i = 0; i < default_length - 4; i++) {
     TEST_ASSERT(strcmp(_str(queue_pop(q)), "a") == 0);
   }
-  for (size_t i = 0; i < 7; i++) {
+  for (int64_t i = 0; i < 7; i++) {
     TEST_ASSERT(strcmp(_str(queue_pop(q)), "b") == 0);
   }
   TEST_ASSERT(queue_get_count(q) == 0);
 
-  for (size_t i = 0; i < default_length * 2 + 3; i++) {
+  for (int64_t i = 0; i < default_length * 2 + 3; i++) {
     _test_queue_push(q, "c");
   }
   TEST_ASSERT(queue_get_count(q) == (default_length * 2) + 3);
   TEST_ASSERT(q->length == default_length * 4);
-  for (size_t i = 0; i < default_length * 2 + 3; i++) {
+  for (int64_t i = 0; i < default_length * 2 + 3; i++) {
     TEST_ASSERT(strcmp(_str(queue_pop(q)), "c") == 0);
   }
 
@@ -93,15 +93,15 @@ const char *test_queue_overflow_while_not_wrapping() {
   queue *q = malloc(sizeof(queue));
   TEST_ASSERT(queue_init(q, test_context, sizeof(const char *), 4));
 
-  size_t default_length = q->length;
+  int64_t default_length = q->length;
   TEST_ASSERT(q->length == default_length);
-  for (size_t i = 0; i < default_length * 2 + 5; i++) {
+  for (int64_t i = 0; i < default_length * 2 + 5; i++) {
     _test_queue_push(q, "a");
   }
 
   TEST_ASSERT(queue_get_count(q) == default_length * 2 + 5);
   TEST_ASSERT(q->length == default_length * 4);
-  for (size_t i = 0; i < default_length * 2 + 5; i++) {
+  for (int64_t i = 0; i < default_length * 2 + 5; i++) {
     TEST_ASSERT(strcmp(_str(queue_pop(q)), "a") == 0);
   }
 
@@ -111,15 +111,15 @@ const char *test_queue_overflow_while_not_wrapping() {
 }
 
 typedef struct {
-  uint64_t x;
-  uint64_t y;
-  uint64_t z;
+  int64_t x;
+  int64_t y;
+  int64_t z;
 } test_xyz;
 
 const char *test_queue_non_pointer_values() {
   queue *q = malloc(sizeof(queue));
   TEST_ASSERT(queue_init(q, test_context, sizeof(test_xyz), 4));
-  size_t default_length = q->length;
+  int64_t default_length = q->length;
 
   test_xyz *slot1 = queue_push(q);
   slot1->x = 1;
@@ -138,14 +138,14 @@ const char *test_queue_non_pointer_values() {
   test_xyz *pop_slot2 = queue_pop(q);
   TEST_ASSERT(pop_slot2->x == 4 && pop_slot2->y == 5 && pop_slot2->z == 6);
 
-  for (size_t i = 0; i < default_length + 3; i++) {
+  for (int64_t i = 0; i < default_length + 3; i++) {
     test_xyz *slot = queue_push(q);
     slot->x = i;
     slot->y = i + 1;
     slot->z = i + 2;
   }
 
-  for (size_t i = 0; i < default_length + 3; i++) {
+  for (int64_t i = 0; i < default_length + 3; i++) {
     test_xyz *slot = queue_pop(q);
     TEST_ASSERT(slot->x == i && slot->y == i + 1 && slot->z == i + 2);
   }
@@ -163,9 +163,9 @@ const char *test_queue_allocation_failures() {
 
   setup_test_context(1);
   TEST_ASSERT(queue_init(&q, test_context, sizeof(const char *), 4));
-  size_t default_length = q.length;
+  int64_t default_length = q.length;
   TEST_ASSERT(context_is_errored(test_context) == false);
-  for (size_t i = 0; i < default_length - 1; i++) {
+  for (int64_t i = 0; i < default_length - 1; i++) {
     _test_queue_push(&q, "a");
   }
   TEST_ASSERT(context_is_errored(test_context) == false);

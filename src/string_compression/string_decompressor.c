@@ -5,12 +5,11 @@
 #include "string_compression_base.c"
 #include <stdbool.h>
 
-typedef enum {
-  _STRDECOMP_STATE_CHARACTER = 0,
-  _STRDECOMP_STATE_OFFSET = 1 << 0,
-  _STRDECOMP_STATE_START = 1 << 1,
-  _STRDECOMP_STATE_LENGTH = 1 << 2
-} _strcomp_state;
+typedef byte _strcomp_state;
+constexpr _strcomp_state _STRDECOMP_STATE_CHARACTER = 0;
+constexpr _strcomp_state _STRDECOMP_STATE_OFFSET = 1 << 0;
+constexpr _strcomp_state _STRDECOMP_STATE_START = 1 << 1;
+constexpr _strcomp_state _STRDECOMP_STATE_LENGTH = 1 << 2;
 
 typedef struct {
   // buffer that stores received characters and supplies sequence values for backreferences
@@ -130,6 +129,7 @@ void _strdecomp_read_backreference_symbol(string_decompressor *decomp) {
   }
 }
 
+// TODO: convert to consume_symbol, and push bits outside of this function
 /** Returns true if pushing this bit resulted in reading EOF symbol */
 NODISCARD bool strdecomp_push_bit(string_decompressor *decomp, byte bit) {
   acod_decoder_update(decomp->decoder, bit);
