@@ -6,17 +6,17 @@
 #include <limits.h>
 #include <stdlib.h>
 
-constexpr int64_t ACOD_TEST_WRITER_BUFFER_SIZE = 1024;
+constexpr int64 ACOD_TEST_WRITER_BUFFER_SIZE = 1024;
 
-byte *get_random_bytes(int64_t length) {
+byte *get_random_bytes(int64 length) {
   byte *result = malloc(sizeof(byte) * length);
-  for (int64_t i = 0; i < length; i++) {
+  for (int64 i = 0; i < length; i++) {
     result[i] = rand() & 0xff;
   }
   return result;
 }
 
-buffer encode_bytes(int64_t length, byte *data) {
+buffer encode_bytes(int64 length, byte *data) {
   writer *w = malloc(sizeof(writer));
   if (!writer_init(w, test_context, ACOD_TEST_WRITER_BUFFER_SIZE, 4)) {
     return EMPTY_BUFFER;
@@ -29,7 +29,7 @@ buffer encode_bytes(int64_t length, byte *data) {
     return EMPTY_BUFFER;
   }
 
-  for (int64_t i = 0; i < length; i++) {
+  for (int64 i = 0; i < length; i++) {
     symbol symbol = data[i];
     acod_encoder_write(encoder, &encoding_frequencies, symbol);
     ftable_increment(&encoding_frequencies, symbol);
@@ -46,7 +46,7 @@ buffer encode_bytes(int64_t length, byte *data) {
   return result.buffer;
 }
 
-const char *_test_acod(int64_t length, byte *data) {
+const char *_test_acod(int64 length, byte *data) {
   buffer encoded_bytes = encode_bytes(length, data);
 
   ftable decoding_frequencies;
@@ -54,12 +54,12 @@ const char *_test_acod(int64_t length, byte *data) {
   acod_decoder *decoder = malloc(sizeof(acod_decoder));
   acod_decoder_init(decoder);
 
-  int64_t symbol_index = 0;
+  int64 symbol_index = 0;
   symbol last_symbol = 0;
   symbol eof = ftable_get_eof_symbol(&decoding_frequencies);
-  int64_t bit_index = 0;
+  int64 bit_index = 0;
   while (last_symbol != eof) {
-    int64_t current_byte_index = bit_index >> 3;
+    int64 current_byte_index = bit_index >> 3;
     byte current_byte = current_byte_index >= encoded_bytes.length ? 0 : encoded_bytes.data[bit_index >> 3];
     byte current_bit = (current_byte & (1 << (bit_index & 7))) ? 1 : 0;
     bit_index++;
@@ -85,7 +85,7 @@ const char *_test_acod(int64_t length, byte *data) {
   return NULL;
 }
 
-byte *get_nonuniform_random_bytes(int64_t length) {
+byte *get_nonuniform_random_bytes(int64 length) {
   symbol symbol_count = (rand() & 0xff) + 1;
 
   // create distribution
@@ -110,7 +110,7 @@ byte *get_nonuniform_random_bytes(int64_t length) {
 
   // create message
   byte *message = malloc(sizeof(byte) * length);
-  int64_t j = 0;
+  int64 j = 0;
   for (symbol i = 0; i < symbol_count; i++) {
     for (symbol_frequency freq = 0; freq < freqs[i]; freq++) {
       message[j] = (byte)i;
@@ -118,8 +118,8 @@ byte *get_nonuniform_random_bytes(int64_t length) {
     }
   }
 
-  for (int64_t i = 0; i < length; i++) {
-    int64_t k = (rand() % (length - i)) + i;
+  for (int64 i = 0; i < length; i++) {
+    int64 k = (rand() % (length - i)) + i;
     byte tmp = message[i];
     message[i] = message[k];
     message[k] = tmp;
@@ -162,7 +162,7 @@ const char *test_acod_simple() {
 
   // every byte
   byte *every_byte = malloc(sizeof(byte) * 256);
-  for (int64_t i = 0; i < 256; i++) {
+  for (int64 i = 0; i < 256; i++) {
     every_byte[i] = (byte)i;
   }
   result = _test_acod(sizeof(underflow_bytes), underflow_bytes);
@@ -173,7 +173,7 @@ const char *test_acod_simple() {
 
   // uniform random
   for (int i = 0; i < 10; i++) {
-    int64_t length = 10000 + (rand() / (INT_MAX / 10000));
+    int64 length = 10000 + (rand() / (INT_MAX / 10000));
     byte *input = get_random_bytes(length);
     const char *result = _test_acod(length, input);
     if (result) {
@@ -184,7 +184,7 @@ const char *test_acod_simple() {
 
   // non-uniform random
   for (int i = 0; i < 10; i++) {
-    int64_t length = 10000 + (rand() / (INT_MAX / 10000));
+    int64 length = 10000 + (rand() / (INT_MAX / 10000));
     byte *input = get_nonuniform_random_bytes(length);
     const char *result = _test_acod(length, input);
     if (result) {
@@ -196,8 +196,8 @@ const char *test_acod_simple() {
   return NULL;
 }
 
-NODISCARD bool _acod_test_fill_writer_bits(writer *w, int64_t bit_count) {
-  for (int64_t i = 0; i < bit_count; i++) {
+NODISCARD bool _acod_test_fill_writer_bits(writer *w, int64 bit_count) {
+  for (int64 i = 0; i < bit_count; i++) {
     writer_write_bit(w, 0);
   }
   return true;

@@ -12,7 +12,7 @@ typedef struct {
   _acod_state state;
   // Number of saved underflow bits. This value can grow without bound, so a truly correct implementation would use a BigInteger.
   // (of course, it's very unlikely and can potentially happen only to very, very long sequences of input symbols)
-  uint64_t underflows;
+  uint64 underflows;
   writer *writer;
 } acod_encoder;
 

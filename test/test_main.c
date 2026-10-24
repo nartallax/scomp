@@ -2,9 +2,9 @@
 #include "test_utils.c"
 #include <stdio.h>
 
-int run_test_suite(const test *tests, size_t tester_count) {
-  int64_t failed_tests = 0;
-  for (size_t i = 0; i < tester_count; i++) {
+int run_test_suite(const test *tests, memsize tester_count) {
+  int64 failed_tests = 0;
+  for (memsize i = 0; i < tester_count; i++) {
     test current_test = tests[i];
     setup_test_context_default();
     const char *test_result = current_test.tester();

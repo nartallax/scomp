@@ -6,13 +6,13 @@
 /** Queue of a fixed size. */
 typedef struct {
   /** Size of one element. */
-  int64_t value_size;
+  int64 value_size;
   /** Storage for queue's contents.
   It's typed as byte array to make pointer arithmetics easier. */
   byte *values;
-  int64_t length_mask;
-  int64_t head;
-  int64_t tail;
+  int64 length_mask;
+  int64 head;
+  int64 tail;
 } fixed_queue;
 
 void fqueue_deinit(fixed_queue *q, context *context) {
@@ -26,10 +26,10 @@ void fqueue_reset(fixed_queue *q) {
   q->tail = 0;
 }
 
-NODISCARD bool fqueue_init(fixed_queue *q, context *context, int64_t value_size, int64_t length_shift) {
+NODISCARD bool fqueue_init(fixed_queue *q, context *context, int64 value_size, int64 length_shift) {
   *q = (fixed_queue){0};
 
-  int64_t length = 1 << length_shift;
+  int64 length = 1 << length_shift;
   q->length_mask = length - 1;
   q->head = 0;
   q->tail = 0;
@@ -60,18 +60,18 @@ void *fqueue_peek(fixed_queue *q) {
 void *fqueue_peek_tail(fixed_queue *q) {
   assert(q->tail != q->head && "Fixed-size queue underflow: cannot fqueue_peek_tail() on empty queue");
   // it's q->tail - 1, but without underflows
-  int64_t last_meaningful_value_index = (q->tail + q->length_mask) & q->length_mask;
+  int64 last_meaningful_value_index = (q->tail + q->length_mask) & q->length_mask;
   return q->values + (last_meaningful_value_index * q->value_size);
 }
 
 /** Get total capacity of the queue.
 Queue can hold at most this much values. */
-int64_t fqueue_get_capacity(fixed_queue *q) {
+int64 fqueue_get_capacity(fixed_queue *q) {
   return q->length_mask;
 }
 
 /** Return amount of values in the queue at this moment. */
-int64_t fqueue_get_count(fixed_queue *q) {
+int64 fqueue_get_count(fixed_queue *q) {
   // the same trick as above, subtraction without overflows
   return (q->tail + q->length_mask + 1 - q->head) & q->length_mask;
 }

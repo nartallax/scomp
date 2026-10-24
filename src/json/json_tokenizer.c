@@ -55,13 +55,13 @@ NODISCARD bool json_tokenizer_init(json_tokenizer *t, context *context) {
   return true;
 }
 
-constexpr uint64_t TENTH_OF_MAX_UINT64 = UINT64_MAX / 10;
-bool _jtok_uint64_will_overflow(uint64_t value, byte addition) {
+constexpr uint64 TENTH_OF_MAX_UINT64 = UINT64_MAX / 10;
+bool _jtok_uint64_will_overflow(uint64 value, byte addition) {
   return value >= TENTH_OF_MAX_UINT64 - addition;
 }
 
-constexpr uint16_t TENTH_OFF_MAX_UINT16 = UINT16_MAX / 10;
-bool _jtok_uint16_will_overflow(uint16_t value, byte addition) {
+constexpr uint16 TENTH_OFF_MAX_UINT16 = UINT16_MAX / 10;
+bool _jtok_uint16_will_overflow(uint16 value, byte addition) {
   return value >= TENTH_OFF_MAX_UINT16 - addition;
 }
 
@@ -192,7 +192,7 @@ void _jtok_pop_state_after_reading_value(json_tokenizer *t) {
   }
 }
 
-NODISCARD bool _jtok_advance_parsing_of_fixed_token(json_tokenizer *t, byte b, const byte *expected_bytes, size_t expected_bytes_length, json_token_kind kind) {
+NODISCARD bool _jtok_advance_parsing_of_fixed_token(json_tokenizer *t, byte b, const byte *expected_bytes, memsize expected_bytes_length, json_token_kind kind) {
   if (b != expected_bytes[t->value_progress]) {
     return false;
   }
@@ -221,7 +221,7 @@ State of the tokenizer is not changed by this.
 
 Returns amount of meaningful bytes written.
 It's possible that more bytes were written, but caller should only use meaningful bytes. */
-int64_t json_tokenizer_render_partial_token(json_tokenizer *t, writer *w) {
+int64 json_tokenizer_render_partial_token(json_tokenizer *t, writer *w) {
   json_state state = bfstack_peek(&t->state_stack);
   switch (state) {
   case JSON_STATE_BOM:
@@ -386,7 +386,7 @@ NODISCARD bool json_tokenizer_push(json_tokenizer *t, byte b) {
     } else if (b == '\\') {
       return _jtok_push_state(t, JSON_STATE_ESCAPED_CHARACTER);
     } else {
-      int64_t utf8_length = utf8_get_sequence_length_by_first_byte(b);
+      int64 utf8_length = utf8_get_sequence_length_by_first_byte(b);
       if (utf8_length == 0) {
         return false;
       }
@@ -411,7 +411,7 @@ NODISCARD bool json_tokenizer_push(json_tokenizer *t, byte b) {
     if (!utf8_is_valid_continuation_byte(b)) {
       return false;
     }
-    t->partial_unicode_token.value |= ((uint64_t)b) << (8 * t->value_progress);
+    t->partial_unicode_token.value |= ((uint64)b) << (8 * t->value_progress);
     t->value_progress++;
     if (t->value_progress == t->partial_unicode_token.length) {
       _jtok_push_unicode_token(t, JSON_TOKEN_UNICODE_CHARACTER);
@@ -436,7 +436,7 @@ NODISCARD bool json_tokenizer_push(json_tokenizer *t, byte b) {
     }
     // 4 hex bytes are stored like that to preserve case
     // as we must not lose any data at all during tokenization
-    t->partial_unicode_token.value |= ((uint64_t)b) << (8 * t->value_progress);
+    t->partial_unicode_token.value |= ((uint64)b) << (8 * t->value_progress);
     t->value_progress++;
     if (t->value_progress == 4) {
       bfstack_pop(&t->state_stack);
@@ -556,7 +556,7 @@ NODISCARD bool json_tokenizer_flush(json_tokenizer *t) {
   if (!json_tokenizer_push(t, ' ')) {
     return false;
   }
-  int64_t tokens_in_queue = fqueue_get_count(&t->token_queue);
+  int64 tokens_in_queue = fqueue_get_count(&t->token_queue);
   if (tokens_in_queue == 1) {
     fqueue_pop(&t->token_queue); // whitespace
   } else {

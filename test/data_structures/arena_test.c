@@ -6,9 +6,9 @@ const char *test_arena_simple() {
   arena a;
   TEST_ASSERT(arena_init(&a, test_context));
 
-  int64_t first_offset = arena_allocate(&a, sizeof(byte) * 5);
-  int64_t second_offset = arena_allocate(&a, sizeof(byte) * 5);
-  int64_t third_offset = arena_allocate(&a, sizeof(byte) * 5);
+  int64 first_offset = arena_allocate(&a, sizeof(byte) * 5);
+  int64 second_offset = arena_allocate(&a, sizeof(byte) * 5);
+  int64 third_offset = arena_allocate(&a, sizeof(byte) * 5);
   TEST_ASSERT(first_offset != second_offset);
   TEST_ASSERT(second_offset != third_offset);
   TEST_ASSERT(first_offset != third_offset);
@@ -43,8 +43,8 @@ const char *test_arena_simple() {
   TEST_ASSERT(forth == first);
   TEST_ASSERT(fifth == third);
 
-  int64_t big_buffer_offset = arena_allocate(&a, ARENA_DEFAULT_LENGTH);
-  int64_t even_bigger_buffer_offset = arena_allocate(&a, ARENA_DEFAULT_LENGTH * 2);
+  int64 big_buffer_offset = arena_allocate(&a, ARENA_DEFAULT_LENGTH);
+  int64 even_bigger_buffer_offset = arena_allocate(&a, ARENA_DEFAULT_LENGTH * 2);
   byte *big_buffer = arena_offset_to_pointer(&a, big_buffer_offset);
   byte *even_bigger_buffer = arena_offset_to_pointer(&a, even_bigger_buffer_offset);
   big_buffer[ARENA_DEFAULT_LENGTH - 1] = 0xff;
@@ -58,7 +58,7 @@ const char *test_arena_one_big_allocation() {
   arena a;
   TEST_ASSERT(arena_init(&a, test_context));
 
-  int64_t really_big_buffer_offset = arena_allocate(&a, ARENA_DEFAULT_LENGTH * 10);
+  int64 really_big_buffer_offset = arena_allocate(&a, ARENA_DEFAULT_LENGTH * 10);
   byte *buffer = arena_offset_to_pointer(&a, really_big_buffer_offset);
   buffer[0] = 0;
   buffer[ARENA_DEFAULT_LENGTH * 10 - 1] = 0xff; // test writes to trigger valgrind
@@ -75,7 +75,7 @@ const char *test_arena_allocation_failures() {
 
   setup_test_context(1);
   TEST_ASSERT(arena_init(&a, test_context));
-  int64_t first_offset = arena_allocate(&a, 15);
+  int64 first_offset = arena_allocate(&a, 15);
   TEST_ASSERT(first_offset != 0);
   TEST_ASSERT(arena_allocate(&a, ARENA_DEFAULT_LENGTH) == 0);
   TEST_ASSERT(context_is_errored(test_context));

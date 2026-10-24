@@ -13,7 +13,7 @@ typedef struct {
   ring_buffer input_buffer;
   string_compression_base base;
   acod_encoder *encoder;
-  int32_t bytes_in_buffer;
+  int32 bytes_in_buffer;
   byte_stream_matcher bsm;
 } string_compressor;
 
@@ -47,8 +47,8 @@ NODISCARD bool strcomp_init(string_compressor *compressor, context *context, aco
   return true;
 }
 
-void _strcomp_write_int(string_compressor *compressor, ftable *table, ftable *last_part_table, int64_t value) {
-  int64_t bit_index = most_significant_bit_index(value);
+void _strcomp_write_int(string_compressor *compressor, ftable *table, ftable *last_part_table, int64 value) {
+  int64 bit_index = most_significant_bit_index(value);
   symbol length_symbols_symbol = (bit_index + (int)_STRCOMP_UINT_SYMBOL_BITS_COUNT) / _STRCOMP_UINT_SYMBOL_BITS_COUNT;
   acod_encoder_write(compressor->encoder, table, length_symbols_symbol);
   ftable_increment(table, length_symbols_symbol);
@@ -66,7 +66,7 @@ void _strcomp_write_int(string_compressor *compressor, ftable *table, ftable *la
   }
 }
 
-void _strcomp_write_backreference(string_compressor *compressor, int64_t offset, int64_t length) {
+void _strcomp_write_backreference(string_compressor *compressor, int64 offset, int64 length) {
   acod_encoder_write(compressor->encoder, &compressor->base.main_symbol_table, _STRCOMP_BACKREFERENCE_SYMBOL);
   ftable_increment(&compressor->base.main_symbol_table, _STRCOMP_BACKREFERENCE_SYMBOL);
   _strcomp_write_int(compressor, &compressor->base.backref_offset_length, &compressor->base.backref_offset_last_part, offset - length);
@@ -74,7 +74,7 @@ void _strcomp_write_backreference(string_compressor *compressor, int64_t offset,
 }
 
 void _strcomp_compressor_flush_once(string_compressor *compressor) {
-  int64_t buffer_start = (int64_t)ring_buffer_get_index(&compressor->input_buffer) - compressor->bytes_in_buffer;
+  int64 buffer_start = (int64)ring_buffer_get_index(&compressor->input_buffer) - compressor->bytes_in_buffer;
   if (buffer_start < 0) {
     buffer_start += _BSM_MATCH_LENGTH_LIMIT;
   }
@@ -85,8 +85,8 @@ void _strcomp_compressor_flush_once(string_compressor *compressor) {
     _strcomp_write_backreference(compressor, match.offset, match.length);
 
     // update bsm with values from backreference
-    int64_t end = buffer_start + match.length;
-    for (int64_t i = buffer_start; i < end; i++) {
+    int64 end = buffer_start + match.length;
+    for (int64 i = buffer_start; i < end; i++) {
       byte b = ring_buffer_get(&compressor->input_buffer, i);
       bsm_push(&compressor->bsm, b);
     }

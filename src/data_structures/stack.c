@@ -6,15 +6,15 @@
 Just like queue, may contain arbitrary sized values, and because of that operates with pointers. */
 typedef struct {
   context *context;
-  int64_t value_size;
+  int64 value_size;
   byte *values;
   // length of `values`, in elements.
-  int64_t length;
+  int64 length;
   // amount of elements in `values`
-  int64_t count;
+  int64 count;
 } stack;
 
-NODISCARD bool stack_init(stack *s, context *context, int64_t value_size) {
+NODISCARD bool stack_init(stack *s, context *context, int64 value_size) {
   *s = (stack){0};
 
   s->context = context;
@@ -38,7 +38,7 @@ NODISCARD bool _stack_maybe_grow(stack *stack) {
     return true;
   }
 
-  int64_t new_length = stack->length * 2;
+  int64 new_length = stack->length * 2;
   byte *new_values = context_reallocate(stack->context, stack->values, new_length, stack->value_size);
   if (!new_values) {
     return false;
@@ -69,6 +69,6 @@ void *stack_pop(stack *stack) {
   return stack->values + (stack->count * stack->value_size);
 }
 
-int64_t stack_get_count(stack *stack) {
+int64 stack_get_count(stack *stack) {
   return stack->count;
 }

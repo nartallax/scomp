@@ -18,8 +18,8 @@ typedef struct {
   writer *writer;
   acod_decoder *decoder;
   _strcomp_state state;
-  int64_t length;
-  int64_t offset;
+  int64 length;
+  int64 offset;
   byte uint_read_symbol_count;
   byte uint_total_symbol_count;
 } string_decompressor;
@@ -76,13 +76,13 @@ NODISCARD bool _strdecomp_read_character_symbol(string_decompressor *decomp) {
 }
 
 void _strdecomp_materialize_existing_backreference(string_decompressor *decomp) {
-  int64_t start_index = (int64_t)ring_buffer_get_index(&decomp->lookback_buffer) - (decomp->offset + decomp->length);
+  int64 start_index = (int64)ring_buffer_get_index(&decomp->lookback_buffer) - (decomp->offset + decomp->length);
   if (start_index < 0) {
-    start_index += (int64_t)ring_buffer_get_length(&decomp->lookback_buffer);
+    start_index += (int64)ring_buffer_get_length(&decomp->lookback_buffer);
   }
-  int64_t length = decomp->length;
+  int64 length = decomp->length;
 
-  for (int64_t i = 0; i < length; i++) {
+  for (int64 i = 0; i < length; i++) {
     byte b = ring_buffer_get(&decomp->lookback_buffer, start_index + i);
     writer_write_byte(decomp->writer, b);
     ring_buffer_push(&decomp->lookback_buffer, b);
@@ -110,7 +110,7 @@ void _strdecomp_read_backreference_symbol(string_decompressor *decomp) {
       part = acod_decoder_read(decomp->decoder, &decomp->base.uint_parts);
     }
 
-    int64_t *field = decomp->state & _STRDECOMP_STATE_OFFSET ? &decomp->offset : &decomp->length;
+    int64 *field = decomp->state & _STRDECOMP_STATE_OFFSET ? &decomp->offset : &decomp->length;
     *field |= (part << (decomp->uint_read_symbol_count * _STRCOMP_UINT_SYMBOL_BITS_COUNT));
     decomp->uint_read_symbol_count++;
     return;

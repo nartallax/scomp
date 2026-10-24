@@ -51,7 +51,7 @@ const char *test_bsm_wraps() {
   TEST_ASSERT(ring_buffer_init(&src, test_context, 3));
 
   // test for matcher array wrapping
-  for (int64_t i = 0; i < _BSM_LENGTH + 5; i++) {
+  for (int64 i = 0; i < _BSM_LENGTH + 5; i++) {
     bsm_push(&bsm, (byte)(i & 0xff));
   }
 
@@ -80,7 +80,7 @@ const char *test_bsm_wraps() {
   ring_buffer_deinit(&src, test_context);
   TEST_ASSERT(ring_buffer_init(&src, test_context, 16));
 
-  for (int64_t i = 0; i < _BSM_MATCH_LENGTH_LIMIT + 5; i++) {
+  for (int64 i = 0; i < _BSM_MATCH_LENGTH_LIMIT + 5; i++) {
     ring_buffer_push(&src, (byte)(i & 0xff));
   }
   match = bsm_find_match(&bsm, &src, 0);

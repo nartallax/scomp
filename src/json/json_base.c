@@ -3,17 +3,17 @@
 
 /** Max length of state stack. Limits nesting.
 Exists to prevent memory overflow in case when the input is infinite number of '[' */
-constexpr int64_t JSON_MAX_STATE_STACK_LENGTH = 512;
+constexpr int64 JSON_MAX_STATE_STACK_LENGTH = 512;
 
 /** Max amount of bytes that may be assembled into one token.
 
 It's that many mostly for various numbers;
 non-number tokens will be 6 bytes at most (\u1234 being the second longest) */
-constexpr int64_t JSON_MAX_SINGLE_TOKEN_LENGTH = 128;
+constexpr int64 JSON_MAX_SINGLE_TOKEN_LENGTH = 128;
 
 /** Max amount of leading zeroes a JSON number can have in its fractional part, or in its exponent.
 It's possible to have in theory many more leading zeroes, especially in fractions, but it's just about never happens in real life. */
-constexpr int64_t JSON_MAX_LEADING_ZEROES = 32;
+constexpr int64 JSON_MAX_LEADING_ZEROES = 32;
 
 // TODO: is it faster to hardcode it everywhere?
 constexpr byte _JTOK_TRUE_BYTES[] = {'t', 'r', 'u', 'e'};
@@ -71,7 +71,7 @@ typedef struct {
 
 /** Tokens that are describing a unicode character, or a part of it, depeding on kind */
 typedef struct {
-  uint64_t value;
+  uint64 value;
   byte length;
 } json_unicode_token;
 
@@ -87,9 +87,9 @@ constexpr json_number_flags JSON_NUMBER_IS_ZERO = 1 << 6;              // 0, -0
 
 /** Tokens that contains a number in JSON sense. */
 typedef struct {
-  uint64_t integer_part;
-  uint64_t fraction_part;
-  uint16_t exponent_part; // exponents over 65535 are way too large for anything practical anyway
+  uint64 integer_part;
+  uint64 fraction_part;
+  uint16 exponent_part; // exponents over 65535 are way too large for anything practical anyway
   json_number_flags flags;
   byte fraction_leading_zeroes;
   byte exponent_leading_zeroes;

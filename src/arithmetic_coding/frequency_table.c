@@ -16,7 +16,7 @@
 // will it harm/improve general case? will it improve focused case?
 // also limiting N to small-ish numbers may allow us to reduce bit width of symbol_frequency, which is good for cpu cache
 
-typedef int32_t ftable_flags;
+typedef int32 ftable_flags;
 constexpr ftable_flags FTABLE_INCLUDE_EOF = 1 << 0;
 constexpr ftable_flags FTABLE_EXCLUDE_EOF = 1 << 1;
 constexpr ftable_flags FTABLE_INIT_ZERO = 1 << 2;

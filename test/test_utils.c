@@ -23,7 +23,7 @@ void _test_reset_allocators() {
   context_set_allocators(test_context, malloc, calloc, realloc, free);
 }
 
-void *test_malloc_with_counter(size_t size) {
+void *test_malloc_with_counter(memsize size) {
   // printf("malloc(%zu), allocations left: %i\n", size, test_allocations_before_failure);
   if (test_allocations_before_failure < 1) {
     _test_reset_allocators();
@@ -33,7 +33,7 @@ void *test_malloc_with_counter(size_t size) {
   return malloc(size);
 }
 
-void *test_calloc_with_counter(size_t count, size_t size) {
+void *test_calloc_with_counter(memsize count, memsize size) {
   // printf("calloc(%zu, %zu), allocations left: %i\n", count, size, test_allocations_before_failure);
   if (test_allocations_before_failure < 1) {
     _test_reset_allocators();
@@ -43,7 +43,7 @@ void *test_calloc_with_counter(size_t count, size_t size) {
   return calloc(count, size);
 }
 
-void *test_realloc_with_counter(void *base, size_t size) {
+void *test_realloc_with_counter(void *base, memsize size) {
   // printf("realloc(%zu), allocations left: %i\n", size, test_allocations_before_failure);
   if (test_allocations_before_failure < 1) {
     _test_reset_allocators();
@@ -88,11 +88,11 @@ void setup_test_context_default() {
 }
 
 char *string_repeat(const char *base, int times) {
-  size_t length = strlen(base);
-  size_t result_length = (times * length) + 1;
+  memsize length = strlen(base);
+  memsize result_length = (times * length) + 1;
   char *result = malloc(sizeof(char) * result_length);
   for (int i = 0; i < times; i++) {
-    for (size_t j = 0; j < length; j++) {
+    for (memsize j = 0; j < length; j++) {
       result[(i * length) + j] = base[j];
     }
   }
@@ -102,7 +102,7 @@ char *string_repeat(const char *base, int times) {
 
 char *string_repeat_sprintf(const char *format, const char *base, int times) {
   char *rep = string_repeat(base, times);
-  size_t total_len = (strlen(format) * 10) + strlen(rep);
+  memsize total_len = (strlen(format) * 10) + strlen(rep);
   char *result = malloc(sizeof(char) * total_len);
   snprintf(result, total_len, format, rep);
   free(rep);
@@ -126,7 +126,7 @@ bool foreach_file_in_directory(const char *directory_path, void (*do_with_file)(
     }
 
     int file_path_length = snprintf(file_path, sizeof(file_path), "%s/%s", directory_path, entry->d_name);
-    if (file_path_length < 0 || (size_t)file_path_length >= sizeof(file_path)) {
+    if (file_path_length < 0 || (memsize)file_path_length >= sizeof(file_path)) {
       is_full_success = false;
       continue;
     }
@@ -167,14 +167,14 @@ const char *get_filename(const char *path) {
 }
 
 bool starts_with(const char *string, const char *prefix) {
-  int64_t prefix_length = strlen(prefix);
+  int64 prefix_length = strlen(prefix);
 
   return strncmp(string, prefix, prefix_length) == 0;
 }
 
 bool ends_with(const char *string, const char *suffix) {
-  int64_t string_length = strlen(string);
-  int64_t suffix_length = strlen(suffix);
+  int64 string_length = strlen(string);
+  int64 suffix_length = strlen(suffix);
 
   if (suffix_length > string_length) {
     return false;

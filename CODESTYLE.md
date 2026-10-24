@@ -30,7 +30,7 @@ If you need to declare enum - declare type separately with `typedef some_sort_of
 
 8. Don't use unsigned int types unless you absolutely need to use full range of its bits without surprises about the sign.  
 Unsigned types tend to introduce undefined behavior if intermediate calculation value can go below zero.  
-This includes `size_t`. Prefer `int64` or `int32`.  
+This includes `size_t` aka `memsize`. Prefer `int64` or `int32`.  
 
 9. This project doesn't use `_t` suffix for types.  
 Rationale for having suffixes is "you can tell at a glance if it's a type or a value", but with modern IDEs you can tell even without suffix; instead, having suffixes is just a code litter; we should not have it.  

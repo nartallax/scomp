@@ -3,10 +3,10 @@
 #include "../writer.c"
 #include "json_base.c"
 
-int64_t _jdet_write_uint(writer *w, uint64_t value) {
-  uint64_t rem = value % 10;
+int64 _jdet_write_uint(writer *w, uint64 value) {
+  uint64 rem = value % 10;
   value = value / 10;
-  int64_t result = 1;
+  int64 result = 1;
   if (value) {
     result += _jdet_write_uint(w, value);
   }
@@ -14,7 +14,7 @@ int64_t _jdet_write_uint(writer *w, uint64_t value) {
   return result;
 }
 
-int64_t json_detokenizer_write(writer *w, json_token *token) {
+int64 json_detokenizer_write(writer *w, json_token *token) {
   switch (token->kind) {
   case JSON_TOKEN_OBJECT_OPEN:
     writer_write_byte(w, '{');
@@ -69,15 +69,15 @@ int64_t json_detokenizer_write(writer *w, json_token *token) {
     writer_write_byte(w, token->character.character);
     return 2;
   case JSON_TOKEN_UNICODE_CHARACTER: {
-    uint64_t chars = token->unicode_character.value;
-    for (int64_t i = 0; i < token->unicode_character.length; i++) {
+    uint64 chars = token->unicode_character.value;
+    for (int64 i = 0; i < token->unicode_character.length; i++) {
       writer_write_byte(w, chars & 0xff);
       chars = chars >> 8;
     }
   }
     return token->unicode_character.length;
   case JSON_TOKEN_ESCAPED_UNICODE_CHARCODE: {
-    uint64_t chars = token->unicode_character.value;
+    uint64 chars = token->unicode_character.value;
     writer_write_byte(w, '\\');
     writer_write_byte(w, 'u');
     writer_write_byte(w, (chars >> 0) & 0xff);
@@ -87,7 +87,7 @@ int64_t json_detokenizer_write(writer *w, json_token *token) {
   }
     return 6;
   default:
-    int64_t result = 0;
+    int64 result = 0;
     // case JSON_TOKEN_NUMBER: as default for code coverage reasons
     // integer part
     if (token->number.flags & JSON_NUMBER_IS_NEGATIVE) {

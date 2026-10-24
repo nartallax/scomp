@@ -6,15 +6,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-typedef void *(*malloc_fn)(size_t);
-typedef void *(*calloc_fn)(size_t, size_t);
-typedef void *(*realloc_fn)(void *, size_t);
+typedef void *(*malloc_fn)(memsize);
+typedef void *(*calloc_fn)(memsize, memsize);
+typedef void *(*realloc_fn)(void *, memsize);
 typedef void (*free_fn)(void *);
 
 // TODO: error codes
 typedef struct {
   char message[512];
-  int64_t message_length;
+  int64 message_length;
   /** False when there's no error */
   bool is_present;
 } error;
@@ -81,8 +81,8 @@ void context_set_allocators(context *context, malloc_fn mlc, calloc_fn clc, real
 }
 
 // TODO: never allocate if error is present
-void *context_allocate(context *context, size_t element_count, size_t single_element_size) {
-  size_t byte_size = element_count * single_element_size;
+void *context_allocate(context *context, memsize element_count, memsize single_element_size) {
+  memsize byte_size = element_count * single_element_size;
   void *result = context->malloc(byte_size);
   if (result == NULL) {
     context_set_error(context, "Failed to allocate memory: malloc(%zu)", byte_size);
@@ -90,8 +90,8 @@ void *context_allocate(context *context, size_t element_count, size_t single_ele
   return result;
 }
 
-void *context_reallocate(context *context, void *base, size_t new_element_count, size_t single_element_size) {
-  size_t byte_size = new_element_count * single_element_size;
+void *context_reallocate(context *context, void *base, memsize new_element_count, memsize single_element_size) {
+  memsize byte_size = new_element_count * single_element_size;
   void *result = context->realloc(base, byte_size);
   if (result == NULL) {
     context_set_error(context, "Failed to allocate memory: realloc(%zu, %zu)", base, byte_size);
@@ -99,7 +99,7 @@ void *context_reallocate(context *context, void *base, size_t new_element_count,
   return result;
 }
 
-void *context_allocate_zero_init(context *context, size_t element_count, size_t single_element_size) {
+void *context_allocate_zero_init(context *context, memsize element_count, memsize single_element_size) {
   void *result = context->calloc(element_count, single_element_size);
   if (result == NULL) {
     context_set_error(context, "Failed to allocate memory: calloc(%zu, %zu)", element_count, single_element_size);

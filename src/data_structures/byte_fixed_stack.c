@@ -7,11 +7,11 @@
 /** A stack of fixed size that stores bytes. */
 typedef struct {
   byte *values;
-  int64_t byte_length;
-  int64_t index;
+  int64 byte_length;
+  int64 index;
 } byte_fixed_stack;
 
-NODISCARD bool bfstack_init(byte_fixed_stack *stack, context *context, int64_t item_capacity) {
+NODISCARD bool bfstack_init(byte_fixed_stack *stack, context *context, int64 item_capacity) {
   *stack = (byte_fixed_stack){0};
 
   stack->byte_length = item_capacity;
@@ -53,11 +53,11 @@ void bfstack_replace(byte_fixed_stack *stack, byte new_value) {
 }
 
 /** Returns amount of items on the stack. */
-int64_t bfstack_get_count(byte_fixed_stack *stack) {
+int64 bfstack_get_count(byte_fixed_stack *stack) {
   return stack->index;
 }
 
 /** Returns amount of items the stack can hold. */
-int64_t bfstack_get_capacity(byte_fixed_stack *stack) {
+int64 bfstack_get_capacity(byte_fixed_stack *stack) {
   return stack->byte_length;
 }

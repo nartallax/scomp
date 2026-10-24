@@ -51,7 +51,7 @@ buffer _test_strcomp_decompress(buffer src) {
   }
 
   bool has_eof = false;
-  for (int64_t i = 0; i < src.length; i++) {
+  for (int64 i = 0; i < src.length; i++) {
     byte b = src.data[i];
     for (int j = 0; j < CHAR_BIT; j++) {
       bool is_eof = strdecomp_push_bit(&decomp, b & 1);
@@ -96,7 +96,7 @@ bool _test_strcomp_comp_decomp(const char *src) {
   buffer compressed = _test_strcomp_compress(src);
   // printf("compressed length: %zu\n", compressed.length);
   buffer decompressed = _test_strcomp_decompress(compressed);
-  int64_t i = 0;
+  int64 i = 0;
   for (i = 0; src[i] != 0; i++) {
     if (decompressed.length <= i) {
       printf("Decompressed is %zu bytes long, but the source data is longer than that.\n", decompressed.length);
@@ -127,19 +127,19 @@ const char *test_string_compression_simple() {
 }
 
 const char *test_string_compression_wrapping() {
-  int64_t buffer_length = (1 << _BSM_LENGTH_SHIFT) * 2;
+  int64 buffer_length = (1 << _BSM_LENGTH_SHIFT) * 2;
   char *str = malloc(sizeof(char) * (buffer_length + 11));
-  for (int64_t i = 0; i < buffer_length - 15; i++) {
+  for (int64 i = 0; i < buffer_length - 15; i++) {
     str[i] = '0';
   }
-  for (int64_t i = 0; i < 10; i++) {
+  for (int64 i = 0; i < 10; i++) {
     str[i + (buffer_length - 15)] = '0' + i;
     str[i + (buffer_length - 5)] = '0' + i;
   }
   str[buffer_length + 5] = 0;
   TEST_ASSERT(_test_strcomp_comp_decomp(str));
 
-  for (int64_t i = 0; i < buffer_length + 10; i++) {
+  for (int64 i = 0; i < buffer_length + 10; i++) {
     // 8 here because if source data repeats every 8 bytes - then it will perfectly loop over the ring buffer
     // which may cause BSM to return matches that go past recently written bits into the territory of old written bits
     // and that's a special case I'd like to test

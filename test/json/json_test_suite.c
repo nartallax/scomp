@@ -57,10 +57,10 @@ buffer test_feed_file_into_tokenizer_detokenizer(const char *path, const char *f
   }
 
   bool is_success = true;
-  int64_t bytes_read;
+  int64 bytes_read;
   char read_buffer[4096];
   while (is_success && (bytes_read = fread(read_buffer, 1, sizeof(read_buffer), src_file)) > 0) {
-    for (int64_t i = 0; i < bytes_read; i++) {
+    for (int64 i = 0; i < bytes_read; i++) {
       if (!json_tokenizer_push(&t, read_buffer[i])) {
         is_success = false;
         break;
@@ -127,12 +127,12 @@ bool test_buffer_equals_to_file(const char *path, buffer b) {
     return false;
   }
 
-  int64_t index = 0;
-  int64_t bytes_read;
+  int64 index = 0;
+  int64 bytes_read;
   bool is_different = false;
   char read_buffer[4096];
   while (!is_different && (bytes_read = fread(read_buffer, 1, sizeof(read_buffer), src_file)) > 0) {
-    for (int64_t i = 0; i < bytes_read; i++) {
+    for (int64 i = 0; i < bytes_read; i++) {
       if (b.data[index + i] != (byte)read_buffer[i]) {
         is_different = true;
         break;
