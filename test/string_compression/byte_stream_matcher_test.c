@@ -84,10 +84,7 @@ const char *test_bsm_wraps() {
     ring_buffer_push(&src, (byte)(i & 0xff));
   }
   match = bsm_find_match(&bsm, &src, 0);
-  // interesting effect, offset is less than length
-  // because we went past matcher buffer end
-  // I don't expect this to happen outside synthetic tests like this one
-  TEST_ASSERT(match.length == _BSM_MATCH_LENGTH_LIMIT - 1 && match.offset == 5);
+  TEST_ASSERT(match.length == _BSM_GOOD_ENOUGH_MATCH_LENGTH + 5 && match.offset == _BSM_GOOD_ENOUGH_MATCH_LENGTH + 5);
 
   bsm_deinit(&bsm, test_context);
   ring_buffer_deinit(&src, test_context);

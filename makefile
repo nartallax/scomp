@@ -63,8 +63,8 @@ coverage:
 	@llvm-cov show ./build/test -instr-profile=./build/llvm_profile.profdata -format=html -show-line-counts-or-regions -show-branches=count -show-expansions -output-dir=./build/coverage ./src/
 	@echo Full report available at file://`realpath ./build/coverage/index.html`
 
-.PHONY: check-coverage
-check-coverage: 
+.PHONY: check_coverage
+check_coverage: 
 	@make coverage
 	@llvm-cov report ./build/test -instr-profile=./build/llvm_profile.profdata ./src/ | grep -E "^TOTAL" | grep -E "[0-9]+\.[0-9]+%$$" -o | grep -E "^[0-9]+" -o > ./build/test_coverage_percent_number.txt
 	@TOTAL_COVERAGE=$$(cat ./build/test_coverage_percent_number.txt); \
@@ -93,7 +93,8 @@ check-format:
 .PHONY: test
 test: 
 	@make run_test
-	@make check-coverage
+	@make run_perf_test
+	@make check_coverage
 	@make valgrind
 	@make check-format
 	@echo "All checks are successful."

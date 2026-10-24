@@ -136,7 +136,7 @@ const char *test_string_compression_wrapping() {
     str[i + (buffer_length - 15)] = '0' + i;
     str[i + (buffer_length - 5)] = '0' + i;
   }
-  str[buffer_length + 10] = 0;
+  str[buffer_length + 5] = 0;
   TEST_ASSERT(_test_strcomp_comp_decomp(str));
 
   for (size_t i = 0; i < buffer_length + 10; i++) {

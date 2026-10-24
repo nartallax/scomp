@@ -135,9 +135,9 @@ int64_t _bsm_check_match_starting_at(byte_stream_matcher *bsm, int64_t position,
   // we must not search past source buffer boundary, because bytes there are old and already were written on the previous buffer loop.
   // we must not search past bsm content buffer boundary, because this will generate a match with offset < length,
   // which is bad in two ways - it will break the (offset - length) logic on write, and it will cause search buffer overwrites on read
-  int64_t min_dist_to_end = dist_to_search_end < dist_to_src_end ? dist_to_search_end : dist_to_src_end;
-  // and also we must not read past max match limit, because we won't be able to write match longer than that
-  size_t length_limit = min_dist_to_end < _BSM_MATCH_LENGTH_LIMIT ? min_dist_to_end : _BSM_MATCH_LENGTH_LIMIT;
+  // and also we must not read past max match limit, because we won't be able to write match longer than that;
+  // but that last limitation is implied by length of source buffer - there's no reason to have source buffer longer than that
+  size_t length_limit = dist_to_search_end < dist_to_src_end ? dist_to_search_end : dist_to_src_end;
 
   // printf("start: %zi; end %zi\n", source_position, src_end);
   for (size_t length = 0; length < length_limit; length++) {
@@ -149,7 +149,7 @@ int64_t _bsm_check_match_starting_at(byte_stream_matcher *bsm, int64_t position,
       return length;
     }
   }
-  return length_limit - 1;
+  return length_limit;
 }
 
 // TODO: I wonder if size_t here instead of uint16_t is bad for performance
