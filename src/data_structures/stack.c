@@ -48,11 +48,11 @@ NODISCARD bool _stack_maybe_grow(stack *stack) {
   return true;
 }
 
-void *stack_peek(stack *stack) {
+INLINE void *stack_peek(stack *stack) {
   return stack->values + ((stack->count - 1) * stack->value_size);
 }
 
-void *stack_push(stack *stack) {
+INLINE void *stack_push(stack *stack) {
   stack->count++;
   if (!_stack_maybe_grow(stack)) {
     stack->count--;
@@ -64,11 +64,11 @@ void *stack_push(stack *stack) {
   return stack_peek(stack);
 }
 
-void *stack_pop(stack *stack) {
+INLINE void *stack_pop(stack *stack) {
   stack->count--;
   return stack->values + (stack->count * stack->value_size);
 }
 
-int64 stack_get_count(stack *stack) {
+INLINE int64 stack_get_count(stack *stack) {
   return stack->count;
 }

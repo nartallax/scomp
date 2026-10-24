@@ -66,7 +66,7 @@ void _strcomp_write_int(string_compressor *compressor, ftable *table, ftable *la
   }
 }
 
-void _strcomp_write_backreference(string_compressor *compressor, int64 offset, int64 length) {
+INLINE void _strcomp_write_backreference(string_compressor *compressor, int64 offset, int64 length) {
   acod_encoder_write(compressor->encoder, &compressor->base.main_symbol_table, _STRCOMP_BACKREFERENCE_SYMBOL);
   ftable_increment(&compressor->base.main_symbol_table, _STRCOMP_BACKREFERENCE_SYMBOL);
   _strcomp_write_int(compressor, &compressor->base.backref_offset_length, &compressor->base.backref_offset_last_part, offset - length);
@@ -106,7 +106,7 @@ void _strcomp_compressor_flush_once(string_compressor *compressor) {
 
 /** Put a byte in compressor's buffer.
 This may result in some symbols being written out, or not. */
-void strcomp_write(string_compressor *compressor, byte b) {
+INLINE void strcomp_write(string_compressor *compressor, byte b) {
   ring_buffer_push(&compressor->input_buffer, b);
   compressor->bytes_in_buffer++;
   if (compressor->bytes_in_buffer == _BSM_MATCH_LENGTH_LIMIT - 1) {

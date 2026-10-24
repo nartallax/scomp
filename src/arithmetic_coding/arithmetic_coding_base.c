@@ -26,11 +26,11 @@ void _acod_state_init(_acod_state *state) {
   state->stage = ACOD_STAGE_READY;
 }
 
-bool _acod_is_shiftable(_acod_state *state) {
+INLINE bool _acod_is_shiftable(_acod_state *state) {
   return ((state->low ^ state->high) & ACOD_HALF_RANGE) == 0;
 }
 
-bool _acod_is_underflowable(_acod_state *state) {
+INLINE bool _acod_is_underflowable(_acod_state *state) {
   return (state->low & (~state->high) & ACOD_QUARTER_RANGE) != 0;
 }
 
@@ -79,7 +79,7 @@ void _acod_perform_update_start(_acod_state *state, ftable *frequencies, symbol 
   _acod_try_progress_stage(state);
 }
 
-void _acod_perform_shift(_acod_state *state) {
+INLINE void _acod_perform_shift(_acod_state *state) {
   assert(_acod_is_shiftable(state));
   // While low and high have the same top bit value, shift them out
   state->low = ((state->low << 1) & ACOD_STATE_MASK);
@@ -88,7 +88,7 @@ void _acod_perform_shift(_acod_state *state) {
   _acod_try_progress_stage(state);
 }
 
-void _acod_perform_underflow(_acod_state *state) {
+INLINE void _acod_perform_underflow(_acod_state *state) {
   assert(_acod_is_underflowable(state));
   // While low's top two bits are 01 and high's are 10, delete the second highest bit of both
   state->low = (state->low << 1) ^ ACOD_HALF_RANGE;

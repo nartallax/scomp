@@ -71,7 +71,7 @@ void ftree_to_source_array(ftree *tree, symbol_frequency *buffer) {
   }
 }
 
-symbol_frequency ftree_range_sum(ftree *tree, int64 from_index, int64 to_index) {
+INLINE symbol_frequency ftree_range_sum(ftree *tree, int64 from_index, int64 to_index) {
   assert(from_index + 1 < tree->size && to_index + 1 < tree->size);
 
   if (to_index < from_index) {
@@ -81,12 +81,12 @@ symbol_frequency ftree_range_sum(ftree *tree, int64 from_index, int64 to_index) 
 }
 
 /** Get frequency of a symbol (only of this symbol) */
-symbol_frequency ftree_get(ftree *tree, int64 symbol) {
+INLINE symbol_frequency ftree_get(ftree *tree, int64 symbol) {
   assert(symbol + 1 < tree->size);
 
   return ftree_range_sum(tree, symbol, symbol);
 }
 
-int64 ftree_length(ftree *tree) {
+INLINE int64 ftree_length(ftree *tree) {
   return tree->size - 1;
 }

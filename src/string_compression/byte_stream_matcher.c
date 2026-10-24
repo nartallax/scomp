@@ -73,11 +73,12 @@ NODISCARD bool bsm_init(byte_stream_matcher *bsm, context *context) {
   return true;
 }
 
-uint16 _bsm_update_rolling_hash(byte_stream_matcher *bsm, byte new_byte) {
+INLINE uint16 _bsm_update_rolling_hash(byte_stream_matcher *bsm, byte new_byte) {
   return bsm->rolling_hash = ((bsm->rolling_hash << 4) ^ new_byte);
 }
 
-uint16 _bsm_calc_hash_at(ring_buffer *rb, int64 position) {
+// inline because I really expect the loop to be unrolled here
+INLINE uint16 _bsm_calc_hash_at(ring_buffer *rb, int64 position) {
   uint16 hash = 0;
   for (int64 i = 0; i < _BSM_HASH_LENGTH_BYTES; i++) {
     hash = (hash << 4) ^ ring_buffer_get(rb, position + i);
@@ -85,7 +86,7 @@ uint16 _bsm_calc_hash_at(ring_buffer *rb, int64 position) {
   return hash;
 }
 
-void _bsm_update_hash_chain(byte_stream_matcher *bsm, uint16 index, byte new_byte) {
+INLINE void _bsm_update_hash_chain(byte_stream_matcher *bsm, uint16 index, byte new_byte) {
   uint16 hash = _bsm_update_rolling_hash(bsm, new_byte);
   uint16 prev_pos = bsm->hash_head[hash];
 
@@ -103,7 +104,7 @@ void _bsm_update_hash_chain(byte_stream_matcher *bsm, uint16 index, byte new_byt
 
 /** Add a byte to the matcher.
 This can lead to losing one of the oldest bytes */
-void bsm_push(byte_stream_matcher *bsm, byte b) {
+INLINE void bsm_push(byte_stream_matcher *bsm, byte b) {
   uint16 position = ring_buffer_get_index(&bsm->content);
   ring_buffer_push(&bsm->content, b);
   _bsm_update_hash_chain(bsm, position, b);

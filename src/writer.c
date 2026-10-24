@@ -61,13 +61,13 @@ void _writer_allocate_next_buffer(writer *writer) {
   writer->current_bit_index = 0;
 }
 
-void _writer_maybe_allocate_next_buffer(writer *writer) {
+INLINE void _writer_maybe_allocate_next_buffer(writer *writer) {
   if ((writer->current_bit_index >> 3) >= writer->single_buffer_byte_size) {
     _writer_allocate_next_buffer(writer);
   }
 }
 
-int64 writer_get_bytes_stored(writer *writer) {
+INLINE int64 writer_get_bytes_stored(writer *writer) {
   int buffer_count = (int)queue_get_count(&writer->buffers);
   if (buffer_count > 0) {
     // there should always be at least 1 buffer
@@ -123,12 +123,12 @@ NODISCARD bool writer_init(writer *w, context *context, int64 single_buffer_byte
 /** Resets offset writer uses to locate end of current buffer.
 This leads writer to overwrite values already in the buffer, effectively reusing it.
 Existing data in the buffer will be lost. */
-void writer_reset_current_buffer(writer *w) {
+INLINE void writer_reset_current_buffer(writer *w) {
   w->current_bit_index = 0;
 }
 
 /** Returns the buffer writer is currently writing into without consuming it. */
-buffer writer_peek_current_buffer(writer *w) {
+INLINE buffer writer_peek_current_buffer(writer *w) {
   byte **slot = queue_peek_tail(&w->buffers);
   byte *tail_buffer = *slot;
   return (buffer){.data = tail_buffer, .length = ((w->current_bit_index + 7) >> 3)};
@@ -138,7 +138,7 @@ buffer writer_peek_current_buffer(writer *w) {
 Returns buffer of length zero if there's no full buffer.
 Writer won't track this array of bytes anymore. It's up for caller to `free()` it.
 Can only return completely full buffers. Won't return partially full buffers, see `writer_consume_nonempty_buffer()` */
-NODISCARD buffer writer_consume_full_buffer(writer *writer) {
+NODISCARD INLINE buffer writer_consume_full_buffer(writer *writer) {
   if (queue_get_count(&writer->buffers) < 2) {
     // there always should be at least 1 non-full buffer in the buffer queue
     // if there's only 1 buffer - it's not full, so we must not return it
@@ -215,7 +215,7 @@ NODISCARD buffer_or_error writer_consume_all_buffers(writer *writer) {
   return (buffer_or_error){.is_error = false, .buffer = (buffer){.length = index, .data = bytes}};
 }
 
-void writer_write_bit(writer *writer, byte bit) {
+INLINE void writer_write_bit(writer *writer, byte bit) {
   assert(bit == 1 || bit == 0);
   byte **slot = queue_peek_tail(&writer->buffers);
   byte *tail_buffer = *slot;
@@ -234,7 +234,7 @@ void writer_write_bit(writer *writer, byte bit) {
   _writer_maybe_allocate_next_buffer(writer);
 }
 
-void writer_write_byte(writer *writer, byte value) {
+INLINE void writer_write_byte(writer *writer, byte value) {
   assert((writer->current_bit_index & 7) == 0 && "Cannot mix bit- and byte-level writes in a single writer instance.");
   byte **slot = queue_peek_tail(&writer->buffers);
   byte *tail_buffer = *slot;

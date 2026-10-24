@@ -49,11 +49,11 @@ void queue_deinit(queue *q, context *context) {
 }
 
 /** Returns amount of items in queue. */
-int64 queue_get_count(queue *queue) {
+INLINE int64 queue_get_count(queue *queue) {
   return queue->head <= queue->tail ? queue->tail - queue->head : queue->tail + queue->length - queue->head;
 }
 
-int64 _queue_increment(queue *queue, int64 i) {
+INLINE int64 _queue_increment(queue *queue, int64 i) {
   return (i + 1) & (queue->length - 1);
 }
 
@@ -89,7 +89,7 @@ NODISCARD bool _queue_maybe_grow(queue *queue) {
 
 /** Returns pointer to the next free space in the queue. This space is now considered occupied.
 It's up for the caller to fill this space with actual values. */
-void *queue_push(queue *queue) {
+INLINE void *queue_push(queue *queue) {
   if (!_queue_maybe_grow(queue)) {
     return NULL;
   }
@@ -100,7 +100,7 @@ void *queue_push(queue *queue) {
 
 /** Returns pointer to the next element in the queue. This element is now considered consumed, and removed from the queue.
 It's up for the caller to `free()` the item, if needed. */
-void *queue_pop(queue *queue) {
+INLINE void *queue_pop(queue *queue) {
   assert(queue_get_count(queue) > 0 && "Queue underflow on pop()");
   void *result = queue->values + (queue->head * queue->value_size);
   queue->head = _queue_increment(queue, queue->head);
@@ -108,12 +108,12 @@ void *queue_pop(queue *queue) {
 }
 
 /** Returns pointer to the next element in the queue without removing it. */
-void *queue_peek(queue *queue) {
+INLINE void *queue_peek(queue *queue) {
   assert(queue_get_count(queue) > 0 && "Queue underflow on peek()");
   return queue->values + (queue->head * queue->value_size);
 }
 
-void *queue_peek_tail(queue *queue) {
+INLINE void *queue_peek_tail(queue *queue) {
   assert(queue_get_count(queue) > 0 && "Queue should not underflow on tail peek");
   // TODO: bitwise mask here
   int64 index = ((queue->tail + queue->length) - 1) % queue->length;

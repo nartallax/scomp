@@ -56,16 +56,16 @@ NODISCARD bool json_tokenizer_init(json_tokenizer *t, context *context) {
 }
 
 constexpr uint64 TENTH_OF_MAX_UINT64 = UINT64_MAX / 10;
-bool _jtok_uint64_will_overflow(uint64 value, byte addition) {
+INLINE bool _jtok_uint64_will_overflow(uint64 value, byte addition) {
   return value >= TENTH_OF_MAX_UINT64 - addition;
 }
 
 constexpr uint16 TENTH_OFF_MAX_UINT16 = UINT16_MAX / 10;
-bool _jtok_uint16_will_overflow(uint16 value, byte addition) {
+INLINE bool _jtok_uint16_will_overflow(uint16 value, byte addition) {
   return value >= TENTH_OFF_MAX_UINT16 - addition;
 }
 
-NODISCARD bool _jtok_push_state(json_tokenizer *t, json_state state) {
+NODISCARD INLINE bool _jtok_push_state(json_tokenizer *t, json_state state) {
   if (bfstack_get_count(&t->state_stack) == bfstack_get_capacity(&t->state_stack)) {
     return false;
   }
@@ -73,20 +73,20 @@ NODISCARD bool _jtok_push_state(json_tokenizer *t, json_state state) {
   return true;
 }
 
-void _jtok_push_simple_token(json_tokenizer *t, json_token_kind kind) {
+INLINE void _jtok_push_simple_token(json_tokenizer *t, json_token_kind kind) {
   json_token *slot = fqueue_push(&t->token_queue);
   slot->kind = kind;
   t->value_progress = 0;
 }
 
-void _jtok_push_character_token(json_tokenizer *t, json_token_kind kind, byte character) {
+INLINE void _jtok_push_character_token(json_tokenizer *t, json_token_kind kind, byte character) {
   json_token *slot = fqueue_push(&t->token_queue);
   slot->kind = kind;
   slot->character.character = character;
   t->value_progress = 0;
 }
 
-void _jtok_push_unicode_token(json_tokenizer *t, json_token_kind kind) {
+INLINE void _jtok_push_unicode_token(json_tokenizer *t, json_token_kind kind) {
   json_token *slot = fqueue_push(&t->token_queue);
   slot->kind = kind;
   slot->unicode_character = t->partial_unicode_token;
@@ -94,7 +94,7 @@ void _jtok_push_unicode_token(json_tokenizer *t, json_token_kind kind) {
   t->value_progress = 0;
 }
 
-void _jtok_push_number_token(json_tokenizer *t) {
+INLINE void _jtok_push_number_token(json_tokenizer *t) {
   json_token *slot = fqueue_push(&t->token_queue);
   slot->kind = JSON_TOKEN_NUMBER;
   slot->number = t->partial_number_token;
@@ -102,7 +102,7 @@ void _jtok_push_number_token(json_tokenizer *t) {
   t->value_progress = 0;
 }
 
-NODISCARD bool _jtok_try_whitespace(json_tokenizer *t, byte b) {
+NODISCARD INLINE bool _jtok_try_whitespace(json_tokenizer *t, byte b) {
   if (b == ' ' || b == '\n' || b == '\r' || b == '\t') {
     _jtok_push_character_token(t, JSON_TOKEN_WHITESPACE, b);
     return true;
@@ -110,7 +110,7 @@ NODISCARD bool _jtok_try_whitespace(json_tokenizer *t, byte b) {
   return false;
 }
 
-NODISCARD bool _jtok_start_value(json_tokenizer *t, json_state state) {
+NODISCARD INLINE bool _jtok_start_value(json_tokenizer *t, json_state state) {
   if (bfstack_peek(&t->state_stack) == JSON_STATE_VALUE) {
     bfstack_pop(&t->state_stack);
   }
@@ -182,7 +182,7 @@ NODISCARD bool _jtok_try_value(json_tokenizer *t, byte b) {
   }
 }
 
-void _jtok_pop_state_after_reading_value(json_tokenizer *t) {
+INLINE void _jtok_pop_state_after_reading_value(json_tokenizer *t) {
   bfstack_pop(&t->state_stack);
   json_state base_state = bfstack_peek(&t->state_stack);
   if (base_state == JSON_STATE_ARRAY_START) {
@@ -192,7 +192,7 @@ void _jtok_pop_state_after_reading_value(json_tokenizer *t) {
   }
 }
 
-NODISCARD bool _jtok_advance_parsing_of_fixed_token(json_tokenizer *t, byte b, const byte *expected_bytes, memsize expected_bytes_length, json_token_kind kind) {
+NODISCARD INLINE bool _jtok_advance_parsing_of_fixed_token(json_tokenizer *t, byte b, const byte *expected_bytes, memsize expected_bytes_length, json_token_kind kind) {
   if (b != expected_bytes[t->value_progress]) {
     return false;
   }
@@ -204,12 +204,12 @@ NODISCARD bool _jtok_advance_parsing_of_fixed_token(json_tokenizer *t, byte b, c
   return true;
 }
 
-bool _jtok_is_hex(byte hex_char) {
+INLINE bool _jtok_is_hex(byte hex_char) {
   return (hex_char >= '0' && hex_char <= '9') || (hex_char >= 'a' && hex_char <= 'f') || (hex_char >= 'A' && hex_char <= 'F');
 }
 
 /** Returns a token from token queue, or null if the queue is empty. */
-json_token *json_tokenizer_consume(json_tokenizer *t) {
+INLINE json_token *json_tokenizer_consume(json_tokenizer *t) {
   if (fqueue_get_count(&t->token_queue) == 0) {
     return NULL;
   }
@@ -543,7 +543,7 @@ NODISCARD bool json_tokenizer_push(json_tokenizer *t, byte b) {
 In this state, tokenizer will only read whitespace tokens
 (because we allow to have infinite number of whitespace tokens after the end of the actual value).
 You can reset the tokenizer if you want to reuse it. */
-bool json_tokenizer_is_done(json_tokenizer *t) {
+INLINE bool json_tokenizer_is_done(json_tokenizer *t) {
   json_state state = bfstack_peek(&t->state_stack);
   return state == JSON_STATE_ROOT;
 }

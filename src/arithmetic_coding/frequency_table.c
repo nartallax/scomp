@@ -34,11 +34,11 @@ typedef struct {
   symbol_frequency *compaction_buffer;
 } ftable;
 
-symbol_frequency _ftable_get_init_value(int init_flags) {
+INLINE symbol_frequency _ftable_get_init_value(int init_flags) {
   return init_flags & FTABLE_INIT_ONE ? 1 : 0;
 }
 
-symbol _ftable_get_eof_length_padding(int init_flags) {
+INLINE symbol _ftable_get_eof_length_padding(int init_flags) {
   return init_flags & FTABLE_INCLUDE_EOF ? 1 : 0;
 }
 
@@ -73,7 +73,7 @@ void ftable_halve_until_total_below_limit(ftable *table, symbol_frequency limit)
 // like, gather 16 symbols and only then increment them all at once
 // will it be faster? can it be faster if we abolish fenwick trees and instead go with raw arrays?
 // how much compression ratio will be harmed?
-void ftable_increment(ftable *table, symbol symbol) {
+INLINE void ftable_increment(ftable *table, symbol symbol) {
   // TODO: test this
   // this ensures that the table never overflows
   // technically this table can be used for other stuff rather than just arithmetic compression
@@ -124,13 +124,13 @@ NODISCARD bool ftable_init(ftable *table, context *context, symbol length, ftabl
 }
 
 /** Returns the number of symbols in this frequency table. Includes EOF marker, if present. */
-symbol _ftable_get_symbol_limit(ftable *table) {
+INLINE symbol _ftable_get_symbol_limit(ftable *table) {
   return ftree_length(&table->frequencies);
 }
 
 /** Returns the number of symbols that invoking code can use.
 Does not include EOF marker, if it is present. */
-symbol ftable_get_symbol_count(ftable *table) {
+INLINE symbol ftable_get_symbol_count(ftable *table) {
   if (!table->is_eof_included) {
     return _ftable_get_symbol_limit(table);
   }
@@ -155,16 +155,16 @@ void ftable_fill_from_frequencies(ftable *table, symbol_frequency *frequencies) 
 
 /** For the tables that include eof marker, returns eof symbol.
 Meaningless to call for tables without eof marker. */
-symbol ftable_get_eof_symbol(ftable *table) {
+INLINE symbol ftable_get_eof_symbol(ftable *table) {
   return _ftable_get_symbol_limit(table) - 1;
 }
 
-symbol_frequency ftable_get_frequency(ftable *table, symbol symbol) {
+INLINE symbol_frequency ftable_get_frequency(ftable *table, symbol symbol) {
   return ftree_get(&table->frequencies, symbol);
 }
 
 /** Returns the sum of the frequencies of all the symbols strictly below the specified symbol value. */
-symbol_frequency ftable_get_low(ftable *table, symbol symbol) {
+INLINE symbol_frequency ftable_get_low(ftable *table, symbol symbol) {
   if (symbol == 0) {
     // frequency range always starts at 0, and this avoids overflow
     return 0;
@@ -173,6 +173,6 @@ symbol_frequency ftable_get_low(ftable *table, symbol symbol) {
 }
 
 /** Returns the sum of the frequencies of the specified symbol and all the symbols below. */
-symbol_frequency ftable_get_high(ftable *table, symbol symbol) {
+INLINE symbol_frequency ftable_get_high(ftable *table, symbol symbol) {
   return ftree_sum(&table->frequencies, symbol);
 }

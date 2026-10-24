@@ -5,12 +5,12 @@
 constexpr byte UTF8_BOM[3] = {0xEF, 0xBB, 0xBF};
 
 /** Determines if the sequence of bytes can be a utf-8 byte-order mark. If this returns true and length >= 3 - the sequence contains valid BOM. */
-bool utf8_can_bytes_be_bom_start(const byte *bytes, int32 length) {
+INLINE bool utf8_can_bytes_be_bom_start(const byte *bytes, int32 length) {
   return (length < 1 || bytes[0] == UTF8_BOM[0]) && (length < 2 || bytes[1] == UTF8_BOM[1]) && (length < 3 || bytes[2] == UTF8_BOM[2]);
 }
 
 /** Returns number 1-4 depending on expected length of the sequence, or 0 if passed byte is an invalid start of the sequence. */
-int64 utf8_get_sequence_length_by_first_byte(byte b) {
+INLINE int64 utf8_get_sequence_length_by_first_byte(byte b) {
   if (b <= 0x7F) { // 0b0xxxxxxx
     return 1;
   } else if (b <= 0xC1) { // 0b10xxxxxx
@@ -31,10 +31,11 @@ int64 utf8_get_sequence_length_by_first_byte(byte b) {
   }
 }
 
-bool utf8_is_valid_continuation_byte(byte b) {
+INLINE bool utf8_is_valid_continuation_byte(byte b) {
   return (b & 0b11000000) == 0b10000000;
 }
 
+// TODO: cleanup this?
 /** Continuation bytes = bytes after first one */
 bool utf8_are_continuation_bytes_valid(const byte *bytes, int32 length) {
   for (int32 i = 1; i < length; i++) {
@@ -45,7 +46,7 @@ bool utf8_are_continuation_bytes_valid(const byte *bytes, int32 length) {
   return true;
 }
 
-byte utf8_get_meaningful_bits_of_first_byte(byte b) {
+INLINE byte utf8_get_meaningful_bits_of_first_byte(byte b) {
   // see sequence length function definition to figure out how this work
   int32 len = utf8_get_sequence_length_by_first_byte(b);
   if (len == 1) {
@@ -54,6 +55,6 @@ byte utf8_get_meaningful_bits_of_first_byte(byte b) {
   return b & (0x7F >> len);
 }
 
-byte utf8_get_meaningful_bits_of_continuation_byte(byte b) {
+INLINE byte utf8_get_meaningful_bits_of_continuation_byte(byte b) {
   return b & 0x3f;
 }

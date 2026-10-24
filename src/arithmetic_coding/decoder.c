@@ -48,7 +48,7 @@ void acod_decoder_update(acod_decoder *decoder, byte bit) {
   }
 }
 
-bool acod_decoder_has_symbol(acod_decoder *decoder) {
+INLINE bool acod_decoder_has_symbol(acod_decoder *decoder) {
   return decoder->state.stage == ACOD_STAGE_READY;
 }
 

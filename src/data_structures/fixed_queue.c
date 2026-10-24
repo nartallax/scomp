@@ -38,26 +38,26 @@ NODISCARD bool fqueue_init(fixed_queue *q, context *context, int64 value_size, i
   return q->values != NULL;
 }
 
-void *fqueue_push(fixed_queue *q) {
+INLINE void *fqueue_push(fixed_queue *q) {
   void *result_pointer = q->values + (q->tail * q->value_size);
   q->tail = (q->tail + 1) & q->length_mask;
   assert(q->tail != q->head && "Fixed-size queue overflow");
   return result_pointer;
 }
 
-void *fqueue_pop(fixed_queue *q) {
+INLINE void *fqueue_pop(fixed_queue *q) {
   assert(q->tail != q->head && "Fixed-size queue underflow: cannot fqueue_pop() on empty queue");
   void *result_pointer = q->values + (q->head * q->value_size);
   q->head = (q->head + 1) & q->length_mask;
   return result_pointer;
 }
 
-void *fqueue_peek(fixed_queue *q) {
+INLINE void *fqueue_peek(fixed_queue *q) {
   assert(q->tail != q->head && "Fixed-size queue underflow: cannot fqueue_peek() on empty queue");
   return q->values + (q->head * q->value_size);
 }
 
-void *fqueue_peek_tail(fixed_queue *q) {
+INLINE void *fqueue_peek_tail(fixed_queue *q) {
   assert(q->tail != q->head && "Fixed-size queue underflow: cannot fqueue_peek_tail() on empty queue");
   // it's q->tail - 1, but without underflows
   int64 last_meaningful_value_index = (q->tail + q->length_mask) & q->length_mask;
@@ -66,12 +66,12 @@ void *fqueue_peek_tail(fixed_queue *q) {
 
 /** Get total capacity of the queue.
 Queue can hold at most this much values. */
-int64 fqueue_get_capacity(fixed_queue *q) {
+INLINE int64 fqueue_get_capacity(fixed_queue *q) {
   return q->length_mask;
 }
 
 /** Return amount of values in the queue at this moment. */
-int64 fqueue_get_count(fixed_queue *q) {
+INLINE int64 fqueue_get_count(fixed_queue *q) {
   // the same trick as above, subtraction without overflows
   return (q->tail + q->length_mask + 1 - q->head) & q->length_mask;
 }

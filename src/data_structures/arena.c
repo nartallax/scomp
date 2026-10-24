@@ -55,7 +55,7 @@ int64 arena_allocate(arena *arena, int64 byte_size) {
 
 /** Converts offset (see `arena_allocate()`) into pointer of usable memory.
 Don't store the pointer between `arena_allocate()` calls, as it may be invalidated on arena growth. */
-void *arena_offset_to_pointer(arena *arena, int64 offset) {
+INLINE void *arena_offset_to_pointer(arena *arena, int64 offset) {
   assert(offset > 0 && "Zero offset is invalid");
   return arena->data + (offset - 1);
 }
