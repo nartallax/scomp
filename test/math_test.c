@@ -1,6 +1,7 @@
 #pragma once
 #include "../src/math.c"
 #include "test_utils.c"
+#include <stdint.h>
 
 const char *test_most_significant_bit() {
   TEST_ASSERT(most_significant_bit_index(0) == -1);
@@ -18,5 +19,7 @@ const char *test_most_significant_bit() {
   TEST_ASSERT(most_significant_bit_index(255) == 7);
   TEST_ASSERT(most_significant_bit_index(1024) == 10);
   TEST_ASSERT(most_significant_bit_index(65000) == 15);
+  TEST_ASSERT(most_significant_bit_index(INT64_MAX) == 62);
+  TEST_ASSERT(most_significant_bit_index(UINT64_MAX) == 63);
   return NULL;
 }

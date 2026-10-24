@@ -42,6 +42,7 @@ constexpr json_token_kind JSON_TOKEN_UNICODE_CHARACTER =
 constexpr json_token_kind JSON_TOKEN_ESCAPED_UNICODE_CHARCODE = 14; // \u1234
 // number tokens
 constexpr json_token_kind JSON_TOKEN_NUMBER = 15; // 12.345, 1e10. every number that is not 64-bit safe integer
+constexpr json_token_kind JSON_TOKEN_MAX = JSON_TOKEN_NUMBER;
 
 typedef byte json_state;
 constexpr json_state JSON_STATE_ROOT = 0;                // if this state is ever reached - it means JSON reading is completed
@@ -63,6 +64,7 @@ constexpr json_state JSON_STATE_TRUE = 15;               // expecting letters of
 constexpr json_state JSON_STATE_FALSE = 16;              // expecting letters of `false`
 constexpr json_state JSON_STATE_NULL = 17;               // expecting letters of `null`
 constexpr json_state JSON_STATE_BOM = 18;                // expecting bytes of utf-8 byte order mark
+constexpr json_state JSON_STATE_MAX = JSON_STATE_BOM;
 
 /** Tokens that store exactly 1 character of information with them */
 typedef struct {
@@ -84,6 +86,12 @@ constexpr json_number_flags JSON_NUMBER_EXPONENT_IS_NEGATIVE = 1 << 3; // 1e-1
 constexpr json_number_flags JSON_NUMBER_EXPONENT_HAS_PLUS = 1 << 4;    // 1e+1
 constexpr json_number_flags JSON_NUMBER_IS_NEGATIVE = 1 << 5;          // -1
 constexpr json_number_flags JSON_NUMBER_IS_ZERO = 1 << 6;              // 0, -0
+
+/** Max leading zeroes there can be in exponent or fraction part of a number.
+Any more - and the number is considered invalid.
+
+Reason to have this value is to keep string representation of a number low; this helps with re-stringification in case of broken JSON */
+constexpr int32 JSON_MAX_NUMBER_LEADING_ZEROES = 80;
 
 /** Tokens that contains a number in JSON sense. */
 typedef struct {

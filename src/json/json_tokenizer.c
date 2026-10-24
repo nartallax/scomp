@@ -221,7 +221,7 @@ State of the tokenizer is not changed by this.
 
 Returns amount of meaningful bytes written.
 It's possible that more bytes were written, but caller should only use meaningful bytes. */
-int64 json_tokenizer_render_partial_token(json_tokenizer *t, writer *w) {
+NODISCARD int64 json_tokenizer_render_partial_token(json_tokenizer *t, writer *w) {
   json_state state = bfstack_peek(&t->state_stack);
   switch (state) {
   case JSON_STATE_BOM:
@@ -449,6 +449,9 @@ NODISCARD bool json_tokenizer_push(json_tokenizer *t, byte b) {
       if (t->partial_number_token.flags & JSON_NUMBER_HAS_EXPONENT) {
         if (t->value_progress == 0 && digit == 0) {
           t->partial_number_token.exponent_leading_zeroes++;
+          if (t->partial_number_token.exponent_leading_zeroes == JSON_MAX_NUMBER_LEADING_ZEROES) {
+            return false;
+          }
           return true;
         }
         if (_jtok_uint16_will_overflow(t->partial_number_token.exponent_part, digit)) {
@@ -460,6 +463,9 @@ NODISCARD bool json_tokenizer_push(json_tokenizer *t, byte b) {
       } else if (t->partial_number_token.flags & JSON_NUMBER_HAS_FRACTION) {
         if (t->value_progress == 0 && digit == 0) {
           t->partial_number_token.fraction_leading_zeroes++;
+          if (t->partial_number_token.fraction_leading_zeroes == JSON_MAX_NUMBER_LEADING_ZEROES) {
+            return false;
+          }
           return true;
         }
         if (_jtok_uint64_will_overflow(t->partial_number_token.fraction_part, digit)) {
@@ -568,4 +574,8 @@ NODISCARD bool json_tokenizer_flush(json_tokenizer *t) {
   }
 
   return true;
+}
+
+INLINE json_state json_tokenizer_get_current_state(json_tokenizer *t) {
+  return bfstack_peek(&t->state_stack);
 }

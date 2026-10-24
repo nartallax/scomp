@@ -29,9 +29,9 @@ typedef struct {
   ftree frequencies;
   // sum of all frequencies
   symbol_frequency total;
-  bool is_eof_included;
   // this exists to avoid reallocation on each compaction
   symbol_frequency *compaction_buffer;
+  bool is_eof_included;
 } ftable;
 
 INLINE symbol_frequency _ftable_get_init_value(int init_flags) {

@@ -16,7 +16,7 @@ It is to stay like this until some problem is discovered about having only one c
 Don't allocate memory for object itself in `classname_init` function; accept a reference to an object and assume it's not null. This allows for more flexible memory control - for example, embedding the object within another object, which is great for cache locality and reducing memory indirection.  
 Zero-fill object at the start of `classname_init`. Zero-fill object at the end of `classname_deinit`. This allows for more predictable inits and deinits, especially useful in case of allocation failure recovery - sometimes such recovery can cause double-frees; after failed init object must be left in initial state.  
 Avoid accessing "class" fields directly outside of the file that declares it; if you need to - create inlineable "method".  
-Private method names must start with underscore. Private methods should only be used within the file that declares the class.  
+Private method names must start with underscore. Private methods should only be used within the directory of the file that declares the class.  
 
 5. Avoid preprocessor as much as possible.  
 Declare constants using `constexpr`, as it allows for explicit typing.  
