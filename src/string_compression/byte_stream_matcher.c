@@ -124,26 +124,24 @@ int64_t _bsm_check_match_starting_at(byte_stream_matcher *bsm, int64_t position,
   if (src_end < source_position) {
     src_end += (int64_t)ring_buffer_get_length(source);
   }
+  int64_t dist_to_src_end = src_end - source_position;
 
   int64_t search_end = ring_buffer_get_index(&bsm->content);
   if (search_end < position) {
     search_end += (int64_t)ring_buffer_get_length(&bsm->content);
   }
   int64_t dist_to_search_end = search_end - position;
-  int64_t dist_to_src_end = src_end - source_position;
-  if (dist_to_search_end < dist_to_src_end) {
-    src_end = source_position + dist_to_search_end;
-  }
+
+  // we must not search past source buffer boundary, because bytes there are old and already were written on the previous buffer loop.
+  // we must not search past bsm content buffer boundary, because this will generate a match with offset < length,
+  // which is bad in two ways - it will break the (offset - length) logic on write, and it will cause search buffer overwrites on read
+  int64_t min_dist_to_end = dist_to_search_end < dist_to_src_end ? dist_to_search_end : dist_to_src_end;
+  // and also we must not read past max match limit, because we won't be able to write match longer than that
+  size_t length_limit = min_dist_to_end < _BSM_MATCH_LENGTH_LIMIT ? min_dist_to_end : _BSM_MATCH_LENGTH_LIMIT;
 
   // printf("start: %zi; end %zi\n", source_position, src_end);
-  for (size_t length = 0; length < _BSM_MATCH_LENGTH_LIMIT; length++) {
+  for (size_t length = 0; length < length_limit; length++) {
     int64_t src_current_position = source_position + length;
-    if (src_current_position == src_end) {
-      // don't read past source buffer end
-      // but it's fine to read past match buffer end, because it's zero-initialized and synchronized on decoder and encoder
-      // which means even if we accidently read past the end marker - as long as the data at the end matches the source - it's fine
-      return length;
-    }
     byte buffer_byte = ring_buffer_get(&bsm->content, position + length);
     byte src_byte = ring_buffer_get(source, src_current_position);
     // printf("checking positions: src_pos=%zu match_pos=%zu: %i =?= %i\n", src_current_position, position + 1, src_byte, buffer_byte);
@@ -151,7 +149,7 @@ int64_t _bsm_check_match_starting_at(byte_stream_matcher *bsm, int64_t position,
       return length;
     }
   }
-  return _BSM_MATCH_LENGTH_LIMIT - 1;
+  return length_limit - 1;
 }
 
 // TODO: I wonder if size_t here instead of uint16_t is bad for performance

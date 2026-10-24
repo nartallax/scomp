@@ -77,7 +77,7 @@ NODISCARD bool _strdecomp_read_character_symbol(string_decompressor *decomp) {
 }
 
 void _strdecomp_materialize_existing_backreference(string_decompressor *decomp) {
-  int64_t start_index = (int64_t)ring_buffer_get_index(&decomp->lookback_buffer) - decomp->offset;
+  int64_t start_index = (int64_t)ring_buffer_get_index(&decomp->lookback_buffer) - (decomp->offset + decomp->length);
   if (start_index < 0) {
     start_index += (int64_t)ring_buffer_get_length(&decomp->lookback_buffer);
   }

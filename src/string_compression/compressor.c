@@ -70,13 +70,7 @@ void _strcomp_write_uint(string_compressor *compressor, ftable *table, ftable *l
 void _strcomp_write_backreference(string_compressor *compressor, uint64_t offset, uint64_t length) {
   acod_encoder_write(compressor->encoder, &compressor->base.main_symbol_table, _STRCOMP_BACKREFERENCE_SYMBOL);
   ftable_increment(&compressor->base.main_symbol_table, _STRCOMP_BACKREFERENCE_SYMBOL);
-  // we could, in theory, subtract length from offset, to make the number smaller
-  // but then we'll have to deal with byte_stream_matcher returning matches that pass the ring buffer boundary; matches with offset < length
-  // we can forbid such matches, but then we'll have performance problems on repeated data that aligns with ring buffer size and perfectly loops
-  // because we would have to reject those over and over again and write the data instead, which is slow and harms the compression
-  // of course it won't happen in actual data, only in synthetic data; but the compressor should be resilient to such attacks
-  // (and also, subtracting length from offset doesn't add much to compression quality. it's something about 0.05%)
-  _strcomp_write_uint(compressor, &compressor->base.backref_offset_length, &compressor->base.backref_offset_last_part, offset);
+  _strcomp_write_uint(compressor, &compressor->base.backref_offset_length, &compressor->base.backref_offset_last_part, offset - length);
   _strcomp_write_uint(compressor, &compressor->base.backref_length_length, &compressor->base.backref_length_last_part, length);
 }
 
