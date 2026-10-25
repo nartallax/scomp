@@ -199,7 +199,7 @@ const char *test_json_tokenizer_numbers() {
   k = test_json_consume(&q);
   TEST_ASSERT(k != NULL);
   TEST_ASSERT(k->kind == JSON_TOKEN_NUMBER && !(k->number.flags & JSON_NUMBER_HAS_FRACTION) && !(k->number.flags & JSON_NUMBER_HAS_EXPONENT) && k->number.integer_part == 12345 &&
-              !(k->number.flags & JSON_NUMBER_IS_NEGATIVE));
+              !(k->number.flags & JSON_NUMBER_IS_NEGATIVE) && !(k->number.flags & JSON_NUMBER_INTEGER_PART_IS_ZERO));
   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_WHITESPACE);
   TEST_ASSERT(test_json_tokenizer_reinit(&t));
 
@@ -207,7 +207,7 @@ const char *test_json_tokenizer_numbers() {
   k = test_json_consume(&q);
   TEST_ASSERT(k != NULL);
   TEST_ASSERT(k->kind == JSON_TOKEN_NUMBER && !(k->number.flags & JSON_NUMBER_HAS_FRACTION) && !(k->number.flags & JSON_NUMBER_HAS_EXPONENT) && k->number.integer_part == 12345 &&
-              k->number.flags & JSON_NUMBER_IS_NEGATIVE);
+              k->number.flags & JSON_NUMBER_IS_NEGATIVE && !(k->number.flags & JSON_NUMBER_INTEGER_PART_IS_ZERO));
   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_WHITESPACE);
   TEST_ASSERT(test_json_tokenizer_reinit(&t));
 
@@ -223,7 +223,8 @@ const char *test_json_tokenizer_numbers() {
   k = test_json_consume(&q);
   TEST_ASSERT(k != NULL);
   TEST_ASSERT(k->kind == JSON_TOKEN_NUMBER && !(k->number.flags & JSON_NUMBER_HAS_FRACTION) && k->number.flags & JSON_NUMBER_HAS_EXPONENT && !(k->number.flags & JSON_NUMBER_EXPONENT_UPPERCASE) &&
-              k->number.exponent_part == 456 && k->number.integer_part == 123 && !(k->number.flags & (JSON_NUMBER_EXPONENT_IS_NEGATIVE | JSON_NUMBER_EXPONENT_HAS_PLUS)));
+              k->number.exponent_part == 456 && k->number.integer_part == 123 && !(k->number.flags & (JSON_NUMBER_EXPONENT_IS_NEGATIVE | JSON_NUMBER_EXPONENT_HAS_PLUS)) &&
+              !(k->number.flags & JSON_NUMBER_INTEGER_PART_IS_ZERO));
   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_WHITESPACE);
   TEST_ASSERT(test_json_tokenizer_reinit(&t));
 
@@ -231,7 +232,7 @@ const char *test_json_tokenizer_numbers() {
   k = test_json_consume(&q);
   TEST_ASSERT(k != NULL);
   TEST_ASSERT(k->kind == JSON_TOKEN_NUMBER && !(k->number.flags & JSON_NUMBER_HAS_FRACTION) && k->number.flags & JSON_NUMBER_HAS_EXPONENT && !(k->number.flags & JSON_NUMBER_EXPONENT_UPPERCASE) &&
-              k->number.exponent_part == 456 && k->number.integer_part == 123 && k->number.flags & JSON_NUMBER_EXPONENT_IS_NEGATIVE);
+              k->number.exponent_part == 456 && k->number.integer_part == 123 && k->number.flags & JSON_NUMBER_EXPONENT_IS_NEGATIVE && !(k->number.flags & JSON_NUMBER_INTEGER_PART_IS_ZERO));
   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_WHITESPACE);
   TEST_ASSERT(test_json_tokenizer_reinit(&t));
 
@@ -239,7 +240,7 @@ const char *test_json_tokenizer_numbers() {
   k = test_json_consume(&q);
   TEST_ASSERT(k != NULL);
   TEST_ASSERT(k->kind == JSON_TOKEN_NUMBER && !(k->number.flags & JSON_NUMBER_HAS_FRACTION) && k->number.flags & JSON_NUMBER_HAS_EXPONENT && !(k->number.flags & JSON_NUMBER_EXPONENT_UPPERCASE) &&
-              k->number.exponent_part == 456 && k->number.integer_part == 123 && k->number.flags & JSON_NUMBER_EXPONENT_HAS_PLUS);
+              k->number.exponent_part == 456 && k->number.integer_part == 123 && k->number.flags & JSON_NUMBER_EXPONENT_HAS_PLUS && !(k->number.flags & JSON_NUMBER_INTEGER_PART_IS_ZERO));
   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_WHITESPACE);
   TEST_ASSERT(test_json_tokenizer_reinit(&t));
 
@@ -279,7 +280,21 @@ const char *test_json_tokenizer_numbers() {
   k = test_json_consume(&q);
   TEST_ASSERT(k != NULL);
   TEST_ASSERT(k->kind == JSON_TOKEN_NUMBER && (k->number.flags & JSON_NUMBER_HAS_FRACTION) && k->number.fraction_part == 1 && k->number.fraction_leading_zeroes == 3 &&
-              k->number.exponent_leading_zeroes == 3 && k->number.exponent_part == 2);
+              k->number.exponent_leading_zeroes == 3 && k->number.exponent_part == 2 && !(k->number.flags & JSON_NUMBER_INTEGER_PART_IS_ZERO));
+  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_WHITESPACE);
+  TEST_ASSERT(test_json_tokenizer_reinit(&t));
+
+  TEST_ASSERT(test_json_tokenizer_push_string(&t, &q, "0 "));
+  k = test_json_consume(&q);
+  TEST_ASSERT(k != NULL);
+  TEST_ASSERT(k->number.flags & JSON_NUMBER_INTEGER_PART_IS_ZERO);
+  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_WHITESPACE);
+  TEST_ASSERT(test_json_tokenizer_reinit(&t));
+
+  TEST_ASSERT(test_json_tokenizer_push_string(&t, &q, "0.0e0 "));
+  k = test_json_consume(&q);
+  TEST_ASSERT(k != NULL);
+  TEST_ASSERT(k->number.flags & JSON_NUMBER_INTEGER_PART_IS_ZERO);
   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_WHITESPACE);
   TEST_ASSERT(test_json_tokenizer_reinit(&t));
 
@@ -287,7 +302,7 @@ const char *test_json_tokenizer_numbers() {
   k = test_json_consume(&q);
   TEST_ASSERT(k != NULL);
   TEST_ASSERT(k->kind == JSON_TOKEN_NUMBER && (k->number.flags & JSON_NUMBER_HAS_FRACTION) && k->number.fraction_part == 0 && k->number.fraction_leading_zeroes == 3 &&
-              k->number.exponent_leading_zeroes == 3 && k->number.exponent_part == 0);
+              k->number.exponent_leading_zeroes == 3 && k->number.exponent_part == 0 && !(k->number.flags & JSON_NUMBER_INTEGER_PART_IS_ZERO));
   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_WHITESPACE);
   TEST_ASSERT(test_json_tokenizer_reinit(&t));
 

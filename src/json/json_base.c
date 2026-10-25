@@ -19,6 +19,8 @@ constexpr int64 JSON_MAX_LEADING_ZEROES = 32;
 constexpr byte _JTOK_TRUE_BYTES[] = {'t', 'r', 'u', 'e'};
 constexpr byte _JTOK_FALSE_BYTES[] = {'f', 'a', 'l', 's', 'e'};
 constexpr byte _JTOK_NULL_BYTES[] = {'n', 'u', 'l', 'l'};
+constexpr byte _JTOK_ESCAPE_SEQ_CHARS[] = {'\\', '"', '/', 'b', 'f', 'n', 'r', 't'};
+constexpr byte _JTOK_WHITESPACE_CHARS[] = {' ', '\n', '\r', '\t'};
 
 typedef byte json_token_kind;
 // simple tokens
@@ -79,13 +81,13 @@ typedef struct {
 
 /** Various booleans about JSON numbers packed into a bitmap */
 typedef byte json_number_flags;
-constexpr json_number_flags JSON_NUMBER_HAS_FRACTION = 1 << 0;         // 1.1
-constexpr json_number_flags JSON_NUMBER_HAS_EXPONENT = 1 << 1;         // 1e1
-constexpr json_number_flags JSON_NUMBER_EXPONENT_UPPERCASE = 1 << 2;   // 1E1
-constexpr json_number_flags JSON_NUMBER_EXPONENT_IS_NEGATIVE = 1 << 3; // 1e-1
-constexpr json_number_flags JSON_NUMBER_EXPONENT_HAS_PLUS = 1 << 4;    // 1e+1
-constexpr json_number_flags JSON_NUMBER_IS_NEGATIVE = 1 << 5;          // -1
-constexpr json_number_flags JSON_NUMBER_IS_ZERO = 1 << 6;              // 0, -0
+constexpr json_number_flags JSON_NUMBER_INTEGER_PART_IS_ZERO = 1 << 0; // 0, -0
+constexpr json_number_flags JSON_NUMBER_IS_NEGATIVE = 1 << 1;          // -1
+constexpr json_number_flags JSON_NUMBER_HAS_FRACTION = 1 << 2;         // 1.1
+constexpr json_number_flags JSON_NUMBER_HAS_EXPONENT = 1 << 3;         // 1e1
+constexpr json_number_flags JSON_NUMBER_EXPONENT_UPPERCASE = 1 << 4;   // 1E1
+constexpr json_number_flags JSON_NUMBER_EXPONENT_IS_NEGATIVE = 1 << 5; // 1e-1
+constexpr json_number_flags JSON_NUMBER_EXPONENT_HAS_PLUS = 1 << 6;    // 1e+1
 
 /** Max leading zeroes there can be in exponent or fraction part of a number.
 Any more - and the number is considered invalid.

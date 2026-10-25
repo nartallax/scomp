@@ -103,9 +103,11 @@ INLINE void _jtok_push_number_token(json_tokenizer *t) {
 }
 
 NODISCARD INLINE bool _jtok_try_whitespace(json_tokenizer *t, byte b) {
-  if (b == ' ' || b == '\n' || b == '\r' || b == '\t') {
-    _jtok_push_character_token(t, JSON_TOKEN_WHITESPACE, b);
-    return true;
+  for (size_t i = 0; i < sizeof(_JTOK_WHITESPACE_CHARS); i++) {
+    if (b == _JTOK_WHITESPACE_CHARS[i]) {
+      _jtok_push_character_token(t, JSON_TOKEN_WHITESPACE, b);
+      return true;
+    }
   }
   return false;
 }
@@ -173,7 +175,7 @@ NODISCARD bool _jtok_try_value(json_tokenizer *t, byte b) {
         t->value_progress = 1;
         t->partial_number_token.integer_part = b - '0';
         if (b == '0') {
-          t->partial_number_token.flags |= JSON_NUMBER_IS_ZERO;
+          t->partial_number_token.flags |= JSON_NUMBER_INTEGER_PART_IS_ZERO;
         }
       }
       return is_state_updated;
@@ -419,11 +421,14 @@ NODISCARD bool json_tokenizer_push(json_tokenizer *t, byte b) {
     }
     return true;
   case JSON_STATE_ESCAPED_CHARACTER:
-    if (b == '\\' || b == '"' || b == '/' || b == 'b' || b == 'f' || b == 'n' || b == 'r' || b == 't') {
-      _jtok_push_character_token(t, JSON_TOKEN_ESCAPE_SEQUENCE, b);
-      bfstack_pop(&t->state_stack);
-      return true;
-    } else if (b == 'u') {
+    for (size_t i = 0; i < sizeof(_JTOK_ESCAPE_SEQ_CHARS); i++) {
+      if (b == _JTOK_ESCAPE_SEQ_CHARS[i]) {
+        _jtok_push_character_token(t, JSON_TOKEN_ESCAPE_SEQUENCE, b);
+        bfstack_pop(&t->state_stack);
+        return true;
+      }
+    }
+    if (b == 'u') {
       t->partial_unicode_token.length = 4;
       bfstack_replace(&t->state_stack, JSON_STATE_ESCAPED_CHARCODE);
       return true;
@@ -475,7 +480,7 @@ NODISCARD bool json_tokenizer_push(json_tokenizer *t, byte b) {
         t->value_progress++;
         return true;
       } else {
-        if (t->partial_number_token.flags & JSON_NUMBER_IS_ZERO) {
+        if (t->partial_number_token.flags & JSON_NUMBER_INTEGER_PART_IS_ZERO) {
           // `01` is invalid, `-01` is invalid
           return false;
         }
@@ -483,7 +488,7 @@ NODISCARD bool json_tokenizer_push(json_tokenizer *t, byte b) {
           return false;
         }
         if (digit == 0 && t->value_progress == 0) {
-          t->partial_number_token.flags |= JSON_NUMBER_IS_ZERO;
+          t->partial_number_token.flags |= JSON_NUMBER_INTEGER_PART_IS_ZERO;
         } else {
           t->partial_number_token.integer_part = (t->partial_number_token.integer_part * 10) + digit;
         }

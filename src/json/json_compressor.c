@@ -65,6 +65,24 @@ void _json_compressor_drain_tokens(json_compressor *comp) {
     acod_encoder_write(comp->encoder, table, token->kind);
     ftable_increment(table, token->kind);
     comp->base.current_state = json_tokenizer_get_current_state(&comp->tokenizer);
+
+    switch (token->kind) {
+    case JSON_TOKEN_WHITESPACE: {
+      ftable *table = &comp->base.whitespaces;
+      symbol s = _json_compression_get_symbol_by_whitespace_char(token->character.character);
+      acod_encoder_write(comp->encoder, table, s);
+      ftable_increment(table, s);
+    } break;
+    case JSON_TOKEN_ESCAPE_SEQUENCE: {
+      ftable *table = &comp->base.escape_sequences;
+      symbol s = _json_compression_get_symbol_by_escape_seq_char(token->character.character);
+      acod_encoder_write(comp->encoder, table, s);
+      ftable_increment(table, s);
+    } break;
+    case JSON_TOKEN_NUMBER: {
+
+    } break;
+    }
   }
 }
 
