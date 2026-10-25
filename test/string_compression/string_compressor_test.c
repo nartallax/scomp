@@ -153,7 +153,7 @@ const char *test_string_compression_wrapping() {
 }
 
 const char *test_string_compression_allocation_failures() {
-  int comp_alloc_count = 16;
+  int comp_alloc_count = 18;
   for (int i = 0; i <= comp_alloc_count; i++) {
     string_compressor comp;
     acod_encoder encoder;
@@ -171,7 +171,7 @@ const char *test_string_compression_allocation_failures() {
     writer_deinit(&writer, test_context);
   }
 
-  int decomp_alloc_count = 13;
+  int decomp_alloc_count = 15;
   for (int i = 0; i <= decomp_alloc_count; i++) {
     string_decompressor decomp;
     acod_decoder decoder;

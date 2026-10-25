@@ -88,6 +88,7 @@ test normal_tests[] = {
     MAKE_TEST(test_json_tokenizer_numbers),
     MAKE_TEST(test_json_tokenizer_constants),
     MAKE_TEST(test_json_tokenizer_array),
+    MAKE_TEST(test_json_tokenizer_loooong_number),
     MAKE_TEST(test_json_tokenizer_object),
     MAKE_TEST(test_json_tokenizer_whitespaces),
     MAKE_TEST(test_json_tokenizer_nesting),

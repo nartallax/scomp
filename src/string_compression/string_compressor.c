@@ -1,10 +1,11 @@
 #pragma once
 #include "../arithmetic_coding/encoder.c"
 #include "../arithmetic_coding/frequency_table.c"
+#include "../arithmetic_coding/uint_writer.c"
 #include "../commons.c"
 #include "../context.c"
 #include "../data_structures/ring_buffer.c"
-#include "../math.c"
+#include "byte_stream_matcher.c"
 #include "string_compression_base.c"
 #include <stdint.h>
 
@@ -15,6 +16,8 @@ typedef struct {
   acod_encoder *encoder;
   int32 bytes_in_buffer;
   byte_stream_matcher bsm;
+  uint_writer offset_writer;
+  uint_writer length_writer;
 } string_compressor;
 
 /** Don't forget to flush the compressor before calling this */
@@ -23,6 +26,8 @@ void strcomp_deinit(string_compressor *compressor, context *context) {
   bsm_deinit(&compressor->bsm, context);
   ring_buffer_deinit(&compressor->input_buffer, context);
   _strcomp_deinit_base(&compressor->base, context);
+  uint_writer_deinit(&compressor->offset_writer, context);
+  uint_writer_deinit(&compressor->length_writer, context);
 
   *compressor = (string_compressor){0};
 }
@@ -44,33 +49,24 @@ NODISCARD bool strcomp_init(string_compressor *compressor, context *context, aco
     return false;
   }
 
-  return true;
-}
-
-void _strcomp_write_int(string_compressor *compressor, ftable *table, ftable *last_part_table, int64 value) {
-  int64 bit_index = most_significant_bit_index(value);
-  symbol length_symbols_symbol = (bit_index + (int)_STRCOMP_UINT_SYMBOL_BITS_COUNT) / _STRCOMP_UINT_SYMBOL_BITS_COUNT;
-  acod_encoder_write(compressor->encoder, table, length_symbols_symbol);
-  ftable_increment(table, length_symbols_symbol);
-
-  for (symbol i = 0; i < length_symbols_symbol; i++) {
-    byte part = value & _STRCOMP_UINT_SYMBOL_MASK;
-    value = value >> _STRCOMP_UINT_SYMBOL_BITS_COUNT;
-    bool is_last_part = i == (length_symbols_symbol - 1);
-    if (is_last_part) {
-      acod_encoder_write(compressor->encoder, last_part_table, part);
-      ftable_increment(last_part_table, part);
-    } else {
-      acod_encoder_write(compressor->encoder, &compressor->base.uint_parts, part);
-    }
+  if (!uint_writer_init(&compressor->offset_writer, context, encoder, _BSM_LENGTH)) {
+    strcomp_deinit(compressor, context);
+    return false;
   }
+
+  if (!uint_writer_init(&compressor->length_writer, context, encoder, _BSM_MATCH_LENGTH_LIMIT)) {
+    strcomp_deinit(compressor, context);
+    return false;
+  }
+
+  return true;
 }
 
 INLINE void _strcomp_write_backreference(string_compressor *compressor, int64 offset, int64 length) {
   acod_encoder_write(compressor->encoder, &compressor->base.main_symbol_table, _STRCOMP_BACKREFERENCE_SYMBOL);
   ftable_increment(&compressor->base.main_symbol_table, _STRCOMP_BACKREFERENCE_SYMBOL);
-  _strcomp_write_int(compressor, &compressor->base.backref_offset_length, &compressor->base.backref_offset_last_part, offset - length);
-  _strcomp_write_int(compressor, &compressor->base.backref_length_length, &compressor->base.backref_length_last_part, length);
+  uint_writer_write(&compressor->offset_writer, offset - length);
+  uint_writer_write(&compressor->length_writer, length);
 }
 
 void _strcomp_compressor_flush_once(string_compressor *compressor) {

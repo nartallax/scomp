@@ -389,6 +389,21 @@ const char *test_json_tokenizer_constants() {
   return NULL;
 }
 
+const char *test_json_tokenizer_loooong_number() {
+  json_tokenizer t;
+  queue q;
+  TEST_ASSERT(queue_init(&q, test_context, sizeof(json_token), 4));
+  TEST_ASSERT(json_tokenizer_init(&t, test_context));
+
+  TEST_ASSERT(!test_json_tokenizer_push_string(&t, &q, "-0.0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001"));
+  TEST_ASSERT(test_json_tokenizer_reinit_nonempty(&t));
+  TEST_ASSERT(!test_json_tokenizer_push_string(&t, &q, "-0e0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001"));
+
+  json_tokenizer_deinit(&t, test_context);
+  queue_deinit(&q, test_context);
+  return NULL;
+}
+
 const char *test_json_tokenizer_array() {
   json_tokenizer t;
   queue q;
@@ -559,12 +574,15 @@ const char *test_json_tokenizer_bom() {
   queue q;
   TEST_ASSERT(queue_init(&q, test_context, sizeof(json_token), 4));
   TEST_ASSERT(json_tokenizer_init(&t, test_context));
+  TEST_ASSERT(json_tokenizer_get_current_state(&t) == JSON_STATE_START);
 
   TEST_ASSERT(json_tokenizer_push(&t, UTF8_BOM[0]));
+  TEST_ASSERT(json_tokenizer_get_current_state(&t) == JSON_STATE_BOM);
   TEST_ASSERT(json_tokenizer_push(&t, UTF8_BOM[1]));
   TEST_ASSERT(json_tokenizer_push(&t, UTF8_BOM[2]));
   TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_BOM);
   TEST_ASSERT(json_tokenizer_push(&t, '{'));
+  TEST_ASSERT(json_tokenizer_get_current_state(&t) == JSON_STATE_OBJECT_START);
   TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_OBJECT_OPEN);
   TEST_ASSERT(json_tokenizer_push(&t, '}'));
   TEST_ASSERT(json_tokenizer_consume(&t)->kind == JSON_TOKEN_OBJECT_CLOSE);

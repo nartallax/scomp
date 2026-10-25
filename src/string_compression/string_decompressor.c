@@ -1,19 +1,23 @@
 #pragma once
 #include "../arithmetic_coding/decoder.c"
+#include "../arithmetic_coding/uint_reader.c"
 #include "../commons.c"
+#include "../data_structures/ring_buffer.c"
 #include "../writer.c"
+#include "byte_stream_matcher.c"
 #include "string_compression_base.c"
 #include <stdbool.h>
 
 typedef byte _strcomp_state;
 constexpr _strcomp_state _STRDECOMP_STATE_CHARACTER = 0;
-constexpr _strcomp_state _STRDECOMP_STATE_OFFSET = 1 << 0;
-constexpr _strcomp_state _STRDECOMP_STATE_START = 1 << 1;
-constexpr _strcomp_state _STRDECOMP_STATE_LENGTH = 1 << 2;
+constexpr _strcomp_state _STRDECOMP_STATE_OFFSET = 1;
+constexpr _strcomp_state _STRDECOMP_STATE_LENGTH = 2;
 
 typedef struct {
   // buffer that stores received characters and supplies sequence values for backreferences
   ring_buffer lookback_buffer;
+  uint_reader offset_reader;
+  uint_reader length_reader;
   string_compression_base base;
   writer *writer;
   acod_decoder *decoder;
@@ -27,6 +31,8 @@ typedef struct {
 void strdecomp_deinit(string_decompressor *decomp, context *context) {
   ring_buffer_deinit(&decomp->lookback_buffer, context);
   _strcomp_deinit_base(&decomp->base, context);
+  uint_reader_deinit(&decomp->offset_reader, context);
+  uint_reader_deinit(&decomp->length_reader, context);
 
   *decomp = (string_decompressor){0};
 }
@@ -52,6 +58,16 @@ NODISCARD bool strdecomp_init(string_decompressor *decomp, context *context, wri
     return false;
   }
 
+  if (!uint_reader_init(&decomp->offset_reader, context, decoder, _BSM_LENGTH)) {
+    strdecomp_deinit(decomp, context);
+    return false;
+  }
+
+  if (!uint_reader_init(&decomp->length_reader, context, decoder, _BSM_MATCH_LENGTH_LIMIT)) {
+    strdecomp_deinit(decomp, context);
+    return false;
+  }
+
   return true;
 }
 
@@ -61,7 +77,7 @@ NODISCARD bool _strdecomp_read_character_symbol(string_decompressor *decomp) {
   symbol s = acod_decoder_read(decomp->decoder, table);
   ftable_increment(table, s);
   if (s == _STRCOMP_BACKREFERENCE_SYMBOL) {
-    decomp->state = _STRDECOMP_STATE_OFFSET | _STRDECOMP_STATE_START;
+    decomp->state = _STRDECOMP_STATE_OFFSET;
     return false;
   }
 
@@ -90,42 +106,19 @@ void _strdecomp_materialize_existing_backreference(string_decompressor *decomp) 
 }
 
 void _strdecomp_read_backreference_symbol(string_decompressor *decomp) {
-  if (decomp->state & _STRDECOMP_STATE_START) {
-    decomp->state = decomp->state & (~_STRDECOMP_STATE_START);
-    ftable *length_table = decomp->state & _STRDECOMP_STATE_OFFSET ? &decomp->base.backref_offset_length : &decomp->base.backref_length_length;
-    decomp->uint_total_symbol_count = acod_decoder_read(decomp->decoder, length_table);
-    ftable_increment(length_table, decomp->uint_total_symbol_count);
-    return;
-  }
-
-  if (decomp->uint_read_symbol_count < decomp->uint_total_symbol_count) {
-    // reading a part of an offset or length uint
-    bool is_last_part = decomp->uint_read_symbol_count == decomp->uint_total_symbol_count - 1;
-    symbol part;
-    if (is_last_part) {
-      ftable *last_part_table = decomp->state & _STRDECOMP_STATE_OFFSET ? &decomp->base.backref_offset_last_part : &decomp->base.backref_length_last_part;
-      part = acod_decoder_read(decomp->decoder, last_part_table);
-      ftable_increment(last_part_table, part);
+  bool is_offset = decomp->state == _STRDECOMP_STATE_OFFSET;
+  uint_reader *reader = is_offset ? &decomp->offset_reader : &decomp->length_reader;
+  if (uint_reader_read(reader)) {
+    if (is_offset) {
+      decomp->offset = uint_reader_consume(reader);
+      decomp->state = _STRDECOMP_STATE_LENGTH;
     } else {
-      part = acod_decoder_read(decomp->decoder, &decomp->base.uint_parts);
+      decomp->length = uint_reader_consume(reader);
+      _strdecomp_materialize_existing_backreference(decomp);
+      decomp->length = 0;
+      decomp->offset = 0;
+      decomp->state = _STRDECOMP_STATE_CHARACTER;
     }
-
-    int64 *field = decomp->state & _STRDECOMP_STATE_OFFSET ? &decomp->offset : &decomp->length;
-    *field |= (part << (decomp->uint_read_symbol_count * _STRCOMP_UINT_SYMBOL_BITS_COUNT));
-    decomp->uint_read_symbol_count++;
-    return;
-  }
-
-  // we have read through offset or length part of a backreference
-  decomp->uint_total_symbol_count = 0;
-  decomp->uint_read_symbol_count = 0;
-  if (decomp->state & _STRDECOMP_STATE_OFFSET) {
-    decomp->state = _STRDECOMP_STATE_LENGTH | _STRDECOMP_STATE_START;
-  } else {
-    _strdecomp_materialize_existing_backreference(decomp);
-    decomp->length = 0;
-    decomp->offset = 0;
-    decomp->state = _STRDECOMP_STATE_CHARACTER;
   }
 }
 
