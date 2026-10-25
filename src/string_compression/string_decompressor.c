@@ -16,8 +16,7 @@ constexpr _strcomp_state _STRDECOMP_STATE_LENGTH = 2;
 typedef struct {
   // buffer that stores received characters and supplies sequence values for backreferences
   ring_buffer lookback_buffer;
-  uint_reader_state offset_reader;
-  uint_reader_state length_reader;
+  uint_reader_state uint_reader;
   string_compression_base base;
   writer *writer;
   acod_decoder *decoder;
@@ -31,8 +30,7 @@ typedef struct {
 void strdecomp_deinit(string_decompressor *decomp, context *context) {
   ring_buffer_deinit(&decomp->lookback_buffer, context);
   _strcomp_deinit_base(&decomp->base, context);
-  uint_reader_reset(&decomp->offset_reader);
-  uint_reader_reset(&decomp->length_reader);
+  uint_reader_reset(&decomp->uint_reader);
 
   *decomp = (string_decompressor){0};
 }
@@ -58,8 +56,7 @@ NODISCARD bool strdecomp_init(string_decompressor *decomp, context *context, wri
     return false;
   }
 
-  uint_reader_reset(&decomp->offset_reader);
-  uint_reader_reset(&decomp->length_reader);
+  uint_reader_reset(&decomp->uint_reader);
 
   return true;
 }
@@ -100,7 +97,7 @@ void _strdecomp_materialize_existing_backreference(string_decompressor *decomp) 
 
 void _strdecomp_read_backreference_symbol(string_decompressor *decomp) {
   bool is_offset = decomp->state == _STRDECOMP_STATE_OFFSET;
-  uint_reader_state *reader = is_offset ? &decomp->offset_reader : &decomp->length_reader;
+  uint_reader_state *reader = &decomp->uint_reader;
   uint_freq_tables *tables = is_offset ? &decomp->base.offset_tables : &decomp->base.length_tables;
   if (uint_reader_read(reader, tables, decomp->decoder)) {
     if (is_offset) {
