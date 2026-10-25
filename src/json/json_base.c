@@ -88,6 +88,7 @@ constexpr json_number_flags JSON_NUMBER_HAS_EXPONENT = 1 << 3;         // 1e1
 constexpr json_number_flags JSON_NUMBER_EXPONENT_UPPERCASE = 1 << 4;   // 1E1
 constexpr json_number_flags JSON_NUMBER_EXPONENT_IS_NEGATIVE = 1 << 5; // 1e-1
 constexpr json_number_flags JSON_NUMBER_EXPONENT_HAS_PLUS = 1 << 6;    // 1e+1
+constexpr json_number_flags JSON_NUMBER_FLAGS_MAX = (1 << 7) - 1;
 
 /** Max leading zeroes there can be in exponent or fraction part of a number.
 Any more - and the number is considered invalid.

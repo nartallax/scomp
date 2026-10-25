@@ -1,14 +1,23 @@
 #pragma once
 #include "../arithmetic_coding/frequency_table.c"
+#include "../arithmetic_coding/uint_freq_tables.c"
 #include "../commons.c"
 #include "../context.c"
 #include "json_base.c"
+#include <stdint.h>
 
 typedef struct {
   ftable tables[JSON_STATE_MAX + 1];
   ftable whitespaces;
   ftable escape_sequences;
   json_state current_state;
+  uint_freq_tables number_int_tables;
+  uint_freq_tables number_frac_zero_tables;
+  uint_freq_tables number_frac_tables;
+  uint_freq_tables number_expo_zero_tables;
+  uint_freq_tables number_expo_tables;
+  // TODO: think about better ways to write numbers' flags
+  uint_freq_tables number_flag_tables;
 } json_compression_base;
 
 void _json_compression_base_deinit(json_compression_base *base, context *context) {
@@ -18,6 +27,13 @@ void _json_compression_base_deinit(json_compression_base *base, context *context
 
   ftable_deinit(&base->whitespaces, context);
   ftable_deinit(&base->escape_sequences, context);
+
+  uint_freq_tables_deinit(&base->number_int_tables, context);
+  uint_freq_tables_deinit(&base->number_frac_tables, context);
+  uint_freq_tables_deinit(&base->number_frac_zero_tables, context);
+  uint_freq_tables_deinit(&base->number_expo_tables, context);
+  uint_freq_tables_deinit(&base->number_expo_zero_tables, context);
+  uint_freq_tables_deinit(&base->number_flag_tables, context);
 
   *base = (json_compression_base){0};
 }
@@ -49,6 +65,36 @@ NODISCARD bool _json_compression_base_init(json_compression_base *base, context 
 
   // TODO: test off-by-one here?
   if (!ftable_init(&base->escape_sequences, context, sizeof(_JTOK_ESCAPE_SEQ_CHARS), FTABLE_INIT_ONE | FTABLE_EXCLUDE_EOF)) {
+    _json_compression_base_deinit(base, context);
+    return false;
+  }
+
+  if (!uint_freq_tables_init(&base->number_int_tables, context, UINT64_MAX)) {
+    _json_compression_base_deinit(base, context);
+    return false;
+  }
+
+  if (!uint_freq_tables_init(&base->number_frac_tables, context, UINT16_MAX)) {
+    _json_compression_base_deinit(base, context);
+    return false;
+  }
+
+  if (!uint_freq_tables_init(&base->number_frac_zero_tables, context, JSON_MAX_NUMBER_LEADING_ZEROES)) {
+    _json_compression_base_deinit(base, context);
+    return false;
+  }
+
+  if (!uint_freq_tables_init(&base->number_expo_tables, context, UINT16_MAX)) {
+    _json_compression_base_deinit(base, context);
+    return false;
+  }
+
+  if (!uint_freq_tables_init(&base->number_expo_zero_tables, context, JSON_MAX_NUMBER_LEADING_ZEROES)) {
+    _json_compression_base_deinit(base, context);
+    return false;
+  }
+
+  if (!uint_freq_tables_init(&base->number_flag_tables, context, JSON_NUMBER_FLAGS_MAX)) {
     _json_compression_base_deinit(base, context);
     return false;
   }
