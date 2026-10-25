@@ -7,6 +7,10 @@
 #include <stdint.h>
 
 typedef struct {
+  // TODO: this is too generic.
+  // states for some tables won't ever be used; see true/false/number etc
+  // also we may want to group some tables, like object_start + object_cont, object_key + string
+  // I don't have a solid idea how this can be easily improved, but this feels cringe
   ftable tables[JSON_STATE_MAX + 1];
   ftable whitespaces;
   ftable escape_sequences;
@@ -17,6 +21,9 @@ typedef struct {
   uint_freq_tables number_expo_zero_tables;
   uint_freq_tables number_expo_tables;
   // TODO: think about better ways to write numbers' flags
+  // right now flags are rearranged in a way that more common numbers will have numerically small flags
+  // and yet, it's possible that if we write flags as separate two-symbol tables - they will be better overall
+  // I just don't want to think about it right now
   uint_freq_tables number_flag_tables;
 } json_compression_base;
 

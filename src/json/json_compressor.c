@@ -58,6 +58,7 @@ bool _json_compressor_write_string_token(json_compressor *comp, json_token *toke
   switch (token->kind) {
   case JSON_TOKEN_UNICODE_CHARACTER: {
     uint64 value = token->unicode_character.value;
+    // TODO: test for correct byte order
     for (int32 i = 0; i < token->unicode_character.length; i++) {
       strcomp_write(comp->strcomp, value & 0xff);
       value = value >> 8;
@@ -131,7 +132,7 @@ void _json_compressor_drain_tokens(json_compressor *comp) {
       break;
     }
 
-    if (comp->base.current_state == JSON_STATE_STRING) {
+    if (comp->base.current_state == JSON_STATE_STRING || comp->base.current_state == JSON_STATE_OBJECT_KEY) {
       // when we are writing string parts - we should use string compression for every single part of it
       if (!_json_compressor_write_string_token(comp, token)) {
         continue;
