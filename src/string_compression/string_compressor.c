@@ -16,8 +16,6 @@ typedef struct {
   acod_encoder *encoder;
   int32 bytes_in_buffer;
   byte_stream_matcher bsm;
-  uint_writer offset_writer;
-  uint_writer length_writer;
 } string_compressor;
 
 /** Don't forget to flush the compressor before calling this */
@@ -26,8 +24,6 @@ void strcomp_deinit(string_compressor *compressor, context *context) {
   bsm_deinit(&compressor->bsm, context);
   ring_buffer_deinit(&compressor->input_buffer, context);
   _strcomp_deinit_base(&compressor->base, context);
-  uint_writer_deinit(&compressor->offset_writer, context);
-  uint_writer_deinit(&compressor->length_writer, context);
 
   *compressor = (string_compressor){0};
 }
@@ -49,24 +45,14 @@ NODISCARD bool strcomp_init(string_compressor *compressor, context *context, aco
     return false;
   }
 
-  if (!uint_writer_init(&compressor->offset_writer, context, encoder, _BSM_LENGTH)) {
-    strcomp_deinit(compressor, context);
-    return false;
-  }
-
-  if (!uint_writer_init(&compressor->length_writer, context, encoder, _BSM_MATCH_LENGTH_LIMIT)) {
-    strcomp_deinit(compressor, context);
-    return false;
-  }
-
   return true;
 }
 
 INLINE void _strcomp_write_backreference(string_compressor *compressor, int64 offset, int64 length) {
   acod_encoder_write(compressor->encoder, &compressor->base.main_symbol_table, _STRCOMP_BACKREFERENCE_SYMBOL);
   ftable_increment(&compressor->base.main_symbol_table, _STRCOMP_BACKREFERENCE_SYMBOL);
-  uint_writer_write(&compressor->offset_writer, offset - length);
-  uint_writer_write(&compressor->length_writer, length);
+  uint_writer_write(&compressor->base.offset_tables, compressor->encoder, offset - length);
+  uint_writer_write(&compressor->base.length_tables, compressor->encoder, length);
 }
 
 void _strcomp_compressor_flush_once(string_compressor *compressor) {

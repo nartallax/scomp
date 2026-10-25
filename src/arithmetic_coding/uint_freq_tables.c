@@ -18,33 +18,33 @@ typedef struct {
   // last group of bits is the most significant, and is much more likely to be skewed
   // (because uints are usually not equally distributed - smaller values are much more likely)
   ftable last_part_table;
-} uint_writer_base;
+} uint_freq_tables;
 
-void _uint_writer_base_deinit(uint_writer_base *base, context *context) {
-  ftable_deinit(&base->uint_parts_table, context);
-  ftable_deinit(&base->last_part_table, context);
-  ftable_deinit(&base->length_table, context);
+void uint_freq_tables_deinit(uint_freq_tables *tables, context *context) {
+  ftable_deinit(&tables->uint_parts_table, context);
+  ftable_deinit(&tables->last_part_table, context);
+  ftable_deinit(&tables->length_table, context);
 
-  *base = (uint_writer_base){0};
+  *tables = (uint_freq_tables){0};
 }
 
-NODISCARD bool _uint_writer_base_init(uint_writer_base *base, context *context, uint64 max_value) {
-  *base = (uint_writer_base){0};
+NODISCARD bool uint_freq_tables_init(uint_freq_tables *tables, context *context, uint64 max_value) {
+  *tables = (uint_freq_tables){0};
 
-  if (!ftable_init(&base->uint_parts_table, context, 1 << _ACOD_UINT_BIT_GROUP_SIZE, FTABLE_INIT_ONE | FTABLE_EXCLUDE_EOF)) {
-    _uint_writer_base_deinit(base, context);
+  if (!ftable_init(&tables->uint_parts_table, context, 1 << _ACOD_UINT_BIT_GROUP_SIZE, FTABLE_INIT_ONE | FTABLE_EXCLUDE_EOF)) {
+    uint_freq_tables_deinit(tables, context);
     return false;
   }
 
-  if (!ftable_init(&base->last_part_table, context, 1 << _ACOD_UINT_BIT_GROUP_SIZE, FTABLE_INIT_ONE | FTABLE_EXCLUDE_EOF)) {
-    _uint_writer_base_deinit(base, context);
+  if (!ftable_init(&tables->last_part_table, context, 1 << _ACOD_UINT_BIT_GROUP_SIZE, FTABLE_INIT_ONE | FTABLE_EXCLUDE_EOF)) {
+    uint_freq_tables_deinit(tables, context);
     return false;
   }
 
   int32 max_value_bits = most_significant_bit_index(max_value);
   int32 symbol_count = (max_value_bits + (_ACOD_UINT_BIT_GROUP_SIZE - 1)) / _ACOD_UINT_BIT_GROUP_SIZE;
-  if (!ftable_init(&base->length_table, context, symbol_count + 1, FTABLE_INIT_ONE | FTABLE_EXCLUDE_EOF)) {
-    _uint_writer_base_deinit(base, context);
+  if (!ftable_init(&tables->length_table, context, symbol_count + 1, FTABLE_INIT_ONE | FTABLE_EXCLUDE_EOF)) {
+    uint_freq_tables_deinit(tables, context);
     return false;
   }
 
