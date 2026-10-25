@@ -23,8 +23,6 @@ typedef struct {
   _strcomp_state state;
   int64 length;
   int64 offset;
-  byte uint_read_symbol_count;
-  byte uint_total_symbol_count;
 } string_decompressor;
 
 void strdecomp_deinit(string_decompressor *decomp, context *context) {
@@ -43,8 +41,6 @@ NODISCARD bool strdecomp_init(string_decompressor *decomp, context *context, wri
   decomp->state = _STRDECOMP_STATE_CHARACTER;
   decomp->length = 0;
   decomp->offset = 0;
-  decomp->uint_read_symbol_count = 0;
-  decomp->uint_total_symbol_count = 0;
 
   if (!_strcomp_init_base(&decomp->base, context)) {
     strdecomp_deinit(decomp, context);
