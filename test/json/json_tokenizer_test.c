@@ -927,7 +927,7 @@ bool test_json_tokenizer_stack_push_fail(const char *src, int pushes_before_fail
   }
 
   // bit weird to do it like that, but it's the easiest way to get tokenizer to that state
-  t.state_stack.byte_length = t.state_stack.index + pushes_before_failure;
+  t.jsm.state_stack.byte_length = t.jsm.state_stack.index + pushes_before_failure;
   bool has_breakage = false;
   int64 bytes_written_before_breakage = 0;
   for (; src[bytes_written_before_breakage] != 0; bytes_written_before_breakage++) {
