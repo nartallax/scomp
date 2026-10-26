@@ -241,6 +241,8 @@ void jsm_end_token(json_state_machine *jsm, json_token_kind token_kind) {
   }
 }
 
+// "process" is just a fancy way of saying "start and then immediately end"
+// it's intended for cases when multibyte tokens are received as a whole at once, and do not require dedicated states for parsing
 NODISCARD INLINE bool jsm_process_token(json_state_machine *jsm, json_token_kind token_kind) {
   if (!jsm_start_token(jsm, token_kind)) {
     return false;
