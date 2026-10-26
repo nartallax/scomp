@@ -24,28 +24,28 @@ constexpr byte _JTOK_WHITESPACE_CHARS[] = {' ', '\n', '\r', '\t'};
 
 typedef byte json_token_kind;
 // simple tokens
-constexpr json_token_kind JSON_TOKEN_OBJECT_OPEN = 0;      // {
-constexpr json_token_kind JSON_TOKEN_OBJECT_CLOSE = 1;     // }
-constexpr json_token_kind JSON_TOKEN_ARRAY_OPEN = 2;       // [
-constexpr json_token_kind JSON_TOKEN_ARRAY_CLOSE = 3;      // ]
-constexpr json_token_kind JSON_TOKEN_TRUE = 4;             // true
-constexpr json_token_kind JSON_TOKEN_FALSE = 5;            // false
-constexpr json_token_kind JSON_TOKEN_NULL = 6;             // null
-constexpr json_token_kind JSON_TOKEN_VALUE_SEPARATOR = 7;  // ',' - element separator
-constexpr json_token_kind JSON_TOKEN_STRING_DELIMITER = 8; // '"' - string start or end
-constexpr json_token_kind JSON_TOKEN_KV_SEPARATOR = 9;     // ':' - separator between key and value
-constexpr json_token_kind JSON_TOKEN_BOM = 10;             // byte-order mark that may appear at the start of the JSON
+constexpr json_token_kind JSON_TOKEN_OBJECT_OPEN = 1;      // {
+constexpr json_token_kind JSON_TOKEN_OBJECT_CLOSE = 2;     // }
+constexpr json_token_kind JSON_TOKEN_ARRAY_OPEN = 3;       // [
+constexpr json_token_kind JSON_TOKEN_ARRAY_CLOSE = 4;      // ]
+constexpr json_token_kind JSON_TOKEN_TRUE = 5;             // true
+constexpr json_token_kind JSON_TOKEN_FALSE = 6;            // false
+constexpr json_token_kind JSON_TOKEN_NULL = 7;             // null
+constexpr json_token_kind JSON_TOKEN_VALUE_SEPARATOR = 8;  // ',' - element separator
+constexpr json_token_kind JSON_TOKEN_STRING_DELIMITER = 9; // '"' - string start or end
+constexpr json_token_kind JSON_TOKEN_KV_SEPARATOR = 10;    // ':' - separator between key and value
+constexpr json_token_kind JSON_TOKEN_BOM = 11;             // byte-order mark that may appear at the start of the JSON
 // character tokens
-constexpr json_token_kind JSON_TOKEN_WHITESPACE = 11; // ' ', '\n', '\r', '\t' between elements and commas
+constexpr json_token_kind JSON_TOKEN_WHITESPACE = 12; // ' ', '\n', '\r', '\t' between elements and commas
 // TODO: get rid of this token type
-constexpr json_token_kind JSON_TOKEN_ESCAPE_SEQUENCE = 12; // \n, \r, \\ and other single-character escape sequences within a string
+constexpr json_token_kind JSON_TOKEN_ESCAPE_SEQUENCE = 13; // \n, \r, \\ and other single-character escape sequences within a string
 // unicode tokens
 constexpr json_token_kind JSON_TOKEN_UNICODE_CHARACTER =
-    13; // normal, non-escaped element of a string. one unicode codepoint; `value` contains sequence of utf-8 bytes merged into one uint64, not decoded codepoint
+    14; // normal, non-escaped element of a string. one unicode codepoint; `value` contains sequence of utf-8 bytes merged into one uint64, not decoded codepoint
         // TODO: get rid of this token type
-constexpr json_token_kind JSON_TOKEN_ESCAPED_UNICODE_CHARCODE = 14; // \u1234
+constexpr json_token_kind JSON_TOKEN_ESCAPED_UNICODE_CHARCODE = 15; // \u1234
 // number tokens
-constexpr json_token_kind JSON_TOKEN_NUMBER = 15; // 12.345, 1e10. every number that is not 64-bit safe integer
+constexpr json_token_kind JSON_TOKEN_NUMBER = 16; // 12.345, 1e10. every number that is not 64-bit safe integer
 constexpr json_token_kind JSON_TOKEN_MAX = JSON_TOKEN_NUMBER;
 
 typedef byte json_state;

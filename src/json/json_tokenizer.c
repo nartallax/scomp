@@ -92,16 +92,6 @@ INLINE void _jtok_push_number_token(json_tokenizer *t) {
   t->value_progress = 0;
 }
 
-NODISCARD INLINE bool _jtok_try_whitespace(json_tokenizer *t, byte b) {
-  for (size_t i = 0; i < sizeof(_JTOK_WHITESPACE_CHARS); i++) {
-    if (b == _JTOK_WHITESPACE_CHARS[i]) {
-      _jtok_push_character_token(t, JSON_TOKEN_WHITESPACE, b);
-      return true;
-    }
-  }
-  return false;
-}
-
 NODISCARD INLINE bool _jtok_push_simple_token_with_state(json_tokenizer *t, json_token_kind kind) {
   if (!jsm_start_token(&t->jsm, kind)) {
     return false;
@@ -110,52 +100,174 @@ NODISCARD INLINE bool _jtok_push_simple_token_with_state(json_tokenizer *t, json
   return true;
 }
 
-NODISCARD INLINE bool _jtok_start_fixed_value_with_state(json_tokenizer *t, json_token_kind kind) {
-  if (!jsm_start_token(&t->jsm, kind)) {
-    return false;
+NODISCARD bool json_tokenizer_push(json_tokenizer *t, byte b);
+
+NODISCARD bool _jtok_update_number(json_tokenizer *t, byte b) {
+  if (b >= '0' && b <= '9') {
+    byte digit = b - '0';
+    if (t->partial_number_token.flags & JSON_NUMBER_HAS_EXPONENT) {
+      if (t->value_progress == 0 && digit == 0) {
+        t->partial_number_token.exponent_leading_zeroes++;
+        if (t->partial_number_token.exponent_leading_zeroes == JSON_MAX_NUMBER_LEADING_ZEROES) {
+          return false;
+        }
+        return true;
+      }
+      if (_jtok_uint16_will_overflow(t->partial_number_token.exponent_part, digit)) {
+        return false;
+      }
+      t->partial_number_token.exponent_part = (t->partial_number_token.exponent_part * 10) + digit;
+      t->value_progress++;
+      return true;
+    } else if (t->partial_number_token.flags & JSON_NUMBER_HAS_FRACTION) {
+      if (t->value_progress == 0 && digit == 0) {
+        t->partial_number_token.fraction_leading_zeroes++;
+        if (t->partial_number_token.fraction_leading_zeroes == JSON_MAX_NUMBER_LEADING_ZEROES) {
+          return false;
+        }
+        return true;
+      }
+      if (_jtok_uint64_will_overflow(t->partial_number_token.fraction_part, digit)) {
+        return false;
+      }
+      t->partial_number_token.fraction_part = (t->partial_number_token.fraction_part * 10) + digit;
+      t->value_progress++;
+      return true;
+    } else {
+      if (t->partial_number_token.flags & JSON_NUMBER_INTEGER_PART_IS_ZERO) {
+        // `01` is invalid, `-01` is invalid
+        return false;
+      }
+      if (_jtok_uint64_will_overflow(t->partial_number_token.integer_part, digit)) {
+        return false;
+      }
+      if (digit == 0 && t->value_progress == 0) {
+        t->partial_number_token.flags |= JSON_NUMBER_INTEGER_PART_IS_ZERO;
+      } else {
+        t->partial_number_token.integer_part = (t->partial_number_token.integer_part * 10) + digit;
+      }
+      t->value_progress++;
+      return true;
+    }
+  } else if (b == '-' && !(t->partial_number_token.flags & (JSON_NUMBER_HAS_EXPONENT | JSON_NUMBER_HAS_FRACTION | JSON_NUMBER_IS_NEGATIVE)) && t->value_progress == 0) {
+    t->partial_number_token.flags |= JSON_NUMBER_IS_NEGATIVE;
+    return true;
+  } else if (b == '.' && !(t->partial_number_token.flags & (JSON_NUMBER_HAS_EXPONENT | JSON_NUMBER_HAS_FRACTION))) {
+    // `1.1.1` is invalid; `1..1` is invalid; `1e1.1` is invalid
+    if (t->value_progress == 0) {
+      // `-.1` is invalid
+      return false;
+    }
+    t->partial_number_token.flags |= JSON_NUMBER_HAS_FRACTION;
+    t->value_progress = 0;
+    return true;
+  } else if ((b == 'e' || b == 'E') && !(t->partial_number_token.flags & JSON_NUMBER_HAS_EXPONENT)) {
+    // `1e1e1` is invalid, `1ee1` is invalid
+    if (t->value_progress == 0) {
+      if (t->partial_number_token.flags & JSON_NUMBER_HAS_FRACTION) {
+        if (t->partial_number_token.fraction_leading_zeroes == 0) {
+          return false; // `1.e1` is invalid
+        }
+      } else {
+        return false; // `-e1` is invalid
+      }
+    }
+    t->partial_number_token.flags |= JSON_NUMBER_HAS_EXPONENT;
+    if (b == 'E') {
+      t->partial_number_token.flags |= JSON_NUMBER_EXPONENT_UPPERCASE;
+    }
+    t->value_progress = 0;
+    return true;
+  } else if ((b == '-' || b == '+') && t->partial_number_token.flags & JSON_NUMBER_HAS_EXPONENT &&
+             !(t->partial_number_token.flags & (JSON_NUMBER_EXPONENT_IS_NEGATIVE | JSON_NUMBER_EXPONENT_HAS_PLUS)) && t->value_progress == 0) {
+    // `1e-+1` is invalid; `1e--1` is invalid; `1-1` is invalid; `1.-1` is invalid; `1e1-1` is invalid
+    t->partial_number_token.flags |= b == '-' ? JSON_NUMBER_EXPONENT_IS_NEGATIVE : JSON_NUMBER_EXPONENT_HAS_PLUS;
+    return true;
+  } else {
+    // it's not a part of a number. time to terminate the token
+    if (t->value_progress == 0) {
+      if (t->partial_number_token.flags & JSON_NUMBER_HAS_EXPONENT) {
+        if (t->partial_number_token.exponent_leading_zeroes == 0) {
+          return false; // `1e ` is invalid
+        }
+      } else if (t->partial_number_token.flags & JSON_NUMBER_HAS_FRACTION) {
+        if (t->partial_number_token.fraction_leading_zeroes == 0) {
+          return false; // `1. ` is invalid
+        }
+      } else {
+        return false; // `- ` is invalid
+      }
+    }
+    _jtok_push_number_token(t);
+    jsm_end_token(&t->jsm, JSON_TOKEN_NUMBER);
+    return json_tokenizer_push(t, b);
   }
-  t->value_progress = 1;
-  return true;
 }
 
-// TODO: cringe. the rest of them are hardcoded
-constexpr byte _JTOK_NULL_START = _JTOK_NULL_BYTES[0];
-constexpr byte _JTOK_TRUE_START = _JTOK_TRUE_BYTES[0];
-constexpr byte _JTOK_FALSE_START = _JTOK_FALSE_BYTES[0];
-
-NODISCARD bool _jtok_try_value(json_tokenizer *t, byte b) {
+json_token_kind _jtok_detect_nonstring_token_start(byte b) {
   switch (b) {
-  case '"':
-    return _jtok_push_simple_token_with_state(t, JSON_TOKEN_STRING_DELIMITER);
   case '{':
-    return _jtok_push_simple_token_with_state(t, JSON_TOKEN_OBJECT_OPEN);
+    return JSON_TOKEN_OBJECT_OPEN;
+  case '}':
+    return JSON_TOKEN_OBJECT_CLOSE;
   case '[':
-    return _jtok_push_simple_token_with_state(t, JSON_TOKEN_ARRAY_OPEN);
-  case _JTOK_NULL_START:
-    return _jtok_start_fixed_value_with_state(t, JSON_TOKEN_NULL);
-  case _JTOK_TRUE_START:
-    return _jtok_start_fixed_value_with_state(t, JSON_TOKEN_TRUE);
-  case _JTOK_FALSE_START:
-    return _jtok_start_fixed_value_with_state(t, JSON_TOKEN_FALSE);
-  case '-':
+    return JSON_TOKEN_ARRAY_OPEN;
+  case ']':
+    return JSON_TOKEN_ARRAY_CLOSE;
+  case 't':
+    return JSON_TOKEN_TRUE;
+  case 'f':
+    return JSON_TOKEN_FALSE;
+  case 'n':
+    return JSON_TOKEN_NULL;
+  case ',':
+    return JSON_TOKEN_VALUE_SEPARATOR;
+  case ':':
+    return JSON_TOKEN_KV_SEPARATOR;
+  case ' ':
+  case '\n':
+  case '\r':
+  case '\t':
+    return JSON_TOKEN_WHITESPACE;
+  case '"':
+    return JSON_TOKEN_STRING_DELIMITER;
+  default:
+    if ((b >= '0' && b <= '9') || b == '-') {
+      return JSON_TOKEN_NUMBER;
+    } else if (b == UTF8_BOM[0]) {
+      return JSON_TOKEN_BOM;
+    } else {
+      return 0;
+    }
+  }
+}
+
+NODISCARD bool _jtok_try_nonstring_token(json_tokenizer *t, byte b) {
+  json_token_kind kind = _jtok_detect_nonstring_token_start(b);
+  if (kind == 0) {
+    return false;
+  }
+  switch (kind) {
+  case JSON_TOKEN_TRUE:
+  case JSON_TOKEN_FALSE:
+  case JSON_TOKEN_NULL:
+  case JSON_TOKEN_BOM:
+    if (!jsm_start_token(&t->jsm, kind)) {
+      return false;
+    }
+    t->value_progress = 1;
+    return true;
+  case JSON_TOKEN_NUMBER:
     if (!jsm_start_token(&t->jsm, JSON_TOKEN_NUMBER)) {
       return false;
     }
-    t->partial_number_token.flags |= JSON_NUMBER_IS_NEGATIVE;
+    t->value_progress = 0;
+    return _jtok_update_number(t, b);
+  case JSON_TOKEN_WHITESPACE:
+    _jtok_push_character_token(t, JSON_TOKEN_WHITESPACE, b);
     return true;
   default:
-    if (b >= '0' && b <= '9') {
-      if (!jsm_start_token(&t->jsm, JSON_TOKEN_NUMBER)) {
-        return false;
-      }
-      t->value_progress = 1;
-      t->partial_number_token.integer_part = b - '0';
-      if (b == '0') {
-        t->partial_number_token.flags |= JSON_NUMBER_INTEGER_PART_IS_ZERO;
-      }
-      return true;
-    }
-    return false;
+    return _jtok_push_simple_token_with_state(t, kind);
   }
 }
 
@@ -235,107 +347,6 @@ NODISCARD int64 json_tokenizer_render_partial_token(json_tokenizer *t, writer *w
   }
 }
 
-NODISCARD bool json_tokenizer_push(json_tokenizer *t, byte b);
-
-NODISCARD bool _jtok_update_number(json_tokenizer *t, byte b) {
-  if (b >= '0' && b <= '9') {
-    byte digit = b - '0';
-    if (t->partial_number_token.flags & JSON_NUMBER_HAS_EXPONENT) {
-      if (t->value_progress == 0 && digit == 0) {
-        t->partial_number_token.exponent_leading_zeroes++;
-        if (t->partial_number_token.exponent_leading_zeroes == JSON_MAX_NUMBER_LEADING_ZEROES) {
-          return false;
-        }
-        return true;
-      }
-      if (_jtok_uint16_will_overflow(t->partial_number_token.exponent_part, digit)) {
-        return false;
-      }
-      t->partial_number_token.exponent_part = (t->partial_number_token.exponent_part * 10) + digit;
-      t->value_progress++;
-      return true;
-    } else if (t->partial_number_token.flags & JSON_NUMBER_HAS_FRACTION) {
-      if (t->value_progress == 0 && digit == 0) {
-        t->partial_number_token.fraction_leading_zeroes++;
-        if (t->partial_number_token.fraction_leading_zeroes == JSON_MAX_NUMBER_LEADING_ZEROES) {
-          return false;
-        }
-        return true;
-      }
-      if (_jtok_uint64_will_overflow(t->partial_number_token.fraction_part, digit)) {
-        return false;
-      }
-      t->partial_number_token.fraction_part = (t->partial_number_token.fraction_part * 10) + digit;
-      t->value_progress++;
-      return true;
-    } else {
-      if (t->partial_number_token.flags & JSON_NUMBER_INTEGER_PART_IS_ZERO) {
-        // `01` is invalid, `-01` is invalid
-        return false;
-      }
-      if (_jtok_uint64_will_overflow(t->partial_number_token.integer_part, digit)) {
-        return false;
-      }
-      if (digit == 0 && t->value_progress == 0) {
-        t->partial_number_token.flags |= JSON_NUMBER_INTEGER_PART_IS_ZERO;
-      } else {
-        t->partial_number_token.integer_part = (t->partial_number_token.integer_part * 10) + digit;
-      }
-      t->value_progress++;
-      return true;
-    }
-  } else if (b == '.' && !(t->partial_number_token.flags & (JSON_NUMBER_HAS_EXPONENT | JSON_NUMBER_HAS_FRACTION))) {
-    // `1.1.1` is invalid; `1..1` is invalid; `1e1.1` is invalid
-    if (t->value_progress == 0) {
-      // `-.1` is invalid
-      return false;
-    }
-    t->partial_number_token.flags |= JSON_NUMBER_HAS_FRACTION;
-    t->value_progress = 0;
-    return true;
-  } else if ((b == 'e' || b == 'E') && !(t->partial_number_token.flags & JSON_NUMBER_HAS_EXPONENT)) {
-    // `1e1e1` is invalid, `1ee1` is invalid
-    if (t->value_progress == 0) {
-      if (t->partial_number_token.flags & JSON_NUMBER_HAS_FRACTION) {
-        if (t->partial_number_token.fraction_leading_zeroes == 0) {
-          return false; // `1.e1` is invalid
-        }
-      } else {
-        return false; // `-e1` is invalid
-      }
-    }
-    t->partial_number_token.flags |= JSON_NUMBER_HAS_EXPONENT;
-    if (b == 'E') {
-      t->partial_number_token.flags |= JSON_NUMBER_EXPONENT_UPPERCASE;
-    }
-    t->value_progress = 0;
-    return true;
-  } else if ((b == '-' || b == '+') && t->partial_number_token.flags & JSON_NUMBER_HAS_EXPONENT &&
-             !(t->partial_number_token.flags & (JSON_NUMBER_EXPONENT_IS_NEGATIVE | JSON_NUMBER_EXPONENT_HAS_PLUS)) && t->value_progress == 0) {
-    // `1e-+1` is invalid; `1e--1` is invalid; `1-1` is invalid; `1.-1` is invalid; `1e1-1` is invalid
-    t->partial_number_token.flags |= b == '-' ? JSON_NUMBER_EXPONENT_IS_NEGATIVE : JSON_NUMBER_EXPONENT_HAS_PLUS;
-    return true;
-  } else {
-    // it's not a part of a number. time to terminate the token
-    if (t->value_progress == 0) {
-      if (t->partial_number_token.flags & JSON_NUMBER_HAS_EXPONENT) {
-        if (t->partial_number_token.exponent_leading_zeroes == 0) {
-          return false; // `1e ` is invalid
-        }
-      } else if (t->partial_number_token.flags & JSON_NUMBER_HAS_FRACTION) {
-        if (t->partial_number_token.fraction_leading_zeroes == 0) {
-          return false; // `1. ` is invalid
-        }
-      } else {
-        return false; // `- ` is invalid
-      }
-    }
-    _jtok_push_number_token(t);
-    jsm_end_token(&t->jsm, JSON_TOKEN_NUMBER);
-    return json_tokenizer_push(t, b);
-  }
-}
-
 /** Add a byte to the tokenizer.
 Returns true if the byte was successfully used to build a token.
 Each successfully used byte may produce from 0 to 2 tokens.
@@ -349,63 +360,6 @@ After that you should deinit/reset the tokenizer. */
 NODISCARD bool json_tokenizer_push(json_tokenizer *t, byte b) {
   json_state state = jsm_get_current_state(&t->jsm);
   switch (state) {
-  case JSON_STATE_START:
-    if (b == UTF8_BOM[0]) {
-      return _jtok_start_fixed_value_with_state(t, JSON_TOKEN_BOM);
-    } else {
-      return _jtok_try_value(t, b) || _jtok_try_whitespace(t, b);
-    }
-  case JSON_STATE_VALUE:
-    return _jtok_try_value(t, b) || _jtok_try_whitespace(t, b);
-  case JSON_STATE_BOM:
-    return _jtok_advance_parsing_of_fixed_token(t, b, UTF8_BOM, sizeof(UTF8_BOM), JSON_TOKEN_BOM);
-  case JSON_STATE_TRUE:
-    return _jtok_advance_parsing_of_fixed_token(t, b, _JTOK_TRUE_BYTES, sizeof(_JTOK_TRUE_BYTES), JSON_TOKEN_TRUE);
-  case JSON_STATE_FALSE:
-    return _jtok_advance_parsing_of_fixed_token(t, b, _JTOK_FALSE_BYTES, sizeof(_JTOK_FALSE_BYTES), JSON_TOKEN_FALSE);
-  case JSON_STATE_NULL:
-    return _jtok_advance_parsing_of_fixed_token(t, b, _JTOK_NULL_BYTES, sizeof(_JTOK_NULL_BYTES), JSON_TOKEN_NULL);
-  case JSON_STATE_ARRAY_START:
-    if (b == ']') {
-      return _jtok_push_simple_token_with_state(t, JSON_TOKEN_ARRAY_CLOSE);
-    }
-    return _jtok_try_value(t, b) || _jtok_try_whitespace(t, b);
-  case JSON_STATE_ARRAY_CONTINUE:
-    if (b == ']') {
-      return _jtok_push_simple_token_with_state(t, JSON_TOKEN_ARRAY_CLOSE);
-    } else if (b == ',') {
-      return _jtok_push_simple_token_with_state(t, JSON_TOKEN_VALUE_SEPARATOR);
-    } else {
-      return _jtok_try_whitespace(t, b);
-    }
-  case JSON_STATE_OBJECT_START:
-    if (b == '}') {
-      return _jtok_push_simple_token_with_state(t, JSON_TOKEN_OBJECT_CLOSE);
-    } else if (b == '"') {
-      return _jtok_push_simple_token_with_state(t, JSON_TOKEN_STRING_DELIMITER);
-    } else {
-      return _jtok_try_whitespace(t, b);
-    }
-  case JSON_STATE_OBJECT_CONTINUE:
-    if (b == '}') {
-      return _jtok_push_simple_token_with_state(t, JSON_TOKEN_OBJECT_CLOSE);
-    } else if (b == ',') {
-      return _jtok_push_simple_token_with_state(t, JSON_TOKEN_VALUE_SEPARATOR);
-    } else {
-      return _jtok_try_whitespace(t, b);
-    }
-  case JSON_STATE_OBJECT_KEY_START:
-    if (b == '"') {
-      return _jtok_push_simple_token_with_state(t, JSON_TOKEN_STRING_DELIMITER);
-    } else {
-      return _jtok_try_whitespace(t, b);
-    }
-  case JSON_STATE_OBJECT_KV_SEPARATOR:
-    if (b == ':') {
-      return _jtok_push_simple_token_with_state(t, JSON_TOKEN_KV_SEPARATOR);
-    } else {
-      return _jtok_try_whitespace(t, b);
-    }
   case JSON_STATE_STRING:
   case JSON_STATE_OBJECT_KEY:
     if (b == '"') {
@@ -427,7 +381,7 @@ NODISCARD bool json_tokenizer_push(json_tokenizer *t, byte b) {
         _jtok_push_unicode_token(t, JSON_TOKEN_UNICODE_CHARACTER);
         return true;
       }
-      if (!jsm_start_token(&t->jsm, JSON_STATE_UNICODE_CHARACTER)) {
+      if (!jsm_start_token(&t->jsm, JSON_TOKEN_UNICODE_CHARACTER)) {
         t->partial_unicode_token = (json_unicode_token){0};
         return false;
       }
@@ -475,10 +429,18 @@ NODISCARD bool json_tokenizer_push(json_tokenizer *t, byte b) {
       _jtok_push_unicode_token(t, JSON_TOKEN_ESCAPED_UNICODE_CHARCODE);
     }
     return true;
+  case JSON_STATE_BOM:
+    return _jtok_advance_parsing_of_fixed_token(t, b, UTF8_BOM, sizeof(UTF8_BOM), JSON_TOKEN_BOM);
+  case JSON_STATE_TRUE:
+    return _jtok_advance_parsing_of_fixed_token(t, b, _JTOK_TRUE_BYTES, sizeof(_JTOK_TRUE_BYTES), JSON_TOKEN_TRUE);
+  case JSON_STATE_FALSE:
+    return _jtok_advance_parsing_of_fixed_token(t, b, _JTOK_FALSE_BYTES, sizeof(_JTOK_FALSE_BYTES), JSON_TOKEN_FALSE);
+  case JSON_STATE_NULL:
+    return _jtok_advance_parsing_of_fixed_token(t, b, _JTOK_NULL_BYTES, sizeof(_JTOK_NULL_BYTES), JSON_TOKEN_NULL);
   case JSON_STATE_NUMBER:
     return _jtok_update_number(t, b);
-  default: // JSON_STATE_ROOT as default for code coverage reasons
-    return _jtok_try_whitespace(t, b);
+  default: // the rest of the states. logic of "can we produce this token in this state" is in the state machine
+    return _jtok_try_nonstring_token(t, b);
   }
 }
 
