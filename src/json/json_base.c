@@ -117,3 +117,7 @@ typedef struct {
   };
   json_token_kind kind;
 } json_token;
+
+INLINE bool json_is_string_state(json_state state) {
+  return state == JSON_STATE_STRING || state == JSON_STATE_OBJECT_KEY;
+}

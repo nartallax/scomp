@@ -23,7 +23,7 @@ const char *strcomp_perf_test_process_buffer(int64 *total_bytes_compressed, buff
 void strcomp_perf_test_write_zeroes_until_eof(string_decompressor *decomp) {
   while (true) {
     acod_decoder_update(decomp->decoder, 0);
-    if (strdecomp_read(decomp)) {
+    if (!strdecomp_read(decomp)) {
       return;
     }
   }

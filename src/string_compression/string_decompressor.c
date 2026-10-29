@@ -110,18 +110,18 @@ void _strdecomp_read_backreference_symbol(string_decompressor *decomp) {
 }
 
 /** Consumes symbols from the decoder.
-Returns on EOF (true), or when there are no more symbols (false). */
+Returns on EOF (false), or when there are no more symbols (true). */
 NODISCARD bool strdecomp_read(string_decompressor *decomp) {
   while (acod_decoder_has_symbol(decomp->decoder)) {
     // reading a symbol
     if (decomp->state == _STRDECOMP_STATE_CHARACTER) {
       if (_strdecomp_read_character_symbol(decomp)) {
-        return true;
+        return false;
       }
     } else {
       _strdecomp_read_backreference_symbol(decomp);
     }
   }
 
-  return false;
+  return true;
 }

@@ -132,7 +132,7 @@ void _json_compressor_drain_tokens(json_compressor *comp) {
       break;
     }
 
-    if (comp->base.current_state == JSON_STATE_STRING || comp->base.current_state == JSON_STATE_OBJECT_KEY) {
+    if (json_is_string_state(comp->base.current_state)) {
       // when we are writing string parts - we should use string compression for every single part of it
       if (!_json_compressor_write_string_token(comp, token)) {
         continue;
@@ -167,7 +167,7 @@ NODISCARD buffer json_compressor_abort(json_compressor *comp) {
 
 /** Push a byte through the compressor.
 Returns false if invalid JSON sequence is encountered. In this case, `b` is not consumed. */
-NODISCARD bool json_compressor_push_byte(json_compressor *comp, byte b) {
+NODISCARD bool json_compressor_write(json_compressor *comp, byte b) {
   if (!json_tokenizer_push(&comp->tokenizer, b)) {
     return false;
   }
