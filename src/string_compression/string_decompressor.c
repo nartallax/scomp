@@ -109,11 +109,9 @@ void _strdecomp_read_backreference_symbol(string_decompressor *decomp) {
   }
 }
 
-// TODO: convert to consume_symbol, and push bits outside of this function
-/** Returns true if pushing this bit resulted in reading EOF symbol */
-NODISCARD bool strdecomp_push_bit(string_decompressor *decomp, byte bit) {
-  acod_decoder_update(decomp->decoder, bit);
-
+/** Consumes symbols from the decoder.
+Returns on EOF (true), or when there are no more symbols (false). */
+NODISCARD bool strdecomp_read(string_decompressor *decomp) {
   while (acod_decoder_has_symbol(decomp->decoder)) {
     // reading a symbol
     if (decomp->state == _STRDECOMP_STATE_CHARACTER) {

@@ -54,7 +54,8 @@ buffer _test_strcomp_decompress(buffer src) {
   for (int64 i = 0; i < src.length; i++) {
     byte b = src.data[i];
     for (int j = 0; j < CHAR_BIT; j++) {
-      bool is_eof = strdecomp_push_bit(&decomp, b & 1);
+      acod_decoder_update(&decoder, b & 1);
+      bool is_eof = strdecomp_read(&decomp);
       b >>= 1;
       if (is_eof) {
         has_eof = true;
@@ -70,7 +71,8 @@ buffer _test_strcomp_decompress(buffer src) {
   }
 
   for (int i = 0; i < 64; i++) {
-    bool is_eof = strdecomp_push_bit(&decomp, 0);
+    acod_decoder_update(&decoder, 0);
+    bool is_eof = strdecomp_read(&decomp);
     if (is_eof) {
       has_eof = true;
       break;

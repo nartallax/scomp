@@ -11,7 +11,8 @@ const char *strcomp_perf_test_process_buffer(int64 *total_bytes_compressed, buff
   for (int64 i = 0; i < b.length; i++) {
     byte c = b.data[i];
     for (int j = 0; j < CHAR_BIT; j++) {
-      TEST_ASSERT(!strdecomp_push_bit(decomp, c & 1));
+      acod_decoder_update(decomp->decoder, c & 1);
+      TEST_ASSERT(!strdecomp_read(decomp));
       c = c >> 1;
     }
   }
@@ -21,7 +22,8 @@ const char *strcomp_perf_test_process_buffer(int64 *total_bytes_compressed, buff
 
 void strcomp_perf_test_write_zeroes_until_eof(string_decompressor *decomp) {
   while (true) {
-    if (strdecomp_push_bit(decomp, 0)) {
+    acod_decoder_update(decomp->decoder, 0);
+    if (strdecomp_read(decomp)) {
       return;
     }
   }

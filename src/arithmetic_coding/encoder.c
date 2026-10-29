@@ -51,6 +51,7 @@ void acod_encoder_deinit(acod_encoder *encoder) {
   *encoder = (acod_encoder){0};
 }
 
+// TODO: consider having acod_encoder_write_and_increment, and corresponding method on decoding side
 /** Writes a single symbol with the encoder.
 Returns true if the write was successful. */
 void acod_encoder_write(acod_encoder *encoder, ftable *frequencies, symbol symbol) {
