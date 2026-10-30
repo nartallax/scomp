@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../src/writer.c"
-#include "test_utils.c"
+#include "../../src/data_structures/writer.c"
+#include "../test_utils.c"
 
 const char *test_writer_bytes() {
   writer *w = malloc(sizeof(writer));

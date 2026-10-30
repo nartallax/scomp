@@ -1,8 +1,8 @@
 #pragma once
 #include "../context.c"
 #include "../data_structures/fixed_queue.c"
+#include "../data_structures/writer.c"
 #include "../utf8.c"
-#include "../writer.c"
 #include "json_base.c"
 #include "json_detokenizer.c"
 #include "json_state_machine.c"

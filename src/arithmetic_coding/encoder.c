@@ -1,6 +1,6 @@
 #pragma once
 #include "../commons.c"
-#include "../writer.c"
+#include "../data_structures/writer.c"
 #include "arithmetic_coding_base.c"
 #include "constants.c"
 #include "frequency_table.c"

@@ -1,8 +1,8 @@
 #pragma once
 #include "../arithmetic_coding/encoder.c"
 #include "../context.c"
+#include "../data_structures/writer.c"
 #include "../string_compression/string_compressor.c"
-#include "../writer.c"
 #include "json_compression_base.c"
 #include "json_tokenizer.c"
 

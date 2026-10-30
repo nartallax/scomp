@@ -1,8 +1,8 @@
 #pragma once
+#include "../../src/data_structures/writer.c"
 #include "../../src/string_compression/byte_stream_matcher.c"
 #include "../../src/string_compression/string_compressor.c"
 #include "../../src/string_compression/string_decompressor.c"
-#include "../../src/writer.c"
 #include "../test_utils.c"
 #include <limits.h>
 

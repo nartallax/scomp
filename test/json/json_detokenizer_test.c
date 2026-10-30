@@ -1,7 +1,7 @@
 #pragma once
+#include "../../src/data_structures/writer.c"
 #include "../../src/json/json_detokenizer.c"
 #include "../../src/json/json_tokenizer.c"
-#include "../../src/writer.c"
 #include "../test_utils.c"
 #include <string.h>
 

@@ -1,6 +1,6 @@
 #pragma once
+#include "../data_structures/writer.c"
 #include "../utf8.c"
-#include "../writer.c"
 #include "json_base.c"
 
 int64 _jdet_write_uint(writer *w, uint64 value) {

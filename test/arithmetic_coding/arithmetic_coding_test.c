@@ -1,7 +1,7 @@
 #pragma once
 #include "../../src/arithmetic_coding/decoder.c"
 #include "../../src/arithmetic_coding/encoder.c"
-#include "../../src/writer.c"
+#include "../../src/data_structures/writer.c"
 #include "../test_utils.c"
 #include <limits.h>
 #include <stdlib.h>

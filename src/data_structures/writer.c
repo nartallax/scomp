@@ -1,9 +1,9 @@
 #pragma once
 
-#include "commons.c"
-#include "context.c"
-#include "data_structures/buffer.c"
-#include "data_structures/queue.c"
+#include "../commons.c"
+#include "../context.c"
+#include "buffer.c"
+#include "queue.c"
 #include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>

@@ -3,7 +3,7 @@
 #include "../arithmetic_coding/uint_reader.c"
 #include "../commons.c"
 #include "../data_structures/ring_buffer.c"
-#include "../writer.c"
+#include "../data_structures/writer.c"
 #include "byte_stream_matcher.c"
 #include "string_compression_base.c"
 #include <stdbool.h>
