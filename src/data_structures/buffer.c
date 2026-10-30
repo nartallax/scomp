@@ -13,10 +13,6 @@ typedef struct {
 
 constexpr buffer EMPTY_BUFFER = (buffer){0};
 
-INLINE buffer buffer_allocate(context *context, int64 byte_length) {
-  return (buffer){.data = context_allocate(context, byte_length, sizeof(byte)), .length = 0, .allocated_length = byte_length};
-}
-
 INLINE buffer buffer_make(byte *const data, int64 length, int64 allocated_length) {
   return (buffer){.data = data, .length = length, .allocated_length = allocated_length};
 }

@@ -123,7 +123,7 @@ const char *test_writer_buffer_reuse() {
   TEST_ASSERT(b.data[0] == 2 && b.data[1] == 3);
   byte *reused_array = b.data;
 
-  TEST_ASSERT(writer_supply_buffer(w, b.data));
+  TEST_ASSERT(writer_supply_buffer(w, b));
   writer_write_byte(w, 5);
   writer_write_byte(w, 6);
   _write_byte_as_bits(w, 0b10000000);
@@ -137,7 +137,7 @@ const char *test_writer_buffer_reuse() {
 
   // this checks that all unused free buffers are deleted too
   byte *other_array = malloc(sizeof(byte) * 2);
-  TEST_ASSERT(writer_supply_buffer(w, other_array));
+  TEST_ASSERT(writer_supply_buffer(w, buffer_make(other_array, 2, 2)));
 
   writer_deinit(w, test_context);
   free(w);
@@ -242,7 +242,7 @@ const char *test_writer_allocation_failure() {
   TEST_ASSERT(writer_init(w, test_context, 2, 4));
   while (true) {
     byte *some_buffer = malloc(1);
-    bool is_good = writer_supply_buffer(w, some_buffer);
+    bool is_good = writer_supply_buffer(w, buffer_make(some_buffer, 1, 1));
     bool is_errored = context_is_errored(test_context);
     TEST_ASSERT(is_good == !is_errored);
     if (is_errored) {

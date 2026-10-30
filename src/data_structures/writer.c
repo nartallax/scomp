@@ -5,6 +5,7 @@
 #include "buffer.c"
 #include "queue.c"
 #include <assert.h>
+#include <limits.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <string.h>
@@ -16,64 +17,66 @@ Buffers can be reused via `writer_supply_...()` methods. */
 typedef struct {
   context *context;
   queue buffers;
-  int32 current_bit_index;
+  int64 bytes_stored;
+  int64 current_bit_index;
   int64 single_buffer_byte_size;
   queue free_buffers;
 } writer;
 
-void _writer_allocate_next_buffer(writer *writer) {
-  byte *buffer;
+bool _writer_produce_next_buffer(writer *writer) {
+  writer->current_bit_index = 0;
+  buffer result;
   if (queue_get_count(&writer->free_buffers) > 0) {
-    byte **existing_buffer_slot = queue_pop(&writer->free_buffers);
-    buffer = *existing_buffer_slot;
+    buffer *existing_buffer_slot = queue_pop(&writer->free_buffers);
+    result = *existing_buffer_slot;
   } else {
-    buffer = context_allocate(writer->context, writer->single_buffer_byte_size, sizeof(byte));
+    byte *bytes = context_allocate(writer->context, writer->single_buffer_byte_size, sizeof(byte));
+    if (!bytes) {
+      // when allocation fails - it's bad, but we can't do anything about it
+      // context is considered broken and must not be used
+      // but that's not supposed to happen anytime often
+      // so, what we are doing: we are still writing to SOME buffer;
+      // this overwrites existing output, which makes output of the whole library garbadge;
+      // but it's fine, because error is set on context, and should be checked, which means output is not supposed to be used anyway
+      return false;
+    }
+    result = buffer_make(bytes, 0, writer->single_buffer_byte_size);
   }
 
-  if (buffer) {
-    byte **new_buffer_slot = queue_push(&writer->buffers);
-    if (new_buffer_slot) {
-      *new_buffer_slot = buffer;
-    } else {
-      context_free(writer->context, buffer);
-    }
+  buffer *new_buffer_slot = queue_push(&writer->buffers);
+  if (!new_buffer_slot) {
+    buffer_free(result, writer->context);
+    return false;
   }
-  // when allocation fails - it's bad, but we can't do anything about it
-  // context is considered broken and must not be used
-  // but that's not supposed to happen anytime often
-  // so, what we are doing: we are still writing to SOME buffer;
-  // this overwrites existing output, which makes output of the whole library garbadge;
-  // but it's fine, because error is set on context, and should be checked, which means output is not supposed to be used anyway
-  writer->current_bit_index = 0;
+
+  *new_buffer_slot = result;
+  return true;
 }
 
-INLINE void _writer_maybe_allocate_next_buffer(writer *writer) {
-  if ((writer->current_bit_index >> 3) >= writer->single_buffer_byte_size) {
-    _writer_allocate_next_buffer(writer);
+INLINE buffer _writer_ensure_buffer(writer *writer) {
+  buffer *slot = queue_peek_tail(&writer->buffers);
+  if ((writer->current_bit_index >> 3) >= slot->allocated_length) {
+    writer->bytes_stored += slot->allocated_length;
+    _writer_produce_next_buffer(writer);
+    slot = queue_peek_tail(&writer->buffers);
   }
+  return *slot;
 }
 
 INLINE int64 writer_get_bytes_stored(writer *writer) {
-  int buffer_count = (int)queue_get_count(&writer->buffers);
-  if (buffer_count > 0) {
-    // there should always be at least 1 buffer
-    // except for case when allocation for the first buffer failed
-    // to avoid underflow, this condition exists
-    buffer_count--;
-  }
-  return (buffer_count * writer->single_buffer_byte_size) + ((writer->current_bit_index + 7) >> 3);
+  return writer->bytes_stored + ((writer->current_bit_index + CHAR_BIT - 1) >> 3);
 }
 
 void writer_deinit(writer *w, context *context) {
   while (queue_get_count(&w->buffers) > 0) {
-    byte **slot = queue_pop(&w->buffers);
-    context_free(context, *slot);
+    buffer *slot = queue_pop(&w->buffers);
+    buffer_free(*slot, context);
   }
   queue_deinit(&w->buffers, context);
 
   while (queue_get_count(&w->free_buffers) > 0) {
-    byte **slot = queue_pop(&w->free_buffers);
-    context_free(context, *slot);
+    buffer *slot = queue_pop(&w->free_buffers);
+    buffer_free(*slot, context);
   }
   queue_deinit(&w->free_buffers, context);
 
@@ -87,17 +90,17 @@ NODISCARD bool writer_init(writer *w, context *context, int64 single_buffer_byte
   w->context = context;
   w->current_bit_index = 0;
 
-  if (!queue_init(&w->buffers, context, sizeof(byte *), queues_size_shift)) {
+  if (!queue_init(&w->buffers, context, sizeof(buffer), queues_size_shift)) {
     writer_deinit(w, context);
     return false;
   }
 
-  if (!queue_init(&w->free_buffers, context, sizeof(byte *), queues_size_shift)) {
+  if (!queue_init(&w->free_buffers, context, sizeof(buffer), queues_size_shift)) {
     writer_deinit(w, context);
     return false;
   }
 
-  _writer_allocate_next_buffer(w);
+  _writer_produce_next_buffer(w);
   if (context_is_errored(context)) {
     writer_deinit(w, context);
     return false;
@@ -115,9 +118,9 @@ INLINE void writer_reset_current_buffer(writer *w) {
 
 /** Returns the buffer writer is currently writing into without consuming it. */
 INLINE buffer writer_peek_current_buffer(writer *w) {
-  byte **slot = queue_peek_tail(&w->buffers);
-  byte *tail_buffer = *slot;
-  return buffer_make(tail_buffer, ((w->current_bit_index + 7) >> 3), w->single_buffer_byte_size);
+  buffer *slot = queue_peek_tail(&w->buffers);
+  slot->length = (w->current_bit_index + CHAR_BIT - 1) >> 3;
+  return *slot;
 }
 
 /** Returns oldest non-consumed buffer full of bytes, with length of `writer->size`.
@@ -130,8 +133,10 @@ NODISCARD INLINE buffer writer_consume_full_buffer(writer *writer) {
     // if there's only 1 buffer - it's not full, so we must not return it
     return EMPTY_BUFFER;
   }
-  byte **slot = queue_pop(&writer->buffers);
-  return buffer_make(*slot, writer->single_buffer_byte_size, writer->single_buffer_byte_size);
+  buffer *slot = queue_pop(&writer->buffers);
+  slot->length = slot->allocated_length;
+  writer->bytes_stored -= slot->length;
+  return *slot;
 }
 
 /** Returns oldest non-consumed buffer. Buffer counts as consumed (writer won't store it anymore).
@@ -154,14 +159,13 @@ NODISCARD buffer_or_error writer_consume_nonempty_buffer(writer *writer) {
   }
   int64 bit_index = writer->current_bit_index;
   // allocating before pop, to avoid losing data
-  _writer_allocate_next_buffer(writer);
-  if (context_is_errored(writer->context)) {
+  if (!_writer_produce_next_buffer(writer)) {
     // we are reusing the buffer. we must not pop it.
     return ERROR_ERROR_BUFFER;
   }
-  byte **slot = queue_pop(&writer->buffers);
-  buffer result_buffer = buffer_make(*slot, (bit_index + 7) >> 3, writer->single_buffer_byte_size);
-  return (buffer_or_error){.is_error = false, .buffer = result_buffer};
+  buffer *slot = queue_pop(&writer->buffers);
+  slot->length = (bit_index + CHAR_BIT - 1) >> 3;
+  return (buffer_or_error){.is_error = false, .buffer = *slot};
 }
 
 /** Allocates new array of bytes. All the bytes contained in the writer are written into the array and consumed.
@@ -183,7 +187,7 @@ NODISCARD buffer_or_error writer_consume_all_buffers(writer *writer) {
     }
     // TODO: move memcpy to context, to avoid libc
     memcpy(bytes + index, full_buffer.data, full_buffer.length);
-    context_free(writer->context, full_buffer.data);
+    buffer_free(full_buffer, writer->context);
     index += full_buffer.length;
   }
 
@@ -195,7 +199,7 @@ NODISCARD buffer_or_error writer_consume_all_buffers(writer *writer) {
 
   if (last_buffer.buffer.length > 0) {
     memcpy(bytes + index, last_buffer.buffer.data, last_buffer.buffer.length);
-    context_free(writer->context, last_buffer.buffer.data);
+    buffer_free(last_buffer.buffer, writer->context);
     index += last_buffer.buffer.length;
   }
 
@@ -204,9 +208,8 @@ NODISCARD buffer_or_error writer_consume_all_buffers(writer *writer) {
 
 INLINE void writer_write_bit(writer *writer, byte bit) {
   assert(bit == 1 || bit == 0);
-  byte **slot = queue_peek_tail(&writer->buffers);
-  byte *tail_buffer = *slot;
-  byte b = tail_buffer[writer->current_bit_index >> 3];
+  buffer buf = _writer_ensure_buffer(writer);
+  byte b = buf.data[writer->current_bit_index >> 3];
   // TODO: faster way to do this?
   if ((writer->current_bit_index & 0x07) == 0) {
     // we could zero-init buffers on allocation
@@ -216,33 +219,32 @@ INLINE void writer_write_bit(writer *writer, byte bit) {
     b = 0;
   }
   b |= bit << (writer->current_bit_index & 7);
-  tail_buffer[writer->current_bit_index >> 3] = b;
+  buf.data[writer->current_bit_index >> 3] = b;
   writer->current_bit_index++;
-  _writer_maybe_allocate_next_buffer(writer);
+  _writer_ensure_buffer(writer);
 }
 
 INLINE void writer_write_byte(writer *writer, byte value) {
   assert((writer->current_bit_index & 7) == 0 && "Cannot mix bit- and byte-level writes in a single writer instance.");
-  byte **slot = queue_peek_tail(&writer->buffers);
-  byte *tail_buffer = *slot;
-  tail_buffer[writer->current_bit_index >> 3] = value;
+  buffer buf = _writer_ensure_buffer(writer);
+  buf.data[writer->current_bit_index >> 3] = value;
   writer->current_bit_index += 8;
-  _writer_maybe_allocate_next_buffer(writer);
+  _writer_ensure_buffer(writer);
 }
 
-/** Provide writer with a buffer. Buffer must have length of `writer->size`.
-TODO: accept buffers here instead of raw byte arrays. then, restriction about size won't be necessary.
+/** Provide writer with a buffer.
 Buffer will be used as a normal writer buffer.
 Returns false in case of allocation errors.
 
 Idea behind this method is to reduce amount of allocations.
 If mode of consumption allows you to retain buffers - might as well reuse them. */
-NODISCARD bool writer_supply_buffer(writer *writer, byte *buffer) {
-  byte **slot = queue_push(&writer->free_buffers);
+NODISCARD bool writer_supply_buffer(writer *writer, buffer b) {
+  assert(b.allocated_length > 0 && "Writer only accepts non-zero-length buffers");
+  buffer *slot = queue_push(&writer->free_buffers);
   if (!slot) {
     return false;
   }
-  *slot = buffer;
+  *slot = b;
   return true;
 }
 
