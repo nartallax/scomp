@@ -17,7 +17,7 @@ const char *_str(const char **slot) {
 
 const char *test_queue_simple() {
   queue *q = malloc(sizeof(queue));
-  TEST_ASSERT(queue_init(q, test_context, sizeof(const char *), 4));
+  TEST_ASSERT(queue_init(q, test_context, sizeof(const char *), 3));
   TEST_ASSERT(queue_get_count(q) == 0);
 
   _test_queue_push(q, "first");
@@ -29,13 +29,39 @@ const char *test_queue_simple() {
   TEST_ASSERT(queue_get_count(q) == 4);
   TEST_ASSERT(strcmp(_str(queue_peek(q)), "first") == 0);
   TEST_ASSERT(strcmp(_str(queue_peek(q)), "first") == 0);
+  TEST_ASSERT(strcmp(_str(queue_peek_at(q, 1)), "second") == 0);
+  TEST_ASSERT(strcmp(_str(queue_peek_at(q, 2)), "third") == 0);
+  TEST_ASSERT(strcmp(_str(queue_peek_at(q, 3)), "forth") == 0);
   TEST_ASSERT(strcmp(_str(queue_peek_tail(q)), "forth") == 0);
+  TEST_ASSERT(strcmp(_str(queue_peek_tail_at(q, 1)), "third") == 0);
+  TEST_ASSERT(strcmp(_str(queue_peek_tail_at(q, 2)), "second") == 0);
+  TEST_ASSERT(strcmp(_str(queue_peek_tail_at(q, 3)), "first") == 0);
   TEST_ASSERT(strcmp(_str(queue_pop(q)), "first") == 0);
   TEST_ASSERT(strcmp(_str(queue_pop(q)), "second") == 0);
   TEST_ASSERT(queue_get_count(q) == 2);
   TEST_ASSERT(strcmp(_str(queue_pop(q)), "third") == 0);
   TEST_ASSERT(strcmp(_str(queue_pop(q)), "forth") == 0);
   TEST_ASSERT(queue_get_count(q) == 0);
+
+  // same as above, but with a wrap-around
+  _test_queue_push(q, "first");
+  _test_queue_push(q, "second");
+  _test_queue_push(q, "third");
+  _test_queue_push(q, "fourth");
+  _test_queue_push(q, "fifth");
+  _test_queue_push(q, "sixth");
+  TEST_ASSERT(strcmp(_str(queue_peek_at(q, 0)), "first") == 0);
+  TEST_ASSERT(strcmp(_str(queue_peek_at(q, 1)), "second") == 0);
+  TEST_ASSERT(strcmp(_str(queue_peek_at(q, 2)), "third") == 0);
+  TEST_ASSERT(strcmp(_str(queue_peek_at(q, 3)), "fourth") == 0);
+  TEST_ASSERT(strcmp(_str(queue_peek_at(q, 4)), "fifth") == 0);
+  TEST_ASSERT(strcmp(_str(queue_peek_at(q, 5)), "sixth") == 0);
+  TEST_ASSERT(strcmp(_str(queue_peek_tail_at(q, 0)), "sixth") == 0);
+  TEST_ASSERT(strcmp(_str(queue_peek_tail_at(q, 1)), "fifth") == 0);
+  TEST_ASSERT(strcmp(_str(queue_peek_tail_at(q, 2)), "fourth") == 0);
+  TEST_ASSERT(strcmp(_str(queue_peek_tail_at(q, 3)), "third") == 0);
+  TEST_ASSERT(strcmp(_str(queue_peek_tail_at(q, 4)), "second") == 0);
+  TEST_ASSERT(strcmp(_str(queue_peek_tail_at(q, 5)), "first") == 0);
 
   queue_deinit(q, test_context);
   free(q);

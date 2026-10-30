@@ -2,6 +2,7 @@
 
 #include "commons.c"
 #include "context.c"
+#include "data_structures/buffer.c"
 #include "data_structures/queue.c"
 #include <assert.h>
 #include <stdbool.h>
@@ -19,21 +20,6 @@ typedef struct {
   int64 single_buffer_byte_size;
   queue free_buffers;
 } writer;
-
-typedef struct {
-  byte *data;
-  int64 length;
-} buffer;
-
-constexpr buffer EMPTY_BUFFER = (buffer){.data = NULL, .length = 0};
-
-typedef struct {
-  bool is_error;
-  buffer buffer;
-} buffer_or_error;
-
-constexpr buffer_or_error ERROR_ERROR_BUFFER = (buffer_or_error){.is_error = true, .buffer = EMPTY_BUFFER};
-constexpr buffer_or_error EMPTY_ERROR_BUFFER = (buffer_or_error){.is_error = false, .buffer = EMPTY_BUFFER};
 
 void _writer_allocate_next_buffer(writer *writer) {
   byte *buffer;
@@ -131,7 +117,7 @@ INLINE void writer_reset_current_buffer(writer *w) {
 INLINE buffer writer_peek_current_buffer(writer *w) {
   byte **slot = queue_peek_tail(&w->buffers);
   byte *tail_buffer = *slot;
-  return (buffer){.data = tail_buffer, .length = ((w->current_bit_index + 7) >> 3)};
+  return buffer_make(tail_buffer, ((w->current_bit_index + 7) >> 3), w->single_buffer_byte_size);
 }
 
 /** Returns oldest non-consumed buffer full of bytes, with length of `writer->size`.
@@ -145,7 +131,7 @@ NODISCARD INLINE buffer writer_consume_full_buffer(writer *writer) {
     return EMPTY_BUFFER;
   }
   byte **slot = queue_pop(&writer->buffers);
-  return (buffer){.data = *slot, .length = writer->single_buffer_byte_size};
+  return buffer_make(*slot, writer->single_buffer_byte_size, writer->single_buffer_byte_size);
 }
 
 /** Returns oldest non-consumed buffer. Buffer counts as consumed (writer won't store it anymore).
@@ -174,7 +160,7 @@ NODISCARD buffer_or_error writer_consume_nonempty_buffer(writer *writer) {
     return ERROR_ERROR_BUFFER;
   }
   byte **slot = queue_pop(&writer->buffers);
-  buffer result_buffer = {.data = *slot, .length = (bit_index + 7) >> 3};
+  buffer result_buffer = buffer_make(*slot, (bit_index + 7) >> 3, writer->single_buffer_byte_size);
   return (buffer_or_error){.is_error = false, .buffer = result_buffer};
 }
 
@@ -195,6 +181,7 @@ NODISCARD buffer_or_error writer_consume_all_buffers(writer *writer) {
     if (full_buffer.length == 0) {
       break;
     }
+    // TODO: move memcpy to context, to avoid libc
     memcpy(bytes + index, full_buffer.data, full_buffer.length);
     context_free(writer->context, full_buffer.data);
     index += full_buffer.length;
@@ -212,7 +199,7 @@ NODISCARD buffer_or_error writer_consume_all_buffers(writer *writer) {
     index += last_buffer.buffer.length;
   }
 
-  return (buffer_or_error){.is_error = false, .buffer = (buffer){.length = index, .data = bytes}};
+  return (buffer_or_error){.is_error = false, .buffer = buffer_make(bytes, length, length)};
 }
 
 INLINE void writer_write_bit(writer *writer, byte bit) {
@@ -244,6 +231,7 @@ INLINE void writer_write_byte(writer *writer, byte value) {
 }
 
 /** Provide writer with a buffer. Buffer must have length of `writer->size`.
+TODO: accept buffers here instead of raw byte arrays. then, restriction about size won't be necessary.
 Buffer will be used as a normal writer buffer.
 Returns false in case of allocation errors.
 

@@ -2,6 +2,7 @@
 #include "../commons.c"
 #include "../context.c"
 #include <stdbool.h>
+#include <string.h>
 
 typedef struct {
   byte *content;
@@ -9,7 +10,7 @@ typedef struct {
   int64 length_mask;
 } ring_buffer;
 
-int64 ring_buffer_get_length(ring_buffer *rb) {
+INLINE int64 ring_buffer_get_length(ring_buffer *rb) {
   return rb->length_mask + 1;
 }
 
@@ -43,4 +44,23 @@ INLINE void ring_buffer_push(ring_buffer *rb, byte b) {
 Index may be bigger than the length of the buffer and will be truncated */
 INLINE byte ring_buffer_get(ring_buffer *rb, int64 index) {
   return rb->content[index & rb->length_mask];
+}
+
+/** Fills the ring buffer from the data. Returns amount of bytes consumed.
+Won't consume more than one length of the buffer. */
+NODISCARD INLINE int64 ring_buffer_fill(ring_buffer *rb, const byte *data, int64 data_length) {
+  int64 available_forward_space = ring_buffer_get_length(rb) - rb->content_position;
+  int64 first_copy_amount = available_forward_space < data_length ? available_forward_space : data_length;
+  memcpy(rb->content + rb->content_position, data, first_copy_amount);
+  rb->content_position = (rb->content_position + first_copy_amount) & rb->length_mask;
+
+  int64 remaining_amount = data_length - first_copy_amount;
+  int64 remaining_space = ring_buffer_get_length(rb) - first_copy_amount;
+  int64 second_copy_amount = remaining_amount < remaining_space ? remaining_amount : remaining_space;
+  if (second_copy_amount > 0) {
+    memcpy(rb->content + rb->content_position, data + first_copy_amount, second_copy_amount);
+    rb->content_position = (rb->content_position + second_copy_amount) & rb->length_mask;
+  }
+
+  return first_copy_amount + second_copy_amount;
 }

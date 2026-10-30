@@ -141,3 +141,6 @@ NODISCARD bool json_decompressor_read(json_decompressor *decomp) {
 
   return true;
 }
+
+// TODO: test for what happens if outer stream ends prematurely on decoding.
+// we will have to feed zeroes to the decoder to bleed out all the symbols, but will we detect absolutely broken stream?

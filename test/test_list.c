@@ -7,6 +7,7 @@
 #include "data_structures/fenwick_tree_test.c"
 #include "data_structures/fixed_queue_test.c"
 #include "data_structures/queue_test.c"
+#include "data_structures/reader_test.c"
 #include "data_structures/ring_buffer_test.c"
 #include "data_structures/stack_test.c"
 #include "math_test.c"
@@ -77,6 +78,9 @@ test normal_tests[] = {
     MAKE_TEST(test_writer_buffer_reuse),
     MAKE_TEST(test_writer_buffer_resets),
     MAKE_TEST(test_writer_allocation_failure),
+    MAKE_TEST(test_reader_simple),
+    MAKE_TEST(test_reader_underflow),
+    MAKE_TEST(test_reader_allocation_failures),
     MAKE_TEST(test_ftable_simple),
     MAKE_TEST(test_ftable_with_eof),
     MAKE_TEST(test_ftable_init_one),

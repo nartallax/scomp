@@ -17,6 +17,7 @@ typedef struct {
   byte *values;
   // length of the `values` array, in elements. is always power-of-two.
   int64 length;
+  int64 length_mask;
   // head is the last occupied spot in values array
   int64 head;
   // tail is first free spot in values array
@@ -27,6 +28,7 @@ NODISCARD bool queue_init(queue *q, context *context, int64 value_size, int64 st
   *q = (queue){0};
 
   q->length = 1 << starting_length_shift;
+  q->length_mask = q->length - 1;
   q->head = 0;
   q->tail = 0;
   q->context = context;
@@ -54,7 +56,7 @@ INLINE int64 queue_get_count(queue *queue) {
 }
 
 INLINE int64 _queue_increment(queue *queue, int64 i) {
-  return (i + 1) & (queue->length - 1);
+  return (i + 1) & queue->length_mask;
 }
 
 NODISCARD bool _queue_maybe_grow(queue *queue) {
@@ -81,10 +83,15 @@ NODISCARD bool _queue_maybe_grow(queue *queue) {
   context_free(queue->context, queue->values);
 
   queue->length = new_length;
+  queue->length_mask = queue->length - 1;
   queue->values = new_values;
   queue->head = 0;
   queue->tail = i;
   return true;
+}
+
+INLINE void *_queue_pointer_at(queue *queue, int64 index) {
+  return queue->values + (index * queue->value_size);
 }
 
 /** Returns pointer to the next free space in the queue. This space is now considered occupied.
@@ -93,7 +100,7 @@ INLINE void *queue_push(queue *queue) {
   if (!_queue_maybe_grow(queue)) {
     return NULL;
   }
-  void *result_pointer = queue->values + (queue->tail * queue->value_size);
+  void *result_pointer = _queue_pointer_at(queue, queue->tail);
   queue->tail = _queue_increment(queue, queue->tail);
   return result_pointer;
 }
@@ -102,20 +109,29 @@ INLINE void *queue_push(queue *queue) {
 It's up for the caller to `free()` the item, if needed. */
 INLINE void *queue_pop(queue *queue) {
   assert(queue_get_count(queue) > 0 && "Queue underflow on pop()");
-  void *result = queue->values + (queue->head * queue->value_size);
+  void *result = _queue_pointer_at(queue, queue->head);
   queue->head = _queue_increment(queue, queue->head);
   return result;
 }
 
+/** Returns pointer to the element of the queue `offset` positions back from the head, 0 being the head */
+INLINE void *queue_peek_at(queue *queue, int64 offset) {
+  assert(queue_get_count(queue) > offset && "Queue should not underflow on peek_at()");
+  int64 index = (queue->head + offset) & queue->length_mask;
+  return _queue_pointer_at(queue, index);
+}
+
 /** Returns pointer to the next element in the queue without removing it. */
 INLINE void *queue_peek(queue *queue) {
-  assert(queue_get_count(queue) > 0 && "Queue underflow on peek()");
-  return queue->values + (queue->head * queue->value_size);
+  return queue_peek_at(queue, 0);
+}
+
+INLINE void *queue_peek_tail_at(queue *queue, int64 offset) {
+  assert(queue_get_count(queue) > offset && "Queue should not underflow on peek_tail_at()");
+  int64 index = ((queue->tail + queue->length - 1) - offset) & queue->length_mask;
+  return _queue_pointer_at(queue, index);
 }
 
 INLINE void *queue_peek_tail(queue *queue) {
-  assert(queue_get_count(queue) > 0 && "Queue should not underflow on tail peek");
-  // TODO: bitwise mask here
-  int64 index = ((queue->tail + queue->length) - 1) % queue->length;
-  return queue->values + (index * queue->value_size);
+  return queue_peek_tail_at(queue, 0);
 }
