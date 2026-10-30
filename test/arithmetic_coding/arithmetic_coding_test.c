@@ -48,34 +48,29 @@ buffer encode_bytes(int64 length, byte *data) {
 
 const char *_test_acod(int64 length, byte *data) {
   buffer encoded_bytes = encode_bytes(length, data);
+  reader r;
+  TEST_ASSERT(reader_init(&r, test_context));
+  TEST_ASSERT(reader_push_buffer(&r, encoded_bytes));
 
   ftable decoding_frequencies;
   TEST_ASSERT(ftable_init(&decoding_frequencies, test_context, 256, FTABLE_INCLUDE_EOF | FTABLE_INIT_ONE));
   acod_decoder *decoder = malloc(sizeof(acod_decoder));
-  acod_decoder_init(decoder);
+  acod_decoder_init(decoder, &r);
 
   int64 symbol_index = 0;
   symbol last_symbol = 0;
   symbol eof = ftable_get_eof_symbol(&decoding_frequencies);
-  int64 bit_index = 0;
   while (last_symbol != eof) {
-    int64 current_byte_index = bit_index >> 3;
-    byte current_byte = current_byte_index >= encoded_bytes.length ? 0 : encoded_bytes.data[bit_index >> 3];
-    byte current_bit = (current_byte & (1 << (bit_index & 7))) ? 1 : 0;
-    bit_index++;
-    acod_decoder_update(decoder, current_bit);
-
-    while (acod_decoder_has_symbol(decoder)) {
-      last_symbol = acod_decoder_read(decoder, &decoding_frequencies);
-      if (last_symbol == eof) {
-        break;
-      }
-
-      ftable_increment(&decoding_frequencies, last_symbol);
-      TEST_ASSERT(last_symbol == data[symbol_index]);
-      TEST_ASSERT(symbol_index < length);
-      symbol_index++;
+    last_symbol = acod_decoder_read(decoder, &decoding_frequencies);
+    if (last_symbol == eof) {
+      break;
     }
+
+    ftable_increment(&decoding_frequencies, last_symbol);
+    TEST_ASSERT(symbol_index < length); // for case when we were supposed to read EOF but didn't
+    TEST_ASSERT(last_symbol == data[symbol_index]);
+    TEST_ASSERT(symbol_index < length);
+    symbol_index++;
   }
 
   ftable_deinit(&decoding_frequencies, test_context);

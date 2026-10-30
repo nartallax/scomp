@@ -89,15 +89,17 @@ const char *test_reader_underflow() {
 const char *test_reader_allocation_failures() {
   reader r;
 
+  buffer b = buffer_make(NULL, 1, 1);
+
   setup_test_context(0);
   TEST_ASSERT(!reader_init(&r, test_context));
 
   setup_test_context(1);
   TEST_ASSERT(reader_init(&r, test_context));
   for (int64 i = 0; i < (1 << READER_QUEUE_DEFAULT_SHIFT) - 1; i++) {
-    TEST_ASSERT(reader_push_buffer(&r, EMPTY_BUFFER));
+    TEST_ASSERT(reader_push_buffer(&r, b));
   }
-  TEST_ASSERT(!reader_push_buffer(&r, EMPTY_BUFFER));
+  TEST_ASSERT(!reader_push_buffer(&r, b));
   reader_deinit(&r, test_context);
 
   return NULL;

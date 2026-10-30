@@ -5,30 +5,6 @@
 #include "../test_utils.c"
 #include <limits.h>
 
-const char *strcomp_perf_test_process_buffer(int64 *total_bytes_compressed, buffer b, string_decompressor *decomp) {
-  *total_bytes_compressed += b.length;
-
-  for (int64 i = 0; i < b.length; i++) {
-    byte c = b.data[i];
-    for (int j = 0; j < CHAR_BIT; j++) {
-      acod_decoder_update(decomp->decoder, c & 1);
-      TEST_ASSERT(!strdecomp_read(decomp));
-      c = c >> 1;
-    }
-  }
-
-  return NULL;
-}
-
-void strcomp_perf_test_write_zeroes_until_eof(string_decompressor *decomp) {
-  while (true) {
-    acod_decoder_update(decomp->decoder, 0);
-    if (!strdecomp_read(decomp)) {
-      return;
-    }
-  }
-}
-
 const char *strcomp_perf_test_compare_to_file(buffer b, const char *path) {
   // FILE *out_file = fopen("/tmp/out.json", "w");
   // TEST_ASSERT(fwrite(b.data, 1, b.length, out_file) == b.length);
@@ -62,6 +38,9 @@ const char *strcomp_perf_test_compare_to_file(buffer b, const char *path) {
 }
 
 const char *test_string_compression_on_a_file(const char *path) {
+  reader decomp_reader;
+  TEST_ASSERT(reader_init(&decomp_reader, test_context));
+
   TIME_STRUCT start_time = get_current_time();
   writer comp_writer;
   TEST_ASSERT(writer_init(&comp_writer, test_context, 16 * 1024, 4));
@@ -70,7 +49,7 @@ const char *test_string_compression_on_a_file(const char *path) {
   acod_encoder encoder;
   acod_encoder_init(&encoder, &comp_writer);
   acod_decoder decoder;
-  acod_decoder_init(&decoder);
+  acod_decoder_init(&decoder, &decomp_reader);
   string_compressor comp;
   TEST_ASSERT(strcomp_init(&comp, test_context, &encoder));
   string_decompressor decomp;
@@ -95,8 +74,7 @@ const char *test_string_compression_on_a_file(const char *path) {
         if (b.length == 0) {
           break;
         }
-
-        TEST_ASSERT(!strcomp_perf_test_process_buffer(&total_bytes_compressed, b, &decomp));
+        TEST_ASSERT(reader_push_buffer(&decomp_reader, b));
       }
     }
 
@@ -111,8 +89,10 @@ const char *test_string_compression_on_a_file(const char *path) {
   acod_encoder_deinit(&encoder);
   buffer_or_error result = writer_consume_all_buffers(&comp_writer);
   TEST_ASSERT(!result.is_error);
-  TEST_ASSERT(!strcomp_perf_test_process_buffer(&total_bytes_compressed, result.buffer, &decomp));
-  strcomp_perf_test_write_zeroes_until_eof(&decomp);
+  TEST_ASSERT(reader_push_buffer(&decomp_reader, result.buffer));
+  while (!strdecomp_read(&decomp)) {
+    // decomp everything until EOF
+  }
   writer_deinit(&comp_writer, test_context);
 
   strdecomp_deinit(&decomp, test_context);
@@ -124,6 +104,7 @@ const char *test_string_compression_on_a_file(const char *path) {
   double timediff_seconds = get_time_diff(start_time, end_time);
 
   double compression_ratio = ((double)total_bytes_compressed / (double)total_bytes_read);
+  // TODO: separate comp and decomp speed
   printf("Compressed %s from %zu to %zu (%.02f%%) in %.03f seconds\n", path, total_bytes_read, total_bytes_compressed, compression_ratio * 100.0, timediff_seconds);
 
   TEST_ASSERT(compression_ratio < 0.25);

@@ -55,15 +55,15 @@ void acod_encoder_deinit(acod_encoder *encoder) {
 /** Writes a single symbol with the encoder.
 Returns true if the write was successful. */
 void acod_encoder_write(acod_encoder *encoder, ftable *frequencies, symbol symbol) {
-  _acod_perform_update_start(&encoder->state, frequencies, symbol);
+  _acod_shrink_the_range(&encoder->state, frequencies, symbol);
 
-  while (encoder->state.stage == ACOD_STAGE_SHIFT) {
+  while (_acod_is_shiftable(&encoder->state)) {
     byte bit = encoder->state.low >> (ACOD_STATE_SIZE_BITS - 1);
     _acod_encoder_write_shift_bit(encoder, bit);
     _acod_perform_shift(&encoder->state);
   }
 
-  while (encoder->state.stage == ACOD_STAGE_UNDERFLOW) {
+  while (_acod_is_underflowable(&encoder->state)) {
     encoder->underflows++;
     _acod_perform_underflow(&encoder->state);
   }

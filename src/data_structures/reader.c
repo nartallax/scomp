@@ -78,6 +78,7 @@ INLINE bool reader_has_safe_amount_of_data(reader *r) {
 /** Add a buffer to the reader. Returns false in case of failed allocation.
 `length` of the buffer supplied is respected; reader won't read past that. */
 NODISCARD bool reader_push_buffer(reader *r, buffer b) {
+  assert(b.length > 0 && "Reader only accepts buffers with data");
   buffer *slot = queue_push(&r->buffers);
   if (slot == NULL) {
     return false;
@@ -100,10 +101,14 @@ buffer reader_recover_exhausted_buffer(reader *r) {
   return *slot;
 }
 
+void reader_set_underflow_error(reader *r) {
+  context_set_error(r->context, "Reader underflow");
+}
+
 NODISCARD bool _reader_get_next_buffer(reader *r) {
   int64 total_buffer_count = queue_get_count(&r->buffers) + (r->is_at_initial_buffer ? 1 : 0);
   if (total_buffer_count - 1 == r->exhausted_buffers_count) {
-    context_set_error(r->context, "Reader underflow");
+    reader_set_underflow_error(r);
     return false;
   }
 
@@ -118,8 +123,7 @@ NODISCARD bool _reader_get_next_buffer(reader *r) {
 }
 
 NODISCARD INLINE bool _reader_ensure_buffer(reader *r) {
-  // while here in case of empty buffers in the list, which could happen if someone misuses library API
-  while (r->current_buffer.length <= r->bit_pointer >> 3) {
+  if (r->current_buffer.length <= r->bit_pointer >> 3) {
     if (!_reader_get_next_buffer(r)) {
       return false;
     }

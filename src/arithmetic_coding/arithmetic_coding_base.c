@@ -6,16 +6,9 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-typedef byte _acod_stage;
-constexpr _acod_stage ACOD_STAGE_SHIFT = 1;
-constexpr _acod_stage ACOD_STAGE_UNDERFLOW = 2;
-constexpr _acod_stage ACOD_STAGE_READY = 3;
-constexpr _acod_stage ACOD_STAGE_PREPARATION = 4;
-
 typedef struct {
   symbol_frequency high;
   symbol_frequency low;
-  _acod_stage stage;
 } _acod_state;
 
 void _acod_state_init(_acod_state *state) {
@@ -23,7 +16,6 @@ void _acod_state_init(_acod_state *state) {
 
   state->low = 0;
   state->high = ACOD_STATE_MASK;
-  state->stage = ACOD_STAGE_READY;
 }
 
 INLINE bool _acod_is_shiftable(_acod_state *state) {
@@ -34,31 +26,7 @@ INLINE bool _acod_is_underflowable(_acod_state *state) {
   return (state->low & (~state->high) & ACOD_QUARTER_RANGE) != 0;
 }
 
-void _acod_try_progress_stage(_acod_state *state) {
-  while (true) {
-    switch (state->stage) {
-    case ACOD_STAGE_READY:
-      state->stage = ACOD_STAGE_SHIFT;
-      break;
-    case ACOD_STAGE_SHIFT:
-      if (_acod_is_shiftable(state)) {
-        return;
-      }
-      state->stage = ACOD_STAGE_UNDERFLOW;
-      break;
-    default: // underflow
-      if (_acod_is_underflowable(state)) {
-        return;
-      }
-      state->stage = ACOD_STAGE_READY;
-      return;
-    }
-  }
-}
-
-void _acod_perform_update_start(_acod_state *state, ftable *frequencies, symbol symbol) {
-  assert(state->stage == ACOD_STAGE_READY);
-
+void _acod_shrink_the_range(_acod_state *state, ftable *frequencies, symbol symbol) {
   symbol_frequency value_range = state->high - state->low + 1;
   symbol_frequency total = frequencies->total;
   symbol_frequency symbol_low = ftable_get_low(frequencies, symbol);
@@ -75,8 +43,6 @@ void _acod_perform_update_start(_acod_state *state, ftable *frequencies, symbol 
   state->low = new_low;
   state->high = new_high;
   assert(state->low < state->high);
-
-  _acod_try_progress_stage(state);
 }
 
 INLINE void _acod_perform_shift(_acod_state *state) {
@@ -85,7 +51,6 @@ INLINE void _acod_perform_shift(_acod_state *state) {
   state->low = ((state->low << 1) & ACOD_STATE_MASK);
   state->high = ((state->high << 1) & ACOD_STATE_MASK) | 1;
   assert(state->low < state->high);
-  _acod_try_progress_stage(state);
 }
 
 INLINE void _acod_perform_underflow(_acod_state *state) {
@@ -94,5 +59,4 @@ INLINE void _acod_perform_underflow(_acod_state *state) {
   state->low = (state->low << 1) ^ ACOD_HALF_RANGE;
   state->high = ((state->high ^ ACOD_HALF_RANGE) << 1) | ACOD_HALF_RANGE | 1;
   assert(state->low < state->high);
-  _acod_try_progress_stage(state);
 }
