@@ -55,9 +55,50 @@ const char *test_reader_simple() {
 }
 
 const char *test_reader_underflow() {
+  reader r;
+  byte *b;
+
+  TEST_ASSERT(reader_init(&r, test_context));
+  b = malloc(3);
+  memcpy(b, "123", 3);
+  TEST_ASSERT(reader_push_buffer(&r, buffer_make(b, 3, 3)));
+  TEST_ASSERT(reader_read_byte(&r) == '1');
+  TEST_ASSERT(reader_read_byte(&r) == '2');
+  TEST_ASSERT(reader_read_byte(&r) == '3');
+  TEST_ASSERT(!context_is_errored(test_context));
+  TEST_ASSERT(reader_read_byte(&r) == 0);
+  TEST_ASSERT(context_is_errored(test_context));
+  reader_deinit(&r, test_context);
+
+  setup_test_context_default();
+  TEST_ASSERT(reader_init(&r, test_context));
+  b = malloc(3);
+  memcpy(b, "123", 3);
+  TEST_ASSERT(reader_push_buffer(&r, buffer_make(b, 3, 3)));
+  TEST_ASSERT(reader_read_byte(&r) == '1');
+  TEST_ASSERT(reader_read_byte(&r) == '2');
+  TEST_ASSERT(reader_read_byte(&r) == '3');
+  TEST_ASSERT(!context_is_errored(test_context));
+  TEST_ASSERT(reader_read_bit(&r) == 0);
+  TEST_ASSERT(context_is_errored(test_context));
+  reader_deinit(&r, test_context);
+
   return NULL;
 }
 
 const char *test_reader_allocation_failures() {
+  reader r;
+
+  setup_test_context(0);
+  TEST_ASSERT(!reader_init(&r, test_context));
+
+  setup_test_context(1);
+  TEST_ASSERT(reader_init(&r, test_context));
+  for (int64 i = 0; i < (1 << READER_QUEUE_DEFAULT_SHIFT) - 1; i++) {
+    TEST_ASSERT(reader_push_buffer(&r, EMPTY_BUFFER));
+  }
+  TEST_ASSERT(!reader_push_buffer(&r, EMPTY_BUFFER));
+  reader_deinit(&r, test_context);
+
   return NULL;
 }

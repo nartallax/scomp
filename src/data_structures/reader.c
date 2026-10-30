@@ -13,6 +13,7 @@ There's no real tangible benefit of raising this number above minimum
 (other than general robustness against various statistical improbabilities) */
 constexpr int64 READER_SAFE_SIZE_SHIFT = 9;
 constexpr int64 READER_SAFE_SIZE = 1 << READER_SAFE_SIZE_SHIFT;
+constexpr int64 READER_QUEUE_DEFAULT_SHIFT = 4;
 
 /** Reader is a buffer that can accept an array of bytes, and supply bytes or bits to consumers.
 Underflow causes an error; it's expected to never happen during normal functioning.
@@ -52,7 +53,7 @@ NODISCARD bool reader_init(reader *r, context *context) {
   r->unconsumed_buffer_bytes_count = 0;
   r->is_at_initial_buffer = true;
 
-  if (!queue_init(&r->buffers, context, sizeof(buffer), 4)) {
+  if (!queue_init(&r->buffers, context, sizeof(buffer), READER_QUEUE_DEFAULT_SHIFT)) {
     reader_deinit(r, context);
     return false;
   }
@@ -138,7 +139,7 @@ INLINE byte reader_read_byte(reader *r) {
 }
 
 INLINE byte reader_read_bit(reader *r) {
-  if ((r->bit_pointer & 7) != 0 && !_reader_ensure_buffer(r)) {
+  if ((r->bit_pointer & 7) == 0 && !_reader_ensure_buffer(r)) {
     return 0;
   }
 
