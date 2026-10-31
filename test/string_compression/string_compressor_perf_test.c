@@ -41,7 +41,6 @@ const char *test_string_compression_on_a_file(const char *path) {
   reader decomp_reader;
   TEST_ASSERT(reader_init(&decomp_reader, test_context));
 
-  TIME_STRUCT start_time = get_current_time();
   writer comp_writer;
   TEST_ASSERT(writer_init(&comp_writer, test_context, 16 * 1024, 4));
   writer decomp_writer;
@@ -63,6 +62,7 @@ const char *test_string_compression_on_a_file(const char *path) {
   int64 total_bytes_compressed = 0;
   int64 total_bytes_read = 0;
   char read_buffer[4096];
+  TIME_STRUCT comp_start_time = get_current_time();
   while (is_success && (bytes_read = fread(read_buffer, 1, sizeof(read_buffer), src_file)) > 0) {
     total_bytes_read += bytes_read;
     for (int64 i = 0; i < bytes_read; i++) {
@@ -83,32 +83,35 @@ const char *test_string_compression_on_a_file(const char *path) {
       break;
     }
   }
+  TIME_STRUCT comp_end_time = get_current_time();
   fclose(src_file);
 
   strcomp_flush(&comp);
   strcomp_deinit(&comp, test_context);
   acod_encoder_deinit(&encoder);
   buffer_or_error final_buffer = writer_consume_all_buffers(&comp_writer);
+  total_bytes_compressed += final_buffer.buffer.length;
   TEST_ASSERT(!final_buffer.is_error);
   writer_deinit(&comp_writer, test_context);
 
+  double compression_ratio = ((double)total_bytes_compressed / (double)total_bytes_read);
+  double comp_seconds = get_time_diff(comp_start_time, comp_end_time);
+  printf("Compressed %s from %zu to %zu (%.02f%%) in %.03f seconds\n", path, total_bytes_read, total_bytes_compressed, compression_ratio * 100.0, comp_seconds);
+
   TEST_ASSERT(reader_push_buffer(&decomp_reader, final_buffer.buffer));
-  total_bytes_compressed += final_buffer.buffer.length;
+  TIME_STRUCT decomp_start_time = get_current_time();
   while (strdecomp_read(&decomp)) {
     // decomp everything until EOF
   }
+  TIME_STRUCT decomp_end_time = get_current_time();
   strdecomp_deinit(&decomp, test_context);
 
   buffer_or_error decomp_result = writer_consume_all_buffers(&decomp_writer);
   TEST_ASSERT(!decomp_result.is_error);
   TEST_ASSERT(!strcomp_perf_test_compare_to_file(decomp_result.buffer, path));
 
-  TIME_STRUCT end_time = get_current_time();
-  double timediff_seconds = get_time_diff(start_time, end_time);
-
-  double compression_ratio = ((double)total_bytes_compressed / (double)total_bytes_read);
-  // TODO: separate comp and decomp speed
-  printf("Compressed %s from %zu to %zu (%.02f%%) in %.03f seconds\n", path, total_bytes_read, total_bytes_compressed, compression_ratio * 100.0, timediff_seconds);
+  double decomp_seconds = get_time_diff(decomp_start_time, decomp_end_time);
+  printf("Decompressed %s in %.03f seconds\n", path, decomp_seconds);
 
   TEST_ASSERT(compression_ratio < 0.25);
   TEST_ASSERT(compression_ratio > 0.05); // no way this algo will ever compress to 5% on anything realistic
