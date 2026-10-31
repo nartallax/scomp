@@ -80,6 +80,7 @@ test normal_tests[] = {
     MAKE_TEST(test_writer_allocation_failure),
     MAKE_TEST(test_reader_simple),
     MAKE_TEST(test_reader_underflow),
+    MAKE_TEST(test_reader_snapshots),
     MAKE_TEST(test_reader_allocation_failures),
     MAKE_TEST(test_ftable_simple),
     MAKE_TEST(test_ftable_with_eof),

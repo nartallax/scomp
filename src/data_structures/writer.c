@@ -20,6 +20,7 @@ typedef struct {
   int64 bytes_stored;
   int64 current_bit_index;
   int64 single_buffer_byte_size;
+  // TODO: do one queue of buffers like reader does instead of two?
   queue free_buffers;
 } writer;
 
@@ -53,6 +54,7 @@ bool _writer_produce_next_buffer(writer *writer) {
   return true;
 }
 
+// TODO: store current buffer in a field, just like reader does? instead of fetching it from the queue every time. may improve write perf
 INLINE buffer _writer_ensure_buffer(writer *writer) {
   buffer *slot = queue_peek_tail(&writer->buffers);
   if ((writer->current_bit_index >> 3) >= slot->allocated_length) {
@@ -206,6 +208,7 @@ NODISCARD buffer_or_error writer_consume_all_buffers(writer *writer) {
   return (buffer_or_error){.is_error = false, .buffer = buffer_make(bytes, length, length)};
 }
 
+// TODO: store currently written byte in a field instead of fetching it from the buffer? may help with write speed
 INLINE void writer_write_bit(writer *writer, byte bit) {
   assert(bit == 1 || bit == 0);
   buffer buf = _writer_ensure_buffer(writer);

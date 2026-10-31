@@ -29,6 +29,14 @@ typedef struct {
   bool is_at_initial_buffer;
 } reader;
 
+/** A snapshot of reader's state that reader can roll back to.
+"roll forward" is not supported (as in, you can't create snapsnot A, read, create snapshot B, rollback to A, and then roll-forward to B)
+Don't use if after creation of the snapshot reader's exhausted buffers were recovered, as it may not be possible. */
+typedef struct {
+  int64 exhausted_buffers_count;
+  int64 bit_pointer;
+} reader_snapshot;
+
 void reader_deinit(reader *r, context *context) {
   while (queue_get_count(&r->buffers) > 0) {
     buffer *b = queue_pop(&r->buffers);
@@ -142,6 +150,7 @@ INLINE byte reader_read_byte(reader *r) {
   return result;
 }
 
+// TODO: store current byte in a field instead of fetching it from a buffer every time? may help with read speed
 INLINE byte reader_read_bit(reader *r) {
   if ((r->bit_pointer & 7) == 0 && !_reader_ensure_buffer(r)) {
     return 0;
@@ -151,4 +160,38 @@ INLINE byte reader_read_bit(reader *r) {
   byte bit = (b >> (r->bit_pointer & 7)) & 1;
   r->bit_pointer++;
   return bit;
+}
+
+INLINE reader_snapshot reader_take_snapshot(reader *r) {
+  return (reader_snapshot){.bit_pointer = r->bit_pointer, .exhausted_buffers_count = r->is_at_initial_buffer ? -1 : r->exhausted_buffers_count};
+}
+
+/** Restores snapshot taken earlier. Limitations apply, see comment to `reader_snapshot` structure.
+Buffers pushed to the reader will stay in the reader; only "pointer" to the bytes currently being read is moved. */
+void reader_restore_snapshot(reader *r, reader_snapshot snapshot) {
+  r->bit_pointer = snapshot.bit_pointer;
+
+  if (r->exhausted_buffers_count == snapshot.exhausted_buffers_count) {
+    // we are at the same buffer as the snapshot, no further action needed
+    return;
+  }
+
+  if (snapshot.exhausted_buffers_count == -1) {
+    r->is_at_initial_buffer = true;
+    r->current_buffer = EMPTY_BUFFER;
+    r->exhausted_buffers_count = 0;
+    return;
+  }
+
+  // won't hurt, but also won't help
+  // r->is_at_initial_buffer = false;
+
+  assert(r->exhausted_buffers_count > snapshot.exhausted_buffers_count && "Count of exhausted buffers can only increase when restoring a snapshot");
+  buffer *slot = queue_peek_tail_at(&r->buffers, r->exhausted_buffers_count);
+  r->current_buffer = *slot;
+  for (int64 i = snapshot.exhausted_buffers_count; i < r->exhausted_buffers_count; i++) {
+    buffer *slot = queue_peek_tail_at(&r->buffers, i);
+    r->unconsumed_buffer_bytes_count += slot->length;
+  }
+  r->exhausted_buffers_count = snapshot.exhausted_buffers_count;
 }

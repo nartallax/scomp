@@ -1,5 +1,6 @@
 #pragma once
 #include "../src/context.c"
+#include "../src/data_structures/buffer.c"
 #include <dirent.h>
 #include <limits.h>
 #include <stdint.h>
@@ -194,4 +195,12 @@ TIME_STRUCT get_current_time() {
 double get_time_diff(TIME_STRUCT start, TIME_STRUCT end) {
   double seconds = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
   return seconds;
+}
+
+// trailing zero excluded
+buffer malloc_string_buffer(const char *base) {
+  int64 length = strlen(base);
+  byte *data = malloc(length);
+  memcpy(data, base, length);
+  return buffer_make(data, length, length);
 }
