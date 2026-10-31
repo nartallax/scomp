@@ -36,13 +36,11 @@ constexpr json_token_kind JSON_TOKEN_STRING_DELIMITER = 9; // '"' - string start
 constexpr json_token_kind JSON_TOKEN_KV_SEPARATOR = 10;    // ':' - separator between key and value
 constexpr json_token_kind JSON_TOKEN_BOM = 11;             // byte-order mark that may appear at the start of the JSON
 // character tokens
-constexpr json_token_kind JSON_TOKEN_WHITESPACE = 12; // ' ', '\n', '\r', '\t' between elements and commas
-// TODO: get rid of this token type
+constexpr json_token_kind JSON_TOKEN_WHITESPACE = 12;      // ' ', '\n', '\r', '\t' between elements and commas
 constexpr json_token_kind JSON_TOKEN_ESCAPE_SEQUENCE = 13; // \n, \r, \\ and other single-character escape sequences within a string
 // unicode tokens
 constexpr json_token_kind JSON_TOKEN_UNICODE_CHARACTER =
     14; // normal, non-escaped element of a string. one unicode codepoint; `value` contains sequence of utf-8 bytes merged into one uint64, not decoded codepoint
-        // TODO: get rid of this token type
 constexpr json_token_kind JSON_TOKEN_ESCAPED_UNICODE_CHARCODE = 15; // \u1234
 // number tokens
 constexpr json_token_kind JSON_TOKEN_NUMBER = 16; // 12.345, 1e10. every number that is not 64-bit safe integer

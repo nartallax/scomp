@@ -2,27 +2,18 @@
 #import "../arithmetic_coding/decoder.c"
 #import "../arithmetic_coding/uint_reader.c"
 #import "../context.c"
+#import "../data_structures/writer.c"
 #import "../string_compression/string_decompressor.c"
 #import "json_compression_base.c"
+#import "json_detokenizer.c"
 #import "json_state_machine.c"
-
-typedef byte json_decomp_state;
-
-constexpr json_decomp_state JSON_DECOMP_DEFAULT = 0;
-constexpr json_decomp_state JSON_DECOMP_WHITESPACE = 1;
-constexpr json_decomp_state JSON_DECOMP_NUMBER_START = 2;
-constexpr json_decomp_state JSON_DECOMP_NUMBER_INT = 3;
-constexpr json_decomp_state JSON_DECOMP_NUMBER_FRAC = 4;
-constexpr json_decomp_state JSON_DECOMP_NUMBER_EXPO = 5;
 
 typedef struct {
   string_decompressor *strdecomp;
   acod_decoder *decoder;
+  writer *writer;
   context *context;
   json_compression_base base;
-  json_decomp_state state;
-  bool expecting_string_delimiter;
-  uint_reader_state uint_reader;
   json_state_machine jsm;
 } json_decompressor;
 
@@ -35,18 +26,16 @@ void json_decompressor_deinit(json_decompressor *decomp, context *context) {
 
 void json_decompressor_reset(json_decompressor *decomp) {
   _json_compression_base_reset(&decomp->base);
-  uint_reader_reset(&decomp->uint_reader);
   jsm_reset(&decomp->jsm);
-  decomp->expecting_string_delimiter = false;
-  decomp->state = JSON_DECOMP_DEFAULT;
 }
 
-NODISCARD bool json_decompressor_init(json_decompressor *decomp, context *context, acod_decoder *decoder, string_decompressor *strdecomp) {
+NODISCARD bool json_decompressor_init(json_decompressor *decomp, context *context, acod_decoder *decoder, string_decompressor *strdecomp, writer *writer) {
   *decomp = (json_decompressor){0};
 
   decomp->strdecomp = strdecomp;
   decomp->decoder = decoder;
   decomp->context = context;
+  decomp->writer = writer;
 
   if (!_json_compression_base_init(&decomp->base, context)) {
     json_decompressor_deinit(decomp, context);
@@ -64,32 +53,11 @@ NODISCARD bool json_decompressor_init(json_decompressor *decomp, context *contex
 }
 
 NODISCARD INLINE bool _json_decompressor_update_jsm(json_decompressor *decomp, json_token_kind kind) {
-  if (decomp->expecting_string_delimiter) {
-    if (kind != JSON_TOKEN_STRING_DELIMITER) {
-      context_set_error(decomp->context, "Illegal sequence of JSON tokens discovered when decompressing: expected string delimiter, but got %i instead", kind);
-      return false;
-    }
-    decomp->expecting_string_delimiter = false;
-    return true;
-  }
-
   if (!jsm_process_token(&decomp->jsm, kind)) {
     context_set_error(decomp->context, "Illegal sequence of JSON tokens discovered when decompressing: unexpected %i", kind);
     return false;
   }
   decomp->base.current_state = jsm_get_current_state(&decomp->jsm);
-
-  switch (kind) {
-  case JSON_TOKEN_NUMBER:
-    decomp->state = JSON_DECOMP_NUMBER_START;
-    break;
-  case JSON_TOKEN_WHITESPACE:
-    decomp->state = JSON_DECOMP_WHITESPACE;
-    break;
-  default:
-    break;
-  }
-
   return true;
 }
 
@@ -101,45 +69,78 @@ NODISCARD INLINE bool _json_decompressor_read_string(json_decompressor *decomp) 
       return false;
     }
 
-    // now, we have not truly found string delimiter yet. but it is expected to be the next symbol
-    decomp->expecting_string_delimiter = true;
+    ftable *table = _json_compression_base_get_current_ftable(&decomp->base);
+    symbol s = acod_decoder_read(decomp->decoder, table);
+    ftable_increment(table, s);
+    if (s == ftable_get_eof_symbol(table)) {
+      return false;
+    }
+
+    json_token_kind kind = s;
+    if (kind != JSON_TOKEN_STRING_DELIMITER) {
+      context_set_error(decomp->context, "Illegal sequence of JSON tokens discovered when decompressing: expected string delimiter, but got %i instead", kind);
+      return false;
+    }
   }
 
   return true;
 }
 
 NODISCARD bool _json_decompressor_read_nonstring(json_decompressor *decomp) {
-  switch (decomp->state) {
-  case JSON_DECOMP_DEFAULT: {
-    ftable *table = _json_compression_base_get_current_ftable(&decomp->base);
-    json_token_kind kind = acod_decoder_read(decomp->decoder, table);
-    ftable_increment(table, kind);
-    if (!_json_decompressor_update_jsm(decomp, kind)) {
-      return false;
-    }
-
-  } break;
+  ftable *table = _json_compression_base_get_current_ftable(&decomp->base);
+  symbol s = acod_decoder_read(decomp->decoder, table);
+  ftable_increment(table, s);
+  if (s == ftable_get_eof_symbol(table)) {
+    return false;
   }
 
-  return true;
+  json_token_kind kind = s;
+  if (!_json_decompressor_update_jsm(decomp, kind)) {
+    return false;
+  }
+
+  switch (kind) {
+  case JSON_TOKEN_WHITESPACE: {
+    symbol whitespace = acod_decoder_read(decomp->decoder, &decomp->base.whitespaces);
+    ftable_increment(&decomp->base.whitespaces, whitespace);
+    json_token token = {.kind = kind, .character = {.character = whitespace}};
+    json_detokenizer_write(decomp->writer, &token);
+    return true;
+  }
+  case JSON_TOKEN_NUMBER: {
+    json_number_token number = {0};
+    number.flags = uint_reader_read(&decomp->base.number_flag_tables, decomp->decoder);
+    if (!(number.flags & JSON_NUMBER_INTEGER_PART_IS_ZERO)) {
+      number.integer_part = uint_reader_read(&decomp->base.number_int_tables, decomp->decoder);
+    }
+    if (number.flags & JSON_NUMBER_HAS_FRACTION) {
+      number.fraction_leading_zeroes = uint_reader_read(&decomp->base.number_frac_zero_tables, decomp->decoder);
+      number.fraction_part = uint_reader_read(&decomp->base.number_frac_tables, decomp->decoder);
+    }
+    if (number.flags & JSON_NUMBER_HAS_EXPONENT) {
+      number.exponent_leading_zeroes = uint_reader_read(&decomp->base.number_expo_zero_tables, decomp->decoder);
+      number.exponent_part = uint_reader_read(&decomp->base.number_expo_tables, decomp->decoder);
+    }
+    json_token token = {.kind = kind, .number = number};
+    json_detokenizer_write(decomp->writer, &token);
+    return true;
+  }
+  default: {
+    json_token token = {.kind = kind};
+    json_detokenizer_write(decomp->writer, &token);
+    return true;
+  }
+  }
 }
 
-/** Reads symbols from decoder.
-Returns false when EOF is encountered, or true when decoder has no more symbols. */
+/** Read a sequence of symbols from decoder, containingn one token.
+Returns false on EOF. */
 NODISCARD bool json_decompressor_read(json_decompressor *decomp) {
   if (json_is_string_state(decomp->base.current_state)) {
-    if (!_json_decompressor_read_string(decomp)) {
-      return false;
-    }
+    return _json_decompressor_read_string(decomp);
+  } else {
+    return _json_decompressor_read_nonstring(decomp);
   }
-
-  while (acod_decoder_has_symbol(decomp->decoder)) {
-    if (!_json_decompressor_read_nonstring(decomp)) {
-      return false;
-    }
-  }
-
-  return true;
 }
 
 // TODO: test for what happens if outer stream ends prematurely on decoding.
