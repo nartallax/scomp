@@ -37,51 +37,26 @@ buffer _test_strcomp_compress(const char *source) {
 }
 
 buffer _test_strcomp_decompress(buffer src) {
+  reader r;
+  if (!reader_init(&r, test_context) || !reader_push_buffer(&r, src)) {
+    printf("Failed to init reader\n");
+    return EMPTY_BUFFER;
+  }
   writer w;
   if (!writer_init(&w, test_context, 1024, 4)) {
     printf("Failed to init writer\n");
     return EMPTY_BUFFER;
   }
   acod_decoder decoder;
-  acod_decoder_init(&decoder);
+  acod_decoder_init(&decoder, &r);
   string_decompressor decomp;
   if (!strdecomp_init(&decomp, test_context, &w, &decoder)) {
     printf("Failed to init decomp\n");
     return EMPTY_BUFFER;
   }
 
-  bool has_eof = false;
-  for (int64 i = 0; i < src.length; i++) {
-    byte b = src.data[i];
-    for (int j = 0; j < CHAR_BIT; j++) {
-      acod_decoder_update(&decoder, b & 1);
-      bool is_eof = !strdecomp_read(&decomp);
-      b >>= 1;
-      if (is_eof) {
-        has_eof = true;
-        if (i == src.length - 1) {
-          // unlikely to ever happen
-          break;
-        } else {
-          printf("Unexpected EOF\n");
-          return EMPTY_BUFFER;
-        }
-      }
-    }
-  }
-
-  for (int i = 0; i < 64; i++) {
-    acod_decoder_update(&decoder, 0);
-    bool is_eof = !strdecomp_read(&decomp);
-    if (is_eof) {
-      has_eof = true;
-      break;
-    }
-  }
-
-  if (!has_eof) {
-    printf("No eof after end of source bytes\n");
-    return EMPTY_BUFFER;
+  while (strdecomp_read(&decomp)) {
+    // decomp everything
   }
 
   strdecomp_deinit(&decomp, test_context);
@@ -91,6 +66,7 @@ buffer _test_strcomp_decompress(buffer src) {
     return EMPTY_BUFFER;
   }
   writer_deinit(&w, test_context);
+  reader_deinit(&r, test_context);
   return result.buffer;
 }
 
@@ -115,8 +91,7 @@ bool _test_strcomp_comp_decomp(const char *src) {
     return false;
   }
 
-  free(compressed.data);
-  free(decompressed.data);
+  buffer_free(decompressed, test_context);
 
   return true;
 }
@@ -175,12 +150,14 @@ const char *test_string_compression_allocation_failures() {
 
   int decomp_alloc_count = 15;
   for (int i = 0; i <= decomp_alloc_count; i++) {
+    reader r;
     string_decompressor decomp;
     acod_decoder decoder;
     writer writer;
     setup_test_context_default();
     TEST_ASSERT(writer_init(&writer, test_context, 10, 3));
-    acod_decoder_init(&decoder);
+    TEST_ASSERT(reader_init(&r, test_context));
+    acod_decoder_init(&decoder, &r);
     update_test_context_for_alloc_failure(i);
     bool is_last = i == decomp_alloc_count;
     TEST_ASSERT(is_last == strdecomp_init(&decomp, test_context, &writer, &decoder));
@@ -188,6 +165,7 @@ const char *test_string_compression_allocation_failures() {
       strdecomp_deinit(&decomp, test_context);
     }
     writer_deinit(&writer, test_context);
+    reader_deinit(&r, test_context);
   }
 
   return NULL;

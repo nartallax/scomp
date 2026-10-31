@@ -69,13 +69,12 @@ const char *_test_acod(int64 length, byte *data) {
     ftable_increment(&decoding_frequencies, last_symbol);
     TEST_ASSERT(symbol_index < length); // for case when we were supposed to read EOF but didn't
     TEST_ASSERT(last_symbol == data[symbol_index]);
-    TEST_ASSERT(symbol_index < length);
     symbol_index++;
   }
 
   ftable_deinit(&decoding_frequencies, test_context);
-  free(encoded_bytes.data);
   free(decoder);
+  reader_deinit(&r, test_context);
 
   return NULL;
 }

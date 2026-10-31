@@ -74,6 +74,7 @@ const char *test_string_compression_on_a_file(const char *path) {
         if (b.length == 0) {
           break;
         }
+        total_bytes_compressed += b.length;
         TEST_ASSERT(reader_push_buffer(&decomp_reader, b));
       }
     }
@@ -87,15 +88,17 @@ const char *test_string_compression_on_a_file(const char *path) {
   strcomp_flush(&comp);
   strcomp_deinit(&comp, test_context);
   acod_encoder_deinit(&encoder);
-  buffer_or_error result = writer_consume_all_buffers(&comp_writer);
-  TEST_ASSERT(!result.is_error);
-  TEST_ASSERT(reader_push_buffer(&decomp_reader, result.buffer));
-  while (!strdecomp_read(&decomp)) {
-    // decomp everything until EOF
-  }
+  buffer_or_error final_buffer = writer_consume_all_buffers(&comp_writer);
+  TEST_ASSERT(!final_buffer.is_error);
   writer_deinit(&comp_writer, test_context);
 
+  TEST_ASSERT(reader_push_buffer(&decomp_reader, final_buffer.buffer));
+  total_bytes_compressed += final_buffer.buffer.length;
+  while (strdecomp_read(&decomp)) {
+    // decomp everything until EOF
+  }
   strdecomp_deinit(&decomp, test_context);
+
   buffer_or_error decomp_result = writer_consume_all_buffers(&decomp_writer);
   TEST_ASSERT(!decomp_result.is_error);
   TEST_ASSERT(!strcomp_perf_test_compare_to_file(decomp_result.buffer, path));
@@ -108,6 +111,7 @@ const char *test_string_compression_on_a_file(const char *path) {
   printf("Compressed %s from %zu to %zu (%.02f%%) in %.03f seconds\n", path, total_bytes_read, total_bytes_compressed, compression_ratio * 100.0, timediff_seconds);
 
   TEST_ASSERT(compression_ratio < 0.25);
+  TEST_ASSERT(compression_ratio > 0.05); // no way this algo will ever compress to 5% on anything realistic
 
   return NULL;
 }

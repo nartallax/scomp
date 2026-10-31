@@ -37,18 +37,19 @@ const char *test_writer_bytes() {
   writer_write_byte(w, 8);
   writer_write_byte(w, 9);
   writer_write_byte(w, 10);
-  TEST_ASSERT(writer_get_bytes_stored(w) == 6);
+  writer_write_byte(w, 11);
+  TEST_ASSERT(writer_get_bytes_stored(w) == 7);
   // this is supposed to check if nonempty_consume can also return full buffer, not just the tail one
   b = writer_consume_nonempty_buffer(w).buffer;
-  TEST_ASSERT(writer_get_bytes_stored(w) == 4);
+  TEST_ASSERT(writer_get_bytes_stored(w) == 5);
   TEST_ASSERT(b.length == 2);
   TEST_ASSERT(b.data[0] == 2 && b.data[1] == 6);
   free(b.data);
 
   b = writer_consume_all_buffers(w).buffer;
   TEST_ASSERT(writer_get_bytes_stored(w) == 0);
-  TEST_ASSERT(b.length == 4);
-  TEST_ASSERT(b.data[0] == 7 && b.data[1] == 8 && b.data[2] == 9 && b.data[3] == 10);
+  TEST_ASSERT(b.length == 5);
+  TEST_ASSERT(b.data[0] == 7 && b.data[1] == 8 && b.data[2] == 9 && b.data[3] == 10 && b.data[4] == 11);
   free(b.data);
 
   writer_deinit(w, test_context);
