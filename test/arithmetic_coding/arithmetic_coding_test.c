@@ -196,3 +196,23 @@ NODISCARD bool _acod_test_fill_writer_bits(writer *w, int64 bit_count) {
   }
   return true;
 }
+
+const char *test_acod_decoder_sets_underflow_error() {
+  acod_decoder decoder;
+  reader r;
+  ftable table;
+  TEST_ASSERT(ftable_init(&table, test_context, 256, FTABLE_INIT_ONE | FTABLE_EXCLUDE_EOF));
+  TEST_ASSERT(reader_init(&r, test_context));
+  acod_decoder_init(&decoder, &r);
+
+  TEST_ASSERT(!context_is_errored(test_context));
+  acod_decoder_read(&decoder, &table);
+  TEST_ASSERT(!context_is_errored(test_context));
+  for (int i = 0; i < 128; i++) {
+    acod_decoder_read(&decoder, &table);
+  }
+  TEST_ASSERT(context_is_errored(test_context));
+  ftable_deinit(&table, test_context);
+  reader_deinit(&r, test_context);
+  return NULL;
+}

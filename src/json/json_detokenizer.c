@@ -96,9 +96,7 @@ int64 json_detokenizer_write(writer *w, json_token *token) {
       writer_write_byte(w, '-');
       result++;
     }
-    if (token->number.integer_part != 0 || (token->number.flags & JSON_NUMBER_INTEGER_PART_IS_ZERO)) {
-      result += _jdet_write_uint(w, token->number.integer_part);
-    }
+    result += _jdet_write_uint(w, token->number.integer_part); // there's always integer part
 
     // fraction part
     if (token->number.flags & JSON_NUMBER_HAS_FRACTION) {

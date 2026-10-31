@@ -203,6 +203,15 @@ const char *test_json_tokenizer_string() {
   TEST_ASSERT(test_json_consume(&q) == NULL);
   TEST_ASSERT(test_json_tokenizer_reinit_nonempty(&t));
 
+  // unicode with broken continuation bytes, interrupted mid-codepoint
+  broken_continuation_bytes_unicode_str = malloc(64);
+  TEST_ASSERT(sprintf(broken_continuation_bytes_unicode_str, "\"%.*s", 1, broken_continuation_bytes_unicode_pair) < 64);
+  TEST_ASSERT(!test_json_tokenizer_push_string(&t, &q, broken_continuation_bytes_unicode_str));
+  free(broken_continuation_bytes_unicode_str);
+  TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_STRING_DELIMITER);
+  TEST_ASSERT(test_json_consume(&q) == NULL);
+  TEST_ASSERT(test_json_tokenizer_reinit_nonempty(&t));
+
   // unicode with broken continuation bytes in escape sequence
   broken_continuation_bytes_unicode_str = malloc(64);
   TEST_ASSERT(sprintf(broken_continuation_bytes_unicode_str, "\"\\%.*s\"", 6, broken_continuation_bytes_unicode_pair) < 64);
@@ -338,7 +347,7 @@ const char *test_json_tokenizer_numbers() {
   TEST_ASSERT(test_json_tokenizer_reinit_nonempty(&t));
 
   // invalid number-like values
-  const char *wrong_numbers[] = {"1.", ".1", "-.1", "e1", "-E1", "1.e5", "--", "1.-", "1ee", "01", "-01", "1..1", "1ee1", "-e1", "1e+-1", "1e--1", "1.-1", "1e", "1.", "-", NULL};
+  const char *wrong_numbers[] = {"1.", ".1", "-.1", "e1", "-E1", "1.e5", "--", "1.-", "1ee", "01", "-01", "1..1", "1ee1", "-e1", "1e+-1", "1e--1", "1e+", "1.-1", "1e", "1.", "-", NULL};
   for (int i = 0;; i++) {
     const char *str = wrong_numbers[i];
     if (!str) {

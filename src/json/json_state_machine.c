@@ -6,7 +6,6 @@
 /** This is a finite state machine (with a stack) that describes JSON parsing states */
 typedef struct {
   byte_fixed_stack state_stack;
-  context *context;
 } json_state_machine;
 
 void jsm_deinit(json_state_machine *jsm, context *context) {
@@ -24,8 +23,6 @@ void jsm_reset(json_state_machine *jsm) {
 NODISCARD bool jsm_init(json_state_machine *jsm, context *context) {
   *jsm = (json_state_machine){0};
 
-  jsm->context = context;
-
   if (!bfstack_init(&jsm->state_stack, context, JSON_MAX_STATE_STACK_LENGTH)) {
     jsm_deinit(jsm, context);
     return false;
@@ -38,12 +35,6 @@ NODISCARD bool jsm_init(json_state_machine *jsm, context *context) {
 
 INLINE json_state jsm_get_current_state(json_state_machine *jsm) {
   return bfstack_peek(&jsm->state_stack);
-}
-
-// TODO: do we need this?
-void _jsm_report_invalid_situation(json_state_machine *jsm, bool is_start, json_token_kind token_kind) {
-  json_state state = jsm_get_current_state(jsm);
-  context_set_error(jsm->context, "Impossible to %s token of kind %i at a state %i", is_start ? "start" : "end", token_kind, state);
 }
 
 NODISCARD INLINE bool _jsm_push_state(json_state_machine *jsm, json_state state) {
@@ -78,19 +69,10 @@ INLINE void _jsm_pop_state_after_reading_value(json_state_machine *jsm) {
 NODISCARD bool _jsm_try_start_value(json_state_machine *jsm, json_token_kind token_kind) {
   switch (token_kind) {
   case JSON_TOKEN_STRING_DELIMITER:
-    if (bfstack_peek(&jsm->state_stack) == JSON_STATE_VALUE) {
-      bfstack_pop(&jsm->state_stack);
-    }
     return _jsm_push_value_state(jsm, JSON_STATE_STRING);
   case JSON_TOKEN_OBJECT_OPEN:
-    if (bfstack_peek(&jsm->state_stack) == JSON_STATE_VALUE) {
-      bfstack_pop(&jsm->state_stack);
-    }
     return _jsm_push_value_state(jsm, JSON_STATE_OBJECT_START);
   case JSON_TOKEN_ARRAY_OPEN:
-    if (bfstack_peek(&jsm->state_stack) == JSON_STATE_VALUE) {
-      bfstack_pop(&jsm->state_stack);
-    }
     return _jsm_push_value_state(jsm, JSON_STATE_ARRAY_START);
   case JSON_TOKEN_WHITESPACE:
     return true;
@@ -183,9 +165,7 @@ NODISCARD bool jsm_process_token(json_state_machine *jsm, json_token_kind token_
     } else {
       return token_kind == JSON_TOKEN_WHITESPACE;
     }
-  case JSON_STATE_ROOT:
+  default: // case JSON_STATE_ROOT:
     return token_kind == JSON_TOKEN_WHITESPACE;
-  default: // numbers, true, false, and other stuff that is not supposed to have more tokens in them
-    return false;
   }
 }

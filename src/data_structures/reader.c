@@ -149,13 +149,8 @@ INLINE byte reader_peek_byte(reader *r) {
 }
 
 INLINE byte reader_read_byte(reader *r) {
-  assert((r->bit_pointer & 7) == 0 && "Cannot mix bitwise and byte-wise read modes");
-  if (!_reader_ensure_buffer(r)) {
-    return 0;
-  }
-
   byte result = reader_peek_byte(r);
-  r->bit_pointer += 8;
+  r->bit_pointer += CHAR_BIT;
   return result;
 }
 

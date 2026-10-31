@@ -17,6 +17,7 @@
 #include "string_compression/string_compressor_test.c"
 #include "utf8_test.c"
 #include "json/json_detokenizer_test.c"
+#include "json/json_state_machine_test.c"
 #include "json/json_test_suite.c"
 #include "json/json_tokenizer_test.c"
 
@@ -89,6 +90,7 @@ test normal_tests[] = {
     MAKE_TEST(test_ftable_from_frequencies),
     MAKE_TEST(test_ftable_allocation_failures),
     MAKE_TEST(test_acod_simple),
+    MAKE_TEST(test_acod_decoder_sets_underflow_error),
     MAKE_TEST(test_json_tokenizer_string),
     MAKE_TEST(test_json_tokenizer_numbers),
     MAKE_TEST(test_json_tokenizer_constants),
@@ -104,6 +106,7 @@ test normal_tests[] = {
     MAKE_TEST(test_json_tokenizer_broken_json_recovery),
     MAKE_TEST(test_json_tokenizer_stack_push_fails),
     MAKE_TEST(test_json_tokenizer_allocation_failures),
+    MAKE_TEST(test_jsm_returns_false_on_invalid_string_parts),
     MAKE_TEST(test_jsons_of_test_suite),
     MAKE_TEST(test_json_detokenizer_simple),
     MAKE_TEST(test_bsm_basic),

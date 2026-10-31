@@ -71,6 +71,15 @@ const char *test_fixed_queue_wrapping() {
   TEST_ASSERT(*(int *)fqueue_peek_tail(&q) == 9);
   TEST_ASSERT(*(int *)fqueue_pop(&q) == 9);
 
+  *(int *)fqueue_push(&q) = 5;
+  *(int *)fqueue_push(&q) = 6;
+  *(int *)fqueue_push(&q) = 7;
+  TEST_ASSERT(fqueue_get_count(&q) == 3);
+  TEST_ASSERT(*(int *)fqueue_pop(&q) == 5);
+  TEST_ASSERT(fqueue_get_count(&q) == 2);
+  fqueue_reset(&q);
+  TEST_ASSERT(fqueue_get_count(&q) == 0);
+
   fqueue_deinit(&q, test_context);
   return NULL;
 }

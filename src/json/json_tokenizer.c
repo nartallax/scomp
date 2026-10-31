@@ -338,11 +338,9 @@ Returns token of kind JSON_TOKEN_INVALID if parsing is impossible;
 in this case, no bytes are consumed from the reader. */
 json_token json_tokenizer_parse_next(json_tokenizer *t) {
   assert(reader_get_bytes_available(t->reader) > 0 && "JSON tokenizer expects at least one byte in its reader");
-  switch (json_tokenizer_get_current_state(t)) {
-  case JSON_STATE_STRING:
-  case JSON_STATE_OBJECT_KEY:
+  if (json_is_string_state(json_tokenizer_get_current_state(t))) {
     return _jtok_parse_string_token(t);
-  default: // the rest of the states. logic of "can we produce this token in this state" is in the state machine
+  } else {
     return _jtok_parse_nonstring_token(t);
   }
 }
