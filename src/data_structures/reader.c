@@ -139,13 +139,22 @@ NODISCARD INLINE bool _reader_ensure_buffer(reader *r) {
   return true;
 }
 
+INLINE byte reader_peek_byte(reader *r) {
+  assert((r->bit_pointer & 7) == 0 && "Cannot mix bitwise and byte-wise read modes");
+  if (!_reader_ensure_buffer(r)) {
+    return 0;
+  }
+
+  return r->current_buffer.data[r->bit_pointer >> 3];
+}
+
 INLINE byte reader_read_byte(reader *r) {
   assert((r->bit_pointer & 7) == 0 && "Cannot mix bitwise and byte-wise read modes");
   if (!_reader_ensure_buffer(r)) {
     return 0;
   }
 
-  byte result = r->current_buffer.data[r->bit_pointer >> 3];
+  byte result = reader_peek_byte(r);
   r->bit_pointer += 8;
   return result;
 }

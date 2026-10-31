@@ -20,7 +20,7 @@ typedef struct {
   int64 bytes_stored;
   int64 current_bit_index;
   int64 single_buffer_byte_size;
-  // TODO: do one queue of buffers like reader does instead of two?
+  // TODO: do one queue of buffers like reader does instead of two
   queue free_buffers;
 } writer;
 

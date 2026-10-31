@@ -38,16 +38,25 @@ bool test_parse_json_suite_path(const char *path, json_suite_expected_result *ex
   return true;
 }
 
+buffer test_json_suite_get_read_buffer(reader *r) {
+  if (reader_has_exhausted_buffer(r)) {
+    return reader_recover_exhausted_buffer(r);
+  } else {
+    byte *b = malloc(4096);
+    return buffer_make(b, 0, 4096);
+  }
+}
+
 buffer test_feed_file_into_tokenizer_detokenizer(const char *path, const char *filename) {
   writer *w = malloc(sizeof(writer));
   if (!writer_init(w, test_context, 1024, 4)) {
     return EMPTY_BUFFER;
   }
+  reader r;
   json_tokenizer t;
-  if (!json_tokenizer_init(&t, test_context)) {
+  if (!reader_init(&r, test_context) || !json_tokenizer_init(&t, test_context, &r)) {
     return EMPTY_BUFFER;
   }
-  json_token *token;
 
   FILE *src_file = fopen(path, "r");
   if (src_file == NULL) {
@@ -57,40 +66,33 @@ buffer test_feed_file_into_tokenizer_detokenizer(const char *path, const char *f
   }
 
   bool is_success = true;
-  int64 bytes_read;
-  char read_buffer[4096];
-  while (is_success && (bytes_read = fread(read_buffer, 1, sizeof(read_buffer), src_file)) > 0) {
-    for (int64 i = 0; i < bytes_read; i++) {
-      if (!json_tokenizer_push(&t, read_buffer[i])) {
+
+  while (is_success) {
+    buffer read_buffer = test_json_suite_get_read_buffer(&r);
+    read_buffer.length = fread(read_buffer.data, sizeof(byte), read_buffer.allocated_length, src_file);
+    if (read_buffer.length == 0) {
+      break;
+    }
+    if (!reader_push_buffer(&r, read_buffer)) {
+      return EMPTY_BUFFER;
+    }
+    while (reader_has_safe_amount_of_data(&r)) {
+      json_token token = json_tokenizer_parse_next(&t);
+      if (token.kind == JSON_TOKEN_INVALID) {
         is_success = false;
         break;
       }
-
-      while (true) {
-        token = json_tokenizer_consume(&t);
-        if (!token) {
-          break;
-        }
-        // printf("found: %i; %s\n", token->kind, test_json_print_token(token));
-        json_detokenizer_write(w, token);
-      }
-    }
-
-    if (!is_success) {
-      break;
+      json_detokenizer_write(w, &token);
     }
   }
 
-  if (!json_tokenizer_flush(&t)) {
-    is_success = false;
-  }
-
-  while (true) {
-    token = json_tokenizer_consume(&t);
-    if (!token) {
+  while (reader_get_bytes_available(&r) > 0) {
+    json_token token = json_tokenizer_parse_next(&t);
+    if (token.kind == JSON_TOKEN_INVALID) {
+      is_success = false;
       break;
     }
-    json_detokenizer_write(w, token);
+    json_detokenizer_write(w, &token);
   }
 
   if (ferror(src_file)) {
@@ -115,6 +117,7 @@ buffer test_feed_file_into_tokenizer_detokenizer(const char *path, const char *f
   writer_deinit(w, test_context);
   free(w);
   json_tokenizer_deinit(&t, test_context);
+  reader_deinit(&r, test_context);
 
   return result_buffer;
 }

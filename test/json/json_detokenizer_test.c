@@ -7,20 +7,17 @@
 
 json_token test_string_to_single_json_token(const char *str) {
   json_tokenizer t;
-  if (!json_tokenizer_init(&t, test_context)) {
-    return (json_token){0};
+  reader r;
+  if (!reader_init(&r, test_context) || !json_tokenizer_init(&t, test_context, &r)) {
+    return INVALID_JSON_TOKEN;
   }
-  for (int i = 0; str[i] != 0; i++) {
-    if (!json_tokenizer_push(&t, str[i])) {
-      return (json_token){0};
-    }
+  if (!reader_push_buffer(&r, malloc_string_buffer(str))) {
+    return INVALID_JSON_TOKEN;
   }
-  if (!json_tokenizer_push(&t, ' ')) {
-    return (json_token){0};
-  }
-  json_token token = *json_tokenizer_consume(&t);
+  json_token result = json_tokenizer_parse_next(&t);
   json_tokenizer_deinit(&t, test_context);
-  return token;
+  reader_deinit(&r, test_context);
+  return result;
 }
 
 bool test_json_detokenizer_with_token(json_token token, const char *expected_result) {

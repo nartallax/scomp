@@ -14,7 +14,9 @@ int64 _jdet_write_uint(writer *w, uint64 value) {
   return result;
 }
 
+// TODO: accept by value here? for consistency
 int64 json_detokenizer_write(writer *w, json_token *token) {
+  assert(token->kind != JSON_TOKEN_INVALID && "JSON detokenizer cannot serialize invalid tokens");
   switch (token->kind) {
   case JSON_TOKEN_OBJECT_OPEN:
     writer_write_byte(w, '{');

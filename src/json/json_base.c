@@ -11,9 +11,8 @@ It's that many mostly for various numbers;
 non-number tokens will be 6 bytes at most (\u1234 being the second longest) */
 constexpr int64 JSON_MAX_SINGLE_TOKEN_LENGTH = 128;
 
-/** Max amount of leading zeroes a JSON number can have in its fractional part, or in its exponent.
-It's possible to have in theory many more leading zeroes, especially in fractions, but it's just about never happens in real life. */
-constexpr int64 JSON_MAX_LEADING_ZEROES = 32;
+/** Structure `\uff00` has 4 hexadecimals */
+constexpr int64 JSON_HEX_CHARACTERS_IN_ESCAPED_UNICODE_CODEPOINT = 4;
 
 // TODO: is it faster to hardcode it everywhere?
 constexpr byte _JTOK_TRUE_BYTES[] = {'t', 'r', 'u', 'e'};
@@ -23,6 +22,7 @@ constexpr byte _JTOK_ESCAPE_SEQ_CHARS[] = {'\\', '"', '/', 'b', 'f', 'n', 'r', '
 constexpr byte _JTOK_WHITESPACE_CHARS[] = {' ', '\n', '\r', '\t'};
 
 typedef byte json_token_kind;
+constexpr json_token_kind JSON_TOKEN_INVALID = 0; // not-a-token. exists to signal that parsing cannot be performed
 // simple tokens
 constexpr json_token_kind JSON_TOKEN_OBJECT_OPEN = 1;      // {
 constexpr json_token_kind JSON_TOKEN_OBJECT_CLOSE = 2;     // }
@@ -59,16 +59,8 @@ constexpr json_state JSON_STATE_OBJECT_KEY_START = 6;    // expecting key
 constexpr json_state JSON_STATE_ARRAY_START = 7;         // expecting value or closing token
 constexpr json_state JSON_STATE_ARRAY_CONTINUE = 8;      // expecting comma or closing token
 constexpr json_state JSON_STATE_STRING = 9;              // expecting characters
-constexpr json_state JSON_STATE_OBJECT_KEY = 10;         // exactly like string = 0; but hints about further state changes
-constexpr json_state JSON_STATE_ESCAPED_CHARACTER = 11;  // expecting n = 0; r = 0; or other escapeable character
-constexpr json_state JSON_STATE_ESCAPED_CHARCODE = 12;   // expecting four hexadecimals
-constexpr json_state JSON_STATE_UNICODE_CHARACTER = 13;  // expecting unicode continuation
-constexpr json_state JSON_STATE_NUMBER = 14;             // expecting numeric components
-constexpr json_state JSON_STATE_TRUE = 15;               // expecting letters of `true`
-constexpr json_state JSON_STATE_FALSE = 16;              // expecting letters of `false`
-constexpr json_state JSON_STATE_NULL = 17;               // expecting letters of `null`
-constexpr json_state JSON_STATE_BOM = 18;                // expecting bytes of utf-8 byte order mark
-constexpr json_state JSON_STATE_MAX = JSON_STATE_BOM;
+constexpr json_state JSON_STATE_OBJECT_KEY = 10;         // exactly like string, but hints about further state changes
+constexpr json_state JSON_STATE_MAX = JSON_STATE_OBJECT_KEY;
 
 /** Tokens that store exactly 1 character of information with them */
 typedef struct {
@@ -121,3 +113,5 @@ typedef struct {
 INLINE bool json_is_string_state(json_state state) {
   return state == JSON_STATE_STRING || state == JSON_STATE_OBJECT_KEY;
 }
+
+constexpr json_token INVALID_JSON_TOKEN = {.kind = JSON_TOKEN_INVALID};

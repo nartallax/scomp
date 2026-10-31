@@ -1,25 +1,19 @@
 #pragma once
 #include "../context.c"
-#include "../data_structures/fixed_queue.c"
-#include "../data_structures/writer.c"
+#include "../data_structures/reader.c"
 #include "../utf8.c"
 #include "json_base.c"
-#include "json_detokenizer.c"
 #include "json_state_machine.c"
 #include <inttypes.h>
+#include <stdint.h>
 
 typedef struct {
   json_state_machine jsm;
-  fixed_queue token_queue;
-  json_number_token partial_number_token;
-  json_unicode_token partial_unicode_token;
-  // contains amount of bytes consumed by the token of fixed length
-  byte value_progress;
+  reader *reader;
 } json_tokenizer;
 
 void json_tokenizer_deinit(json_tokenizer *t, context *context) {
   jsm_deinit(&t->jsm, context);
-  fqueue_deinit(&t->token_queue, context);
 
   *t = (json_tokenizer){0};
 }
@@ -28,22 +22,14 @@ void json_tokenizer_deinit(json_tokenizer *t, context *context) {
 Exists to avoid freeing and reallocating memory for a tokenizer you want to reuse */
 void json_tokenizer_reset(json_tokenizer *t) {
   jsm_reset(&t->jsm);
-  fqueue_reset(&t->token_queue);
-
-  t->partial_number_token = (json_number_token){0};
-  t->partial_unicode_token = (json_unicode_token){0};
-  t->value_progress = 0;
 }
 
-NODISCARD bool json_tokenizer_init(json_tokenizer *t, context *context) {
+NODISCARD bool json_tokenizer_init(json_tokenizer *t, context *context, reader *reader) {
   *t = (json_tokenizer){0};
 
-  if (!jsm_init(&t->jsm, context)) {
-    json_tokenizer_deinit(t, context);
-    return false;
-  }
+  t->reader = reader;
 
-  if (!fqueue_init(&t->token_queue, context, sizeof(json_token), 2)) {
+  if (!jsm_init(&t->jsm, context)) {
     json_tokenizer_deinit(t, context);
     return false;
   }
@@ -58,150 +44,228 @@ INLINE bool _jtok_uint64_will_overflow(uint64 value, byte addition) {
   return value >= TENTH_OF_MAX_UINT64 - addition;
 }
 
-constexpr uint16 TENTH_OFF_MAX_UINT16 = UINT16_MAX / 10;
-INLINE bool _jtok_uint16_will_overflow(uint16 value, byte addition) {
-  return value >= TENTH_OFF_MAX_UINT16 - addition;
+INLINE bool _jtok_is_hex(byte hex_char) {
+  return (hex_char >= '0' && hex_char <= '9') || (hex_char >= 'a' && hex_char <= 'f') || (hex_char >= 'A' && hex_char <= 'F');
 }
 
-INLINE void _jtok_push_simple_token(json_tokenizer *t, json_token_kind kind) {
-  json_token *slot = fqueue_push(&t->token_queue);
-  slot->kind = kind;
-  t->value_progress = 0;
-}
-
-INLINE void _jtok_push_character_token(json_tokenizer *t, json_token_kind kind, byte character) {
-  json_token *slot = fqueue_push(&t->token_queue);
-  slot->kind = kind;
-  slot->character.character = character;
-  t->value_progress = 0;
-}
-
-INLINE void _jtok_push_unicode_token(json_tokenizer *t, json_token_kind kind) {
-  json_token *slot = fqueue_push(&t->token_queue);
-  slot->kind = kind;
-  slot->unicode_character = t->partial_unicode_token;
-  t->partial_unicode_token = (json_unicode_token){0};
-  t->value_progress = 0;
-}
-
-INLINE void _jtok_push_number_token(json_tokenizer *t) {
-  json_token *slot = fqueue_push(&t->token_queue);
-  slot->kind = JSON_TOKEN_NUMBER;
-  slot->number = t->partial_number_token;
-  t->partial_number_token = (json_number_token){0};
-  t->value_progress = 0;
-}
-
-NODISCARD INLINE bool _jtok_push_simple_token_with_state(json_tokenizer *t, json_token_kind kind) {
-  if (!jsm_start_token(&t->jsm, kind)) {
-    return false;
+json_token _jtok_yield_singlebyte_token(json_tokenizer *t, json_token token) {
+  if (!jsm_process_token(&t->jsm, token.kind)) {
+    return INVALID_JSON_TOKEN;
   }
-  _jtok_push_simple_token(t, kind);
-  return true;
+  reader_read_byte(t->reader); // it's a single byte token, which means the byte wasn't consumed yet, and only peeked at
+  return token;
 }
 
-NODISCARD bool json_tokenizer_push(json_tokenizer *t, byte b);
+json_token _jtok_yield_multibyte_token(json_tokenizer *t, json_token token, reader_snapshot snapshot) {
+  if (!jsm_process_token(&t->jsm, token.kind)) {
+    reader_restore_snapshot(t->reader, snapshot);
+    return INVALID_JSON_TOKEN;
+  }
+  return token;
+}
 
-NODISCARD bool _jtok_update_number(json_tokenizer *t, byte b) {
-  if (b >= '0' && b <= '9') {
-    byte digit = b - '0';
-    if (t->partial_number_token.flags & JSON_NUMBER_HAS_EXPONENT) {
-      if (t->value_progress == 0 && digit == 0) {
-        t->partial_number_token.exponent_leading_zeroes++;
-        if (t->partial_number_token.exponent_leading_zeroes == JSON_MAX_NUMBER_LEADING_ZEROES) {
-          return false;
+json_token _jtok_parse_string_token(json_tokenizer *t) {
+  // TODO: give up on peeking and create snapshot every time instead? for performance (and it would be better for consistency)
+  byte first_byte = reader_peek_byte(t->reader);
+  // TODO: switch here? for performance
+  if (first_byte == '"') {
+    return _jtok_yield_singlebyte_token(t, (json_token){.kind = JSON_TOKEN_STRING_DELIMITER});
+  }
+
+  if (first_byte == '\\') {
+    if (reader_get_bytes_available(t->reader) < 2) {
+      return INVALID_JSON_TOKEN;
+    }
+
+    reader_snapshot snapshot = reader_take_snapshot(t->reader);
+    reader_read_byte(t->reader);
+    byte next_char = reader_read_byte(t->reader);
+    for (size_t i = 0; i < sizeof(_JTOK_ESCAPE_SEQ_CHARS); i++) {
+      if (next_char == _JTOK_ESCAPE_SEQ_CHARS[i]) {
+        return _jtok_yield_multibyte_token(t, (json_token){.kind = JSON_TOKEN_ESCAPE_SEQUENCE, .character = {.character = next_char}}, snapshot);
+      }
+    }
+
+    if (next_char == 'u') {
+      if (reader_get_bytes_available(t->reader) < JSON_HEX_CHARACTERS_IN_ESCAPED_UNICODE_CODEPOINT) {
+        reader_restore_snapshot(t->reader, snapshot);
+        return INVALID_JSON_TOKEN;
+      }
+      uint64 value = 0;
+      for (int64 i = 0; i < JSON_HEX_CHARACTERS_IN_ESCAPED_UNICODE_CODEPOINT; i++) {
+        next_char = reader_read_byte(t->reader);
+        if (!_jtok_is_hex(next_char)) {
+          reader_restore_snapshot(t->reader, snapshot);
+          return INVALID_JSON_TOKEN;
         }
-        return true;
+        value |= ((uint64)next_char) << (i << 3);
       }
-      if (_jtok_uint16_will_overflow(t->partial_number_token.exponent_part, digit)) {
-        return false;
-      }
-      t->partial_number_token.exponent_part = (t->partial_number_token.exponent_part * 10) + digit;
-      t->value_progress++;
-      return true;
-    } else if (t->partial_number_token.flags & JSON_NUMBER_HAS_FRACTION) {
-      if (t->value_progress == 0 && digit == 0) {
-        t->partial_number_token.fraction_leading_zeroes++;
-        if (t->partial_number_token.fraction_leading_zeroes == JSON_MAX_NUMBER_LEADING_ZEROES) {
-          return false;
-        }
-        return true;
-      }
-      if (_jtok_uint64_will_overflow(t->partial_number_token.fraction_part, digit)) {
-        return false;
-      }
-      t->partial_number_token.fraction_part = (t->partial_number_token.fraction_part * 10) + digit;
-      t->value_progress++;
-      return true;
-    } else {
-      if (t->partial_number_token.flags & JSON_NUMBER_INTEGER_PART_IS_ZERO) {
-        // `01` is invalid, `-01` is invalid
-        return false;
-      }
-      if (_jtok_uint64_will_overflow(t->partial_number_token.integer_part, digit)) {
-        return false;
-      }
-      if (digit == 0 && t->value_progress == 0) {
-        t->partial_number_token.flags |= JSON_NUMBER_INTEGER_PART_IS_ZERO;
-      } else {
-        t->partial_number_token.integer_part = (t->partial_number_token.integer_part * 10) + digit;
-      }
-      t->value_progress++;
-      return true;
+      return _jtok_yield_multibyte_token(
+          t, (json_token){.kind = JSON_TOKEN_ESCAPED_UNICODE_CHARCODE, .unicode_character = {.value = value, .length = JSON_HEX_CHARACTERS_IN_ESCAPED_UNICODE_CODEPOINT}}, snapshot);
     }
-  } else if (b == '-' && !(t->partial_number_token.flags & (JSON_NUMBER_HAS_EXPONENT | JSON_NUMBER_HAS_FRACTION | JSON_NUMBER_IS_NEGATIVE)) && t->value_progress == 0) {
-    t->partial_number_token.flags |= JSON_NUMBER_IS_NEGATIVE;
-    return true;
-  } else if (b == '.' && !(t->partial_number_token.flags & (JSON_NUMBER_HAS_EXPONENT | JSON_NUMBER_HAS_FRACTION))) {
-    // `1.1.1` is invalid; `1..1` is invalid; `1e1.1` is invalid
-    if (t->value_progress == 0) {
-      // `-.1` is invalid
-      return false;
+
+    reader_restore_snapshot(t->reader, snapshot);
+    return INVALID_JSON_TOKEN;
+  }
+
+  // not a string terminator or escape character
+  int64 utf8_length = utf8_get_sequence_length_by_first_byte(first_byte);
+  if (utf8_length == 0 || reader_get_bytes_available(t->reader) < utf8_length) {
+    return INVALID_JSON_TOKEN;
+  }
+  if (utf8_length == 1 && first_byte <= 0x1f) {
+    // unescaped control characters are not valid in JSON
+    return INVALID_JSON_TOKEN;
+  }
+  reader_snapshot snapshot = reader_take_snapshot(t->reader);
+  uint64 value = first_byte;
+  reader_read_byte(t->reader);
+  for (int64 i = 1; i < utf8_length; i++) {
+    byte next_byte = reader_read_byte(t->reader);
+    if (!utf8_is_valid_continuation_byte(next_byte)) {
+      reader_restore_snapshot(t->reader, snapshot);
+      return INVALID_JSON_TOKEN;
     }
-    t->partial_number_token.flags |= JSON_NUMBER_HAS_FRACTION;
-    t->value_progress = 0;
-    return true;
-  } else if ((b == 'e' || b == 'E') && !(t->partial_number_token.flags & JSON_NUMBER_HAS_EXPONENT)) {
-    // `1e1e1` is invalid, `1ee1` is invalid
-    if (t->value_progress == 0) {
-      if (t->partial_number_token.flags & JSON_NUMBER_HAS_FRACTION) {
-        if (t->partial_number_token.fraction_leading_zeroes == 0) {
-          return false; // `1.e1` is invalid
-        }
-      } else {
-        return false; // `-e1` is invalid
+    value |= ((uint64)next_byte) << (i << 3);
+  }
+  // TODO: consider not showing all those characters (and escaped tokens) to JSM? we know they are allowed. (for performance)
+  return _jtok_yield_multibyte_token(t, (json_token){.kind = JSON_TOKEN_UNICODE_CHARACTER, .unicode_character = {.value = value, .length = utf8_length}}, snapshot);
+}
+
+json_token _jtok_parse_fixed_token(json_tokenizer *t, json_token_kind kind, const byte *expected_bytes, int64 expected_byte_length) {
+  if (reader_get_bytes_available(t->reader) < expected_byte_length) {
+    return INVALID_JSON_TOKEN;
+  }
+  reader_snapshot snapshot = reader_take_snapshot(t->reader);
+  reader_read_byte(t->reader); // expecting first byte to already be checked, otherwise we won't have the kind
+  for (int i = 1; i < expected_byte_length; i++) {
+    byte b = reader_read_byte(t->reader);
+    if (b != expected_bytes[i]) {
+      reader_restore_snapshot(t->reader, snapshot);
+      return INVALID_JSON_TOKEN;
+    }
+  }
+
+  return _jtok_yield_multibyte_token(t, (json_token){.kind = kind}, snapshot);
+}
+
+typedef struct {
+  uint64 value;
+  byte leading_zeroes;
+} _jtok_uint_reading_result;
+
+INLINE bool _jtok_uint_is_invalid(_jtok_uint_reading_result res) {
+  return res.value == 0 && res.leading_zeroes == 0;
+}
+
+_jtok_uint_reading_result _jtok_read_uint(json_tokenizer *t) {
+  byte leading_zeroes = 0;
+  uint64 value = 0;
+  while (reader_get_bytes_available(t->reader) > 0) {
+    byte next_byte = reader_peek_byte(t->reader);
+    if (next_byte < '0' || next_byte > '9') {
+      break;
+    }
+
+    if (next_byte == '0' && value == 0) {
+      leading_zeroes++;
+      if (leading_zeroes >= JSON_MAX_NUMBER_LEADING_ZEROES) {
+        return (_jtok_uint_reading_result){0};
       }
+      reader_read_byte(t->reader); // skip '0'
+      continue;
     }
-    t->partial_number_token.flags |= JSON_NUMBER_HAS_EXPONENT;
-    if (b == 'E') {
-      t->partial_number_token.flags |= JSON_NUMBER_EXPONENT_UPPERCASE;
+
+    byte digit = next_byte - '0';
+    if (_jtok_uint64_will_overflow(value, digit)) {
+      return (_jtok_uint_reading_result){0};
     }
-    t->value_progress = 0;
-    return true;
-  } else if ((b == '-' || b == '+') && t->partial_number_token.flags & JSON_NUMBER_HAS_EXPONENT &&
-             !(t->partial_number_token.flags & (JSON_NUMBER_EXPONENT_IS_NEGATIVE | JSON_NUMBER_EXPONENT_HAS_PLUS)) && t->value_progress == 0) {
-    // `1e-+1` is invalid; `1e--1` is invalid; `1-1` is invalid; `1.-1` is invalid; `1e1-1` is invalid
-    t->partial_number_token.flags |= b == '-' ? JSON_NUMBER_EXPONENT_IS_NEGATIVE : JSON_NUMBER_EXPONENT_HAS_PLUS;
-    return true;
+    value = (value * 10) + digit;
+    reader_read_byte(t->reader); // skip the digit we just processed
+  }
+
+  return (_jtok_uint_reading_result){.leading_zeroes = leading_zeroes, .value = value};
+}
+
+json_token _jtok_parse_number(json_tokenizer *t) {
+  reader_snapshot snapshot = reader_take_snapshot(t->reader);
+  json_number_token number = {0};
+
+  if (reader_peek_byte(t->reader) == '-') {
+    // TODO: test all the invalid examples here; test for context not being errored after read
+    if (reader_get_bytes_available(t->reader) < 2) { // lonely `-` is invalid
+      reader_restore_snapshot(t->reader, snapshot);
+      return INVALID_JSON_TOKEN;
+    }
+    number.flags |= JSON_NUMBER_IS_NEGATIVE;
+    reader_read_byte(t->reader); // skip '-'
+  }
+
+  _jtok_uint_reading_result int_part = _jtok_read_uint(t);
+  if (_jtok_uint_is_invalid(int_part) || int_part.leading_zeroes > 1 || (int_part.leading_zeroes > 0 && int_part.value > 0)) {
+    reader_restore_snapshot(t->reader, snapshot);
+    return INVALID_JSON_TOKEN;
+  }
+  if (int_part.leading_zeroes > 0) {
+    number.flags |= JSON_NUMBER_INTEGER_PART_IS_ZERO;
   } else {
-    // it's not a part of a number. time to terminate the token
-    if (t->value_progress == 0) {
-      if (t->partial_number_token.flags & JSON_NUMBER_HAS_EXPONENT) {
-        if (t->partial_number_token.exponent_leading_zeroes == 0) {
-          return false; // `1e ` is invalid
-        }
-      } else if (t->partial_number_token.flags & JSON_NUMBER_HAS_FRACTION) {
-        if (t->partial_number_token.fraction_leading_zeroes == 0) {
-          return false; // `1. ` is invalid
-        }
-      } else {
-        return false; // `- ` is invalid
-      }
-    }
-    _jtok_push_number_token(t);
-    jsm_end_token(&t->jsm, JSON_TOKEN_NUMBER);
-    return json_tokenizer_push(t, b);
+    number.integer_part = int_part.value;
   }
+
+  // float part
+  if (reader_get_bytes_available(t->reader) >= 1 && reader_peek_byte(t->reader) == '.') {
+    if (reader_get_bytes_available(t->reader) < 2) { // `123.` is invalid
+      reader_restore_snapshot(t->reader, snapshot);
+      return INVALID_JSON_TOKEN;
+    }
+    number.flags |= JSON_NUMBER_HAS_FRACTION;
+    reader_read_byte(t->reader); // skip '.'
+
+    _jtok_uint_reading_result frac_part = _jtok_read_uint(t);
+    if (_jtok_uint_is_invalid(frac_part)) { // `1.e` is invalid
+      reader_restore_snapshot(t->reader, snapshot);
+      return INVALID_JSON_TOKEN;
+    }
+    number.fraction_part = frac_part.value;
+    number.fraction_leading_zeroes = frac_part.leading_zeroes;
+  }
+
+  if (reader_get_bytes_available(t->reader) >= 1) {
+    byte next_byte = reader_peek_byte(t->reader);
+    if (next_byte == 'e' || next_byte == 'E') {
+      if (reader_get_bytes_available(t->reader) < 2) { // `1e` is invalid
+        reader_restore_snapshot(t->reader, snapshot);
+        return INVALID_JSON_TOKEN;
+      }
+
+      number.flags |= JSON_NUMBER_HAS_EXPONENT;
+      if (next_byte == 'E') {
+        number.flags |= JSON_NUMBER_EXPONENT_UPPERCASE;
+      }
+      reader_read_byte(t->reader); // skip 'e'
+
+      next_byte = reader_peek_byte(t->reader);
+      if (next_byte == '-' || next_byte == '+') {
+        if (reader_get_bytes_available(t->reader) < 2) { // `1e-` is invalid
+          reader_restore_snapshot(t->reader, snapshot);
+          return INVALID_JSON_TOKEN;
+        }
+        number.flags |= next_byte == '-' ? JSON_NUMBER_EXPONENT_IS_NEGATIVE : JSON_NUMBER_EXPONENT_HAS_PLUS;
+        reader_read_byte(t->reader); // skip '-'
+      }
+
+      _jtok_uint_reading_result expo_part = _jtok_read_uint(t);
+      if (_jtok_uint_is_invalid(expo_part) || expo_part.value > UINT16_MAX) {
+        reader_restore_snapshot(t->reader, snapshot);
+        return INVALID_JSON_TOKEN;
+      }
+
+      number.exponent_part = expo_part.value;
+      number.exponent_leading_zeroes = expo_part.leading_zeroes;
+    }
+  }
+
+  return _jtok_yield_multibyte_token(t, (json_token){.kind = JSON_TOKEN_NUMBER, .number = number}, snapshot);
 }
 
 json_token_kind _jtok_detect_nonstring_token_start(byte b) {
@@ -242,232 +306,46 @@ json_token_kind _jtok_detect_nonstring_token_start(byte b) {
   }
 }
 
-NODISCARD bool _jtok_try_nonstring_token(json_tokenizer *t, byte b) {
+// parse any token that is not a part of string
+json_token _jtok_parse_nonstring_token(json_tokenizer *t) {
+  byte b = reader_peek_byte(t->reader);
   json_token_kind kind = _jtok_detect_nonstring_token_start(b);
-  if (kind == 0) {
-    return false;
-  }
   switch (kind) {
+  case JSON_TOKEN_INVALID:
+    return INVALID_JSON_TOKEN;
   case JSON_TOKEN_TRUE:
+    return _jtok_parse_fixed_token(t, kind, _JTOK_TRUE_BYTES, sizeof(_JTOK_TRUE_BYTES));
   case JSON_TOKEN_FALSE:
+    return _jtok_parse_fixed_token(t, kind, _JTOK_FALSE_BYTES, sizeof(_JTOK_FALSE_BYTES));
   case JSON_TOKEN_NULL:
+    return _jtok_parse_fixed_token(t, kind, _JTOK_NULL_BYTES, sizeof(_JTOK_NULL_BYTES));
   case JSON_TOKEN_BOM:
-    if (!jsm_start_token(&t->jsm, kind)) {
-      return false;
-    }
-    t->value_progress = 1;
-    return true;
+    return _jtok_parse_fixed_token(t, kind, UTF8_BOM, sizeof(UTF8_BOM));
   case JSON_TOKEN_NUMBER:
-    if (!jsm_start_token(&t->jsm, JSON_TOKEN_NUMBER)) {
-      return false;
-    }
-    t->value_progress = 0;
-    return _jtok_update_number(t, b);
+    return _jtok_parse_number(t);
   case JSON_TOKEN_WHITESPACE:
-    _jtok_push_character_token(t, JSON_TOKEN_WHITESPACE, b);
-    return true;
+    return _jtok_yield_singlebyte_token(t, (json_token){.kind = JSON_TOKEN_WHITESPACE, .character = {.character = b}});
   default:
-    return _jtok_push_simple_token_with_state(t, kind);
+    return _jtok_yield_singlebyte_token(t, (json_token){.kind = kind, .character = {.character = b}});
   }
-}
-
-NODISCARD INLINE bool _jtok_advance_parsing_of_fixed_token(json_tokenizer *t, byte b, const byte *expected_bytes, memsize expected_bytes_length, json_token_kind kind) {
-  if (b != expected_bytes[t->value_progress]) {
-    return false;
-  }
-  t->value_progress++;
-  if (t->value_progress >= expected_bytes_length) {
-    _jtok_push_simple_token(t, kind);
-    jsm_end_token(&t->jsm, kind);
-  }
-  return true;
-}
-
-INLINE bool _jtok_is_hex(byte hex_char) {
-  return (hex_char >= '0' && hex_char <= '9') || (hex_char >= 'a' && hex_char <= 'f') || (hex_char >= 'A' && hex_char <= 'F');
-}
-
-/** Returns a token from token queue, or null if the queue is empty. */
-INLINE json_token *json_tokenizer_consume(json_tokenizer *t) {
-  if (fqueue_get_count(&t->token_queue) == 0) {
-    return NULL;
-  }
-  return fqueue_pop(&t->token_queue);
-}
-
-/** Render a token that is being built by the tokenizer into the buffer, with the same bytes the token was built with.
-State of the tokenizer is not changed by this.
-
-Returns amount of meaningful bytes written.
-It's possible that more bytes were written, but caller should only use meaningful bytes. */
-NODISCARD int64 json_tokenizer_render_partial_token(json_tokenizer *t, writer *w) {
-  json_state state = jsm_get_current_state(&t->jsm);
-  switch (state) {
-  case JSON_STATE_BOM:
-    json_detokenizer_write(w, &(json_token){.kind = JSON_TOKEN_BOM});
-    return t->value_progress;
-  case JSON_STATE_TRUE:
-    json_detokenizer_write(w, &(json_token){.kind = JSON_TOKEN_TRUE});
-    return t->value_progress;
-  case JSON_STATE_FALSE:
-    json_detokenizer_write(w, &(json_token){.kind = JSON_TOKEN_FALSE});
-    return t->value_progress;
-  case JSON_STATE_NULL:
-    json_detokenizer_write(w, &(json_token){.kind = JSON_TOKEN_NULL});
-    return t->value_progress;
-  case JSON_STATE_ESCAPED_CHARACTER: {
-    json_token token;
-    token.kind = JSON_TOKEN_ESCAPE_SEQUENCE;
-    token.character.character = 'n';
-    json_detokenizer_write(w, &token);
-  }
-    return 1;
-  case JSON_STATE_ESCAPED_CHARCODE: {
-    json_token token;
-    token.kind = JSON_TOKEN_ESCAPED_UNICODE_CHARCODE;
-    token.unicode_character = t->partial_unicode_token;
-    json_detokenizer_write(w, &token);
-  }
-    return t->value_progress + 2;
-  case JSON_STATE_UNICODE_CHARACTER: {
-    json_token token;
-    token.kind = JSON_TOKEN_UNICODE_CHARACTER;
-    token.unicode_character = t->partial_unicode_token;
-    json_detokenizer_write(w, &token);
-  }
-    return t->value_progress;
-  case JSON_STATE_NUMBER:
-    json_token token;
-    token.kind = JSON_TOKEN_NUMBER;
-    token.number = t->partial_number_token;
-    return json_detokenizer_write(w, &token);
-  default:
-    // nothing to write, no pending token
-    return 0;
-  }
-}
-
-/** Add a byte to the tokenizer.
-Returns true if the byte was successfully used to build a token.
-Each successfully used byte may produce from 0 to 2 tokens.
-You should consume all of them before pushing more bytes.
-
-Returns false if the byte yielded invalid state (as in, it was detected that input is not a valid JSON).
-You should still consume existing tokens, if any;
-then you should consume token-being-built using json_tokenizer_consume();
-then you should still use that byte you passed to this function, as it was not used for anything.
-After that you should deinit/reset the tokenizer. */
-NODISCARD bool json_tokenizer_push(json_tokenizer *t, byte b) {
-  json_state state = jsm_get_current_state(&t->jsm);
-  switch (state) {
-  case JSON_STATE_STRING:
-  case JSON_STATE_OBJECT_KEY:
-    if (b == '"') {
-      return _jtok_push_simple_token_with_state(t, JSON_TOKEN_STRING_DELIMITER);
-    } else if (b == '\\') {
-      return jsm_start_token(&t->jsm, JSON_TOKEN_ESCAPE_SEQUENCE);
-    } else {
-      int64 utf8_length = utf8_get_sequence_length_by_first_byte(b);
-      if (utf8_length == 0) {
-        return false;
-      }
-      t->partial_unicode_token.length = utf8_length;
-      t->partial_unicode_token.value = b;
-      if (utf8_length == 1) {
-        if (b <= 0x1f) {
-          // unescaped control characters are not valid in JSON
-          return false;
-        }
-        _jtok_push_unicode_token(t, JSON_TOKEN_UNICODE_CHARACTER);
-        return true;
-      }
-      if (!jsm_start_token(&t->jsm, JSON_TOKEN_UNICODE_CHARACTER)) {
-        t->partial_unicode_token = (json_unicode_token){0};
-        return false;
-      }
-      t->value_progress = 1;
-      return true;
-    }
-  case JSON_STATE_UNICODE_CHARACTER:
-    if (!utf8_is_valid_continuation_byte(b)) {
-      return false;
-    }
-    t->partial_unicode_token.value |= ((uint64)b) << (8 * t->value_progress);
-    t->value_progress++;
-    if (t->value_progress == t->partial_unicode_token.length) {
-      _jtok_push_unicode_token(t, JSON_TOKEN_UNICODE_CHARACTER);
-      jsm_end_token(&t->jsm, JSON_TOKEN_UNICODE_CHARACTER);
-    }
-    return true;
-  case JSON_STATE_ESCAPED_CHARACTER:
-    for (size_t i = 0; i < sizeof(_JTOK_ESCAPE_SEQ_CHARS); i++) {
-      if (b == _JTOK_ESCAPE_SEQ_CHARS[i]) {
-        _jtok_push_character_token(t, JSON_TOKEN_ESCAPE_SEQUENCE, b);
-        jsm_end_token(&t->jsm, JSON_TOKEN_ESCAPE_SEQUENCE);
-        return true;
-      }
-    }
-    if (b == 'u') {
-      if (!jsm_start_token(&t->jsm, JSON_TOKEN_ESCAPED_UNICODE_CHARCODE)) {
-        return false;
-      }
-      t->partial_unicode_token.length = 4;
-      return true;
-    } else {
-      return false;
-    }
-  case JSON_STATE_ESCAPED_CHARCODE:
-    if (!_jtok_is_hex(b)) {
-      return false;
-    }
-    // 4 hex bytes are stored like that to preserve case
-    // as we must not lose any data at all during tokenization
-    t->partial_unicode_token.value |= ((uint64)b) << (8 * t->value_progress);
-    t->value_progress++;
-    if (t->value_progress == 4) {
-      jsm_end_token(&t->jsm, JSON_TOKEN_ESCAPED_UNICODE_CHARCODE);
-      _jtok_push_unicode_token(t, JSON_TOKEN_ESCAPED_UNICODE_CHARCODE);
-    }
-    return true;
-  case JSON_STATE_BOM:
-    return _jtok_advance_parsing_of_fixed_token(t, b, UTF8_BOM, sizeof(UTF8_BOM), JSON_TOKEN_BOM);
-  case JSON_STATE_TRUE:
-    return _jtok_advance_parsing_of_fixed_token(t, b, _JTOK_TRUE_BYTES, sizeof(_JTOK_TRUE_BYTES), JSON_TOKEN_TRUE);
-  case JSON_STATE_FALSE:
-    return _jtok_advance_parsing_of_fixed_token(t, b, _JTOK_FALSE_BYTES, sizeof(_JTOK_FALSE_BYTES), JSON_TOKEN_FALSE);
-  case JSON_STATE_NULL:
-    return _jtok_advance_parsing_of_fixed_token(t, b, _JTOK_NULL_BYTES, sizeof(_JTOK_NULL_BYTES), JSON_TOKEN_NULL);
-  case JSON_STATE_NUMBER:
-    return _jtok_update_number(t, b);
-  default: // the rest of the states. logic of "can we produce this token in this state" is in the state machine
-    return _jtok_try_nonstring_token(t, b);
-  }
-}
-
-/** If there is some token in building and calling code reached the end of the stream -
-this function can be called to flush the token.
-returns false if token is in invalid state. */
-NODISCARD bool json_tokenizer_flush(json_tokenizer *t) {
-  // this is a hack, but it's better than replicating logic about properly closing every single token
-  if (!json_tokenizer_push(t, ' ')) {
-    return false;
-  }
-  int64 tokens_in_queue = fqueue_get_count(&t->token_queue);
-  if (tokens_in_queue == 1) {
-    fqueue_pop(&t->token_queue); // whitespace
-  } else {
-    assert(tokens_in_queue == 2 && "Json tokenizer queue was not properly consumed before flushing");
-    json_token first_token = *(json_token *)fqueue_pop(&t->token_queue);
-    fqueue_pop(&t->token_queue); // whitespace
-    json_token *slot = fqueue_push(&t->token_queue);
-    *slot = first_token;
-  }
-
-  return true;
 }
 
 INLINE json_state json_tokenizer_get_current_state(json_tokenizer *t) {
   return jsm_get_current_state(&t->jsm);
+}
+
+/** Parse next token from the reader.
+Returns token of kind JSON_TOKEN_INVALID if parsing is impossible;
+in this case, no bytes are consumed from the reader. */
+json_token json_tokenizer_parse_next(json_tokenizer *t) {
+  assert(reader_get_bytes_available(t->reader) > 0 && "JSON tokenizer expects at least one byte in its reader");
+  switch (json_tokenizer_get_current_state(t)) {
+  case JSON_STATE_STRING:
+  case JSON_STATE_OBJECT_KEY:
+    return _jtok_parse_string_token(t);
+  default: // the rest of the states. logic of "can we produce this token in this state" is in the state machine
+    return _jtok_parse_nonstring_token(t);
+  }
 }
 
 /** Returns true if the tokenizer have read one whole JSON completely.
