@@ -192,7 +192,6 @@ json_token _jtok_parse_number(json_tokenizer *t) {
   json_number_token number = {0};
 
   if (reader_peek_byte(t->reader) == '-') {
-    // TODO: test all the invalid examples here; test for context not being errored after read
     if (reader_get_bytes_available(t->reader) < 2) { // lonely `-` is invalid
       reader_restore_snapshot(t->reader, snapshot);
       return INVALID_JSON_TOKEN;

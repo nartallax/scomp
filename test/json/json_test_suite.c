@@ -71,6 +71,7 @@ buffer test_feed_file_into_tokenizer_detokenizer(const char *path, const char *f
     buffer read_buffer = test_json_suite_get_read_buffer(&r);
     read_buffer.length = fread(read_buffer.data, sizeof(byte), read_buffer.allocated_length, src_file);
     if (read_buffer.length == 0) {
+      buffer_free(read_buffer, test_context);
       break;
     }
     if (!reader_push_buffer(&r, read_buffer)) {
@@ -102,7 +103,7 @@ buffer test_feed_file_into_tokenizer_detokenizer(const char *path, const char *f
 
   fclose(src_file);
 
-  is_success = is_success && json_tokenizer_is_done(&t);
+  is_success = is_success && json_tokenizer_is_done(&t) && !context_is_errored(test_context);
 
   buffer_or_error result_buffer_or_error = writer_consume_all_buffers(w);
   if (result_buffer_or_error.is_error) {
