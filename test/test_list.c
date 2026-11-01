@@ -3,6 +3,7 @@
 #include "arithmetic_coding/arithmetic_coding_test.c"
 #include "arithmetic_coding/frequency_table_test.c"
 #include "arithmetic_coding/uint_writer_test.c"
+#include "asymmetrical_numeric_systems/ans_test.c"
 #include "context_test.c"
 #include "data_structures/arena_test.c"
 #include "data_structures/byte_fixed_stack_test.c"
@@ -122,7 +123,8 @@ test normal_tests[] = {
     MAKE_TEST(test_json_compression_simple),
     MAKE_TEST(test_json_compression_allocation_failures),
     MAKE_TEST(test_json_compression_broken_compressed_data),
-    MAKE_TEST(test_uint_writer_simple)
+    MAKE_TEST(test_uint_writer_simple),
+    MAKE_TEST(test_ans_simple),
     // tests go here
 };
 

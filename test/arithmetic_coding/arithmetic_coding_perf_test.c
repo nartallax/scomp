@@ -3,6 +3,7 @@
 #include "../test_utils.c"
 #include "arithmetic_coding_test.c"
 
+// TODO: let's avoid repeating this code almost exactly in every perf test and have a helper function instead
 const char *test_acod_on_a_file(const char *src_path) {
   buffer file = test_read_file_to_buffer(src_path);
 

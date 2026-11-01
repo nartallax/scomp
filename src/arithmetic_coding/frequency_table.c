@@ -176,3 +176,7 @@ INLINE symbol_frequency ftable_get_low(ftable *table, symbol symbol) {
 INLINE symbol_frequency ftable_get_high(ftable *table, symbol symbol) {
   return ftree_sum(&table->frequencies, symbol);
 }
+
+INLINE symbol_frequency ftable_get_total(ftable *table) {
+  return table->total;
+}
