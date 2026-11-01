@@ -16,7 +16,7 @@ byte *get_random_bytes(int64 length) {
   return result;
 }
 
-buffer encode_bytes(int64 length, byte *data) {
+buffer test_acod_encode_bytes(int64 length, byte *data) {
   writer *w = malloc(sizeof(writer));
   if (!writer_init(w, test_context, ACOD_TEST_WRITER_BUFFER_SIZE, 4)) {
     return EMPTY_BUFFER;
@@ -46,18 +46,20 @@ buffer encode_bytes(int64 length, byte *data) {
   return result.buffer;
 }
 
-const char *_test_acod(int64 length, byte *data) {
-  buffer encoded_bytes = encode_bytes(length, data);
+buffer test_acod_decode_bytes(buffer encoded_bytes) {
   reader r;
-  TEST_ASSERT(reader_init(&r, test_context));
-  TEST_ASSERT(reader_push_buffer(&r, encoded_bytes));
+  writer w;
+  if (!reader_init(&r, test_context) || !reader_push_buffer(&r, encoded_bytes) || !writer_init(&w, test_context, 1024, 4)) {
+    return EMPTY_BUFFER;
+  }
 
   ftable decoding_frequencies;
-  TEST_ASSERT(ftable_init(&decoding_frequencies, test_context, 256, FTABLE_INCLUDE_EOF | FTABLE_INIT_ONE));
+  if (!ftable_init(&decoding_frequencies, test_context, 256, FTABLE_INCLUDE_EOF | FTABLE_INIT_ONE)) {
+    return EMPTY_BUFFER;
+  }
   acod_decoder *decoder = malloc(sizeof(acod_decoder));
   acod_decoder_init(decoder, &r);
 
-  int64 symbol_index = 0;
   symbol last_symbol = 0;
   symbol eof = ftable_get_eof_symbol(&decoding_frequencies);
   while (last_symbol != eof) {
@@ -65,16 +67,27 @@ const char *_test_acod(int64 length, byte *data) {
     if (last_symbol == eof) {
       break;
     }
-
+    writer_write_byte(&w, last_symbol);
     ftable_increment(&decoding_frequencies, last_symbol);
-    TEST_ASSERT(symbol_index < length); // for case when we were supposed to read EOF but didn't
-    TEST_ASSERT(last_symbol == data[symbol_index]);
-    symbol_index++;
   }
+
+  buffer result = writer_consume_all_buffers(&w).buffer;
 
   ftable_deinit(&decoding_frequencies, test_context);
   free(decoder);
   reader_deinit(&r, test_context);
+  writer_deinit(&w, test_context);
+  return result;
+}
+
+const char *_test_acod(int64 length, byte *data) {
+  buffer encoded_bytes = test_acod_encode_bytes(length, data);
+  buffer decoded_bytes = test_acod_decode_bytes(encoded_bytes);
+
+  TEST_ASSERT(decoded_bytes.length == length);
+  for (int64 i = 0; i < length; i++) {
+    TEST_ASSERT(decoded_bytes.data[i] == data[i]);
+  }
 
   return NULL;
 }

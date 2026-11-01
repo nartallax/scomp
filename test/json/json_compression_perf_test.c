@@ -27,6 +27,11 @@ const char *test_jcomp_on_a_file(const char *src_path) {
 }
 
 const char *test_json_compression_perf() {
+  // TODO: raw jcomp, without any object/array shape fixes, is worse than raw strcomp
+  // (probably because we aren't able to include json's control symbols in strcomp, and are constantly interrupting strcomp)
+  // so what we might want to do - continue compressing incoming json with strcomp, until we have a structure we can substitute
+  // (this would require maintaining JSON state in the background, without it affecting anything in the output)
+  // not well though-out idea, but feels like it maaay just work
   for (memsize i = 0; i < sizeof(perf_test_files) / sizeof(perf_test_files[0]); i++) {
     const char *src_file = perf_test_files[i];
     const char *result = test_jcomp_on_a_file(src_file);

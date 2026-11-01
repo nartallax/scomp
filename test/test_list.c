@@ -1,4 +1,5 @@
 #pragma once
+#include "arithmetic_coding/arithmetic_coding_perf_test.c"
 #include "arithmetic_coding/arithmetic_coding_test.c"
 #include "arithmetic_coding/frequency_table_test.c"
 #include "arithmetic_coding/uint_writer_test.c"
@@ -128,4 +129,5 @@ test normal_tests[] = {
 test perf_tests[] = {
     MAKE_TEST(test_string_compressor_perf),
     MAKE_TEST(test_json_compression_perf),
+    MAKE_TEST(test_acod_perf),
 };
