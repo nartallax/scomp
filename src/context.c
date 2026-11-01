@@ -39,6 +39,7 @@ void context_init(context *c, malloc_fn custom_malloc, calloc_fn custom_calloc, 
   c->free = custom_free;
   c->error.is_present = false;
   c->error.message_length = 0;
+  c->error.message[0] = '\0';
 }
 
 INLINE void context_free(context *context, void *pointer) {
@@ -56,6 +57,7 @@ INLINE error *context_get_error(context *context) {
 void context_clear_error(context *context) {
   context->error.is_present = false;
   context->error.message_length = 0;
+  context->error.message[0] = '\0';
 }
 
 void context_set_error(context *context, const char *format, ...) {

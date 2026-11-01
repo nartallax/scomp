@@ -54,7 +54,7 @@ NODISCARD bool _json_compression_base_init(json_compression_base *base, context 
 
   _json_compression_base_reset(base);
 
-  for (int32 i = 0; i < JSON_STATE_MAX + 1; i++) {
+  for (int32 i = 0; i <= JSON_STATE_MAX; i++) {
     // in theory we could make tables smaller than that
     // as in, there's no way that value starts with comma token for example, so we don't need to include comma for value table
     // but this would require additional step of mapping token ids to symbols in the table, which complicates things
@@ -113,30 +113,17 @@ INLINE ftable *_json_compression_base_get_current_ftable(json_compression_base *
   return &base->tables[base->current_state];
 }
 
-INLINE byte _json_compression_get_escape_seq_char_by_symbol(symbol s) {
-  return _JTOK_ESCAPE_SEQ_CHARS[s];
-}
-
-INLINE symbol _json_compression_get_symbol_by_escape_seq_char(byte b) {
-  for (symbol i = 0; i < sizeof(_JTOK_ESCAPE_SEQ_CHARS); i++) {
-    if (b == _JTOK_ESCAPE_SEQ_CHARS[i]) {
-      return i;
-    }
-  }
-  assert(false && "Unreachable");
-}
-
 INLINE byte _json_compression_get_whitespace_char_by_symbol(symbol s) {
   return _JTOK_WHITESPACE_CHARS[s];
 }
 
 INLINE symbol _json_compression_get_symbol_by_whitespace_char(byte b) {
-  for (symbol i = 0; i < sizeof(_JTOK_WHITESPACE_CHARS); i++) {
+  for (symbol i = 0; i < (symbol)sizeof(_JTOK_WHITESPACE_CHARS) - 1; i++) {
     if (b == _JTOK_WHITESPACE_CHARS[i]) {
       return i;
     }
   }
-  assert(false && "Unreachable");
+  return sizeof(_JTOK_WHITESPACE_CHARS) - 1;
 }
 
 // TODO: handle uint-in-a-string? if it fits in a uint64

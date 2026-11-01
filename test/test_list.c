@@ -16,6 +16,7 @@
 #include "string_compression/string_compressor_perf_test.c"
 #include "string_compression/string_compressor_test.c"
 #include "utf8_test.c"
+#include "json/json_compression_test.c"
 #include "json/json_detokenizer_test.c"
 #include "json/json_state_machine_test.c"
 #include "json/json_test_suite.c"
@@ -114,7 +115,9 @@ test normal_tests[] = {
     MAKE_TEST(test_bsm_wraps),
     MAKE_TEST(test_string_compression_simple),
     MAKE_TEST(test_string_compression_wrapping),
-    MAKE_TEST(test_string_compression_allocation_failures)
+    MAKE_TEST(test_string_compression_allocation_failures),
+    MAKE_TEST(test_json_compression_simple),
+    MAKE_TEST(test_json_compression_allocation_failures),
     // tests go here
 };
 

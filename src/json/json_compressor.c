@@ -53,14 +53,12 @@ void _json_compressor_write_string_token(json_compressor *comp, json_token *toke
       strcomp_write(comp->strcomp, value & 0xff);
       value = value >> CHAR_BIT;
     }
-    break;
-  }
+  } break;
 
   case JSON_TOKEN_ESCAPE_SEQUENCE: {
     strcomp_write(comp->strcomp, '\\');
     strcomp_write(comp->strcomp, token->character.character);
-    break;
-  }
+  } break;
 
   case JSON_TOKEN_ESCAPED_UNICODE_CHARCODE: {
     strcomp_write(comp->strcomp, '\\');
@@ -70,19 +68,18 @@ void _json_compressor_write_string_token(json_compressor *comp, json_token *toke
       strcomp_write(comp->strcomp, value & 0xff);
       value = value >> CHAR_BIT;
     }
-    break;
-  }
+  } break;
 
-  case JSON_TOKEN_STRING_DELIMITER: {
+  default: { // case JSON_TOKEN_STRING_DELIMITER:
     strcomp_flush(comp->strcomp);
-    break;
-  }
+  } break;
   }
 }
 
 void _json_compressor_write_nonstring_token(json_compressor *comp, json_token *token) {
   ftable *table = _json_compression_base_get_current_ftable(&comp->base);
   acod_encoder_write(comp->encoder, table, token->kind);
+  // printf("Writing token: %i (state: %i)\n", token->kind, comp->base.current_state);
   ftable_increment(table, token->kind);
   comp->base.current_state = json_tokenizer_get_current_state(&comp->tokenizer);
 
@@ -90,6 +87,7 @@ void _json_compressor_write_nonstring_token(json_compressor *comp, json_token *t
   case JSON_TOKEN_WHITESPACE: {
     ftable *table = &comp->base.whitespaces;
     symbol s = _json_compression_get_symbol_by_whitespace_char(token->character.character);
+    // printf("Writing whitespace symbol: %i\n", s);
     acod_encoder_write(comp->encoder, table, s);
     ftable_increment(table, s);
   } break;
@@ -111,17 +109,24 @@ void _json_compressor_write_nonstring_token(json_compressor *comp, json_token *t
   }
 }
 
-/** This method should be called when it's time to terminate the JSON */
+/** This method should be called when it's time to terminate the JSON. */
 void json_compressor_finalize(json_compressor *comp) {
+  if (json_is_string_state(comp->base.current_state)) {
+    strcomp_flush(comp->strcomp);
+  }
+
   ftable *table = _json_compression_base_get_current_ftable(&comp->base);
   symbol eof = ftable_get_eof_symbol(table);
+  // printf("Writing eof: %i (state: %i)\n", eof, comp->base.current_state);
   acod_encoder_write(comp->encoder, table, eof);
   // we shouldn't increment here. JSON breaks like that should be rare, and should not be related to a value type
+
+  _json_compressor_reset(comp);
 }
 
 /** Process next JSON token.
 Returns false if invalid JSON sequence is encountered. */
-NODISCARD bool json_compressor_write_next_token(json_compressor *comp) {
+NODISCARD bool json_compressor_process_next_token(json_compressor *comp) {
   json_token token = json_tokenizer_parse_next(&comp->tokenizer);
   if (token.kind == JSON_TOKEN_INVALID) {
     return false;

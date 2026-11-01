@@ -1,12 +1,12 @@
 #pragma once
-#import "../arithmetic_coding/decoder.c"
-#import "../arithmetic_coding/uint_reader.c"
-#import "../context.c"
-#import "../data_structures/writer.c"
-#import "../string_compression/string_decompressor.c"
-#import "json_compression_base.c"
-#import "json_detokenizer.c"
-#import "json_state_machine.c"
+#include "../arithmetic_coding/decoder.c"
+#include "../arithmetic_coding/uint_reader.c"
+#include "../context.c"
+#include "../data_structures/writer.c"
+#include "../string_compression/string_decompressor.c"
+#include "json_compression_base.c"
+#include "json_detokenizer.c"
+#include "json_state_machine.c"
 
 typedef struct {
   string_decompressor *strdecomp;
@@ -63,14 +63,9 @@ NODISCARD INLINE bool _json_decompressor_update_jsm(json_decompressor *decomp, j
 
 NODISCARD INLINE bool _json_decompressor_read_string(json_decompressor *decomp) {
   if (!strdecomp_read(decomp->strdecomp)) {
-    // we don't update JSM on each individual string character, nothing it can do anyway
-    // but if strdecomp discovered EOF - this means we have found string delimiter
-    if (!_json_decompressor_update_jsm(decomp, JSON_TOKEN_STRING_DELIMITER)) {
-      return false;
-    }
-
     ftable *table = _json_compression_base_get_current_ftable(&decomp->base);
     symbol s = acod_decoder_read(decomp->decoder, table);
+    // printf("Reading token: %i (state: %i)\n", s, decomp->base.current_state);
     ftable_increment(table, s);
     if (s == ftable_get_eof_symbol(table)) {
       return false;
@@ -81,6 +76,13 @@ NODISCARD INLINE bool _json_decompressor_read_string(json_decompressor *decomp) 
       context_set_error(decomp->context, "Illegal sequence of JSON tokens discovered when decompressing: expected string delimiter, but got %i instead", kind);
       return false;
     }
+
+    if (!_json_decompressor_update_jsm(decomp, JSON_TOKEN_STRING_DELIMITER)) {
+      return false;
+    }
+
+    json_token token = {.kind = kind};
+    json_detokenizer_write(decomp->writer, &token);
   }
 
   return true;
@@ -89,10 +91,11 @@ NODISCARD INLINE bool _json_decompressor_read_string(json_decompressor *decomp) 
 NODISCARD bool _json_decompressor_read_nonstring(json_decompressor *decomp) {
   ftable *table = _json_compression_base_get_current_ftable(&decomp->base);
   symbol s = acod_decoder_read(decomp->decoder, table);
-  ftable_increment(table, s);
+  // printf("Reading token: %i (state: %i)\n", s, decomp->base.current_state);
   if (s == ftable_get_eof_symbol(table)) {
     return false;
   }
+  ftable_increment(table, s);
 
   json_token_kind kind = s;
   if (!_json_decompressor_update_jsm(decomp, kind)) {
@@ -103,7 +106,8 @@ NODISCARD bool _json_decompressor_read_nonstring(json_decompressor *decomp) {
   case JSON_TOKEN_WHITESPACE: {
     symbol whitespace = acod_decoder_read(decomp->decoder, &decomp->base.whitespaces);
     ftable_increment(&decomp->base.whitespaces, whitespace);
-    json_token token = {.kind = kind, .character = {.character = whitespace}};
+    json_token token = {.kind = kind, .character = {.character = _json_compression_get_whitespace_char_by_symbol(whitespace)}};
+    // printf("Reading whitespace symbol: %i\n", whitespace);
     json_detokenizer_write(decomp->writer, &token);
     return true;
   }
@@ -135,7 +139,7 @@ NODISCARD bool _json_decompressor_read_nonstring(json_decompressor *decomp) {
 
 /** Read a sequence of symbols from decoder, containingn one token.
 Returns false on EOF. */
-NODISCARD bool json_decompressor_read(json_decompressor *decomp) {
+NODISCARD bool json_decompressor_process_next_token(json_decompressor *decomp) {
   if (json_is_string_state(decomp->base.current_state)) {
     return _json_decompressor_read_string(decomp);
   } else {
