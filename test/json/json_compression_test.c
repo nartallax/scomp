@@ -6,86 +6,138 @@
 #include "../test_utils.c"
 #include <string.h>
 
+typedef struct {
+  reader reader;
+  writer writer;
+  acod_encoder encoder;
+  string_compressor strcomp;
+  json_compressor comp;
+} test_jcomp;
+
+void test_jcomp_free(test_jcomp *jcomp) {
+  if (jcomp == NULL) {
+    return;
+  }
+  json_compressor_deinit(&jcomp->comp, test_context);
+  strcomp_deinit(&jcomp->strcomp, test_context);
+  writer_deinit(&jcomp->writer, test_context);
+  reader_deinit(&jcomp->reader, test_context);
+  free(jcomp);
+}
+
+test_jcomp *test_jcomp_alloc() {
+  test_jcomp *jcomp = calloc(1, sizeof(test_jcomp));
+  if (!reader_init(&jcomp->reader, test_context) || !writer_init(&jcomp->writer, test_context, 1024, 4)) {
+    test_jcomp_free(jcomp);
+    return NULL;
+  }
+  acod_encoder_init(&jcomp->encoder, &jcomp->writer);
+  if (!strcomp_init(&jcomp->strcomp, test_context, &jcomp->encoder)) {
+    test_jcomp_free(jcomp);
+    return NULL;
+  }
+
+  if (!json_compressor_init(&jcomp->comp, test_context, &jcomp->reader, &jcomp->encoder, &jcomp->strcomp)) {
+    test_jcomp_free(jcomp);
+    return NULL;
+  }
+
+  return jcomp;
+}
+
 buffer test_jcomp_apply_compression(const char *src) {
-  reader reader = {0};
-  writer writer = {0};
-  acod_encoder encoder = {0};
-  string_compressor strcomp = {0};
-  json_compressor comp = {0};
   buffer result = EMPTY_BUFFER;
-  if (!reader_init(&reader, test_context) || !writer_init(&writer, test_context, 1024, 4)) {
+  test_jcomp *jcomp = test_jcomp_alloc();
+  if (!jcomp) {
     goto deinits;
   }
-  acod_encoder_init(&encoder, &writer);
-  if (!strcomp_init(&strcomp, test_context, &encoder)) {
-    goto deinits;
-  }
-
-  if (!json_compressor_init(&comp, test_context, &reader, &encoder, &strcomp)) {
+  if (!reader_push_buffer(&jcomp->reader, malloc_string_buffer(src))) {
     goto deinits;
   }
 
-  if (!reader_push_buffer(&reader, malloc_string_buffer(src))) {
-    goto deinits;
-  }
-
-  while (reader_get_bytes_available(&reader) > 0) {
-    if (!json_compressor_process_next_token(&comp)) {
+  while (reader_get_bytes_available(&jcomp->reader) > 0) {
+    if (!json_compressor_process_next_token(&jcomp->comp)) {
       break;
     }
   }
-  json_compressor_finalize(&comp);
-  acod_encoder_deinit(&encoder);
+  json_compressor_finalize(&jcomp->comp);
+  acod_encoder_deinit(&jcomp->encoder);
 
-  buffer_or_error result_or_error = writer_consume_all_buffers(&writer);
+  buffer_or_error result_or_error = writer_consume_all_buffers(&jcomp->writer);
   if (result_or_error.is_error) {
     goto deinits;
   }
   result = result_or_error.buffer;
 
 deinits:
-  json_compressor_deinit(&comp, test_context);
-  strcomp_deinit(&strcomp, test_context);
-  writer_deinit(&writer, test_context);
-  reader_deinit(&reader, test_context);
+  test_jcomp_free(jcomp);
 
   return result;
 }
 
+typedef struct {
+  acod_decoder decoder;
+  reader reader;
+  writer writer;
+  json_decompressor decomp;
+  string_decompressor strdecomp;
+} test_jdecomp;
+
+void test_jdecomp_free(test_jdecomp *jdecomp) {
+  if (jdecomp == NULL) {
+    return;
+  }
+  json_decompressor_deinit(&jdecomp->decomp, test_context);
+  strdecomp_deinit(&jdecomp->strdecomp, test_context);
+  writer_deinit(&jdecomp->writer, test_context);
+  reader_deinit(&jdecomp->reader, test_context);
+  free(jdecomp);
+}
+
+test_jdecomp *test_jdecomp_alloc() {
+  test_jdecomp *jdecomp = calloc(1, sizeof(test_jdecomp));
+  if (!reader_init(&jdecomp->reader, test_context)) {
+    test_jdecomp_free(jdecomp);
+    return NULL;
+  }
+  if (!writer_init(&jdecomp->writer, test_context, 1024, 4)) {
+    test_jdecomp_free(jdecomp);
+    return NULL;
+  }
+  acod_decoder_init(&jdecomp->decoder, &jdecomp->reader);
+  if (!strdecomp_init(&jdecomp->strdecomp, test_context, &jdecomp->writer, &jdecomp->decoder) ||
+      !json_decompressor_init(&jdecomp->decomp, test_context, &jdecomp->decoder, &jdecomp->strdecomp, &jdecomp->writer)) {
+    test_jdecomp_free(jdecomp);
+    return NULL;
+  }
+
+  return jdecomp;
+}
+
 buffer test_jcomp_apply_decompression(buffer src) {
-  acod_decoder decoder = {0};
-  reader r = {0};
-  writer w = {0};
-  json_decompressor decomp = {0};
-  string_decompressor strdecomp = {0};
   buffer result = EMPTY_BUFFER;
-  if (!reader_init(&r, test_context) || !reader_push_buffer(&r, src)) {
+  test_jdecomp *jdecomp = test_jdecomp_alloc();
+  if (!jdecomp) {
     buffer_free(src, test_context);
     goto deinit;
   }
-  if (!writer_init(&w, test_context, 1024, 4)) {
-    goto deinit;
-  }
-  acod_decoder_init(&decoder, &r);
-  if (!strdecomp_init(&strdecomp, test_context, &w, &decoder) || !json_decompressor_init(&decomp, test_context, &decoder, &strdecomp, &w)) {
+  if (!reader_push_buffer(&jdecomp->reader, src)) {
+    buffer_free(src, test_context);
     goto deinit;
   }
 
-  while (json_decompressor_process_next_token(&decomp)) {
+  while (json_decompressor_process_next_token(&jdecomp->decomp)) {
     // process tokens
   }
 
-  buffer_or_error result_or_error = writer_consume_all_buffers(&w);
+  buffer_or_error result_or_error = writer_consume_all_buffers(&jdecomp->writer);
   if (result_or_error.is_error) {
     goto deinit;
   }
   result = result_or_error.buffer;
 
 deinit:
-  json_decompressor_deinit(&decomp, test_context);
-  strdecomp_deinit(&strdecomp, test_context);
-  writer_deinit(&w, test_context);
-  reader_deinit(&r, test_context);
+  test_jdecomp_free(jdecomp);
 
   return result;
 }
