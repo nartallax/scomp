@@ -156,16 +156,17 @@ NODISCARD bool test_jcomp_compression(const char *src) {
   }
 
   int64 src_len = strlen(src);
-  if (decompressed.length != src_len) {
-    printf("Decompressed length mismatch: expected %zi, got %zi\n", src_len, decompressed.length);
-    return false;
-  }
-
-  for (int64 i = 0; i < src_len; i++) {
+  int64 min_len = decompressed.length < src_len ? decompressed.length : src_len;
+  for (int64 i = 0; i < min_len; i++) {
     if (decompressed.data[i] != (byte)src[i]) {
       printf("Decompressed mismatches source: at %zi, expected to have '%c' (%i), but got '%c' (%i)\n", i, src[i], (byte)src[i], decompressed.data[i], decompressed.data[i]);
       return false;
     }
+  }
+
+  if (decompressed.length != src_len) {
+    printf("Decompressed length mismatch: expected %zi, got %zi\n", src_len, decompressed.length);
+    return false;
   }
 
   buffer_free(decompressed, test_context);
@@ -184,6 +185,7 @@ const char *test_json_compression_simple() {
   TEST_ASSERT(test_jcomp_compression("{\"key\": [\"value\", -12.34e-56, {\"key2\":\"value2\"}]}"));
   TEST_ASSERT(test_jcomp_compression("{\"key\": [\"value\", ")); // early stop
   TEST_ASSERT(test_jcomp_compression("{\"key\": [\"val"));       // early stop mid string
+  TEST_ASSERT(test_jcomp_compression("5067680002"));
 
   // broken tokens
   buffer compressed;

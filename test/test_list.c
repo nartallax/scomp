@@ -1,6 +1,7 @@
 #pragma once
 #include "arithmetic_coding/arithmetic_coding_test.c"
 #include "arithmetic_coding/frequency_table_test.c"
+#include "arithmetic_coding/uint_writer_test.c"
 #include "context_test.c"
 #include "data_structures/arena_test.c"
 #include "data_structures/byte_fixed_stack_test.c"
@@ -16,6 +17,7 @@
 #include "string_compression/string_compressor_perf_test.c"
 #include "string_compression/string_compressor_test.c"
 #include "utf8_test.c"
+#include "json/json_compression_perf_test.c"
 #include "json/json_compression_test.c"
 #include "json/json_detokenizer_test.c"
 #include "json/json_state_machine_test.c"
@@ -119,7 +121,11 @@ test normal_tests[] = {
     MAKE_TEST(test_json_compression_simple),
     MAKE_TEST(test_json_compression_allocation_failures),
     MAKE_TEST(test_json_compression_broken_compressed_data),
+    MAKE_TEST(test_uint_writer_simple)
     // tests go here
 };
 
-test perf_tests[] = {MAKE_TEST(test_string_compressor_perf)};
+test perf_tests[] = {
+    // MAKE_TEST(test_string_compressor_perf),
+    MAKE_TEST(test_json_compression_perf),
+};

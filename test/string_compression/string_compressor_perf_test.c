@@ -2,41 +2,11 @@
 #include "../../src/data_structures/writer.c"
 #include "../../src/string_compression/string_compressor.c"
 #include "../../src/string_compression/string_decompressor.c"
+#include "../test_constants.c"
 #include "../test_utils.c"
 #include <limits.h>
 
-const char *strcomp_perf_test_compare_to_file(buffer b, const char *path) {
-  // FILE *out_file = fopen("/tmp/out.json", "w");
-  // TEST_ASSERT(fwrite(b.data, 1, b.length, out_file) == b.length);
-  // fclose(out_file);
-
-  FILE *src_file = fopen(path, "r");
-  TEST_ASSERT(src_file);
-
-  bool is_success = true;
-  int64 bytes_read;
-  char read_buffer[4096];
-  int64 buffer_pos = 0;
-  while (is_success && (bytes_read = fread(read_buffer, 1, sizeof(read_buffer), src_file)) > 0) {
-    if (b.length < buffer_pos + bytes_read) {
-      is_success = false;
-      break;
-    }
-    for (int64 i = 0; i < bytes_read; i++) {
-      if (b.data[buffer_pos + i] != (byte)read_buffer[i]) {
-        printf("At %zu, expected %c (%i), but got %c (%i)\n", buffer_pos + i, read_buffer[i], read_buffer[i], b.data[buffer_pos + i], b.data[buffer_pos + i]);
-        is_success = false;
-        break;
-      }
-    }
-    buffer_pos += bytes_read;
-  }
-  fclose(src_file);
-
-  TEST_ASSERT(is_success);
-  return NULL;
-}
-
+// TODO: rewrite with the tooling from jcomp perf test?
 const char *test_string_compression_on_a_file(const char *path) {
   reader decomp_reader;
   TEST_ASSERT(reader_init(&decomp_reader, test_context));
@@ -96,7 +66,7 @@ const char *test_string_compression_on_a_file(const char *path) {
 
   double compression_ratio = ((double)total_bytes_compressed / (double)total_bytes_read);
   double comp_seconds = get_time_diff(comp_start_time, comp_end_time);
-  printf("Compressed %s from %zu to %zu (%.02f%%) in %.03f seconds\n", path, total_bytes_read, total_bytes_compressed, compression_ratio * 100.0, comp_seconds);
+  printf("Strcomp: compressed %s from %zu to %zu (%.02f%%) in %.03f seconds\n", path, total_bytes_read, total_bytes_compressed, compression_ratio * 100.0, comp_seconds);
 
   TEST_ASSERT(reader_push_buffer(&decomp_reader, final_buffer.buffer));
   TIME_STRUCT decomp_start_time = get_current_time();
@@ -108,10 +78,10 @@ const char *test_string_compression_on_a_file(const char *path) {
 
   buffer_or_error decomp_result = writer_consume_all_buffers(&decomp_writer);
   TEST_ASSERT(!decomp_result.is_error);
-  TEST_ASSERT(!strcomp_perf_test_compare_to_file(decomp_result.buffer, path));
+  TEST_ASSERT(test_compare_buffer_to_file(decomp_result.buffer, path));
 
   double decomp_seconds = get_time_diff(decomp_start_time, decomp_end_time);
-  printf("Decompressed %s in %.03f seconds\n", path, decomp_seconds);
+  printf("Strcomp: decompressed %s in %.03f seconds\n", path, decomp_seconds);
 
   TEST_ASSERT(compression_ratio < 0.25);
   TEST_ASSERT(compression_ratio > 0.05); // no way this algo will ever compress to 5% on anything realistic
@@ -120,16 +90,12 @@ const char *test_string_compression_on_a_file(const char *path) {
 }
 
 const char *test_string_compressor_perf() {
-  const char *result;
-
-  result = test_string_compression_on_a_file("./test/test_data/fda_recalls.json");
-  if (result) {
-    return result;
-  }
-
-  result = test_string_compression_on_a_file("./test/test_data/ru_news_feed.json");
-  if (result) {
-    return result;
+  for (memsize i = 0; i < sizeof(perf_test_files) / sizeof(perf_test_files[0]); i++) {
+    const char *src_file = perf_test_files[i];
+    const char *result = test_string_compression_on_a_file(src_file);
+    if (result) {
+      return result;
+    }
   }
 
   return NULL;

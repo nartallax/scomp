@@ -320,6 +320,12 @@ const char *test_json_tokenizer_numbers() {
   TEST_ASSERT(k->number.flags & JSON_NUMBER_INTEGER_PART_IS_ZERO);
   TEST_ASSERT(test_json_tokenizer_reinit(&t));
 
+  TEST_ASSERT(test_json_tokenizer_push_string(&t, &q, "5067680002"));
+  k = test_json_consume(&q);
+  TEST_ASSERT(k != NULL);
+  TEST_ASSERT(k->number.integer_part == 5067680002);
+  TEST_ASSERT(test_json_tokenizer_reinit(&t));
+
   TEST_ASSERT(test_json_tokenizer_push_string(&t, &q, "0.0e0"));
   k = test_json_consume(&q);
   TEST_ASSERT(k != NULL);

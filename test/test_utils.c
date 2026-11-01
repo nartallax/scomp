@@ -1,6 +1,7 @@
 #pragma once
 #include "../src/context.c"
 #include "../src/data_structures/buffer.c"
+#include "../src/data_structures/writer.c"
 #include <dirent.h>
 #include <limits.h>
 #include <stdint.h>
@@ -203,4 +204,68 @@ buffer malloc_string_buffer(const char *base) {
   byte *data = malloc(length);
   memcpy(data, base, length);
   return buffer_make(data, length, length);
+}
+
+buffer test_read_file_to_buffer(const char *path) {
+  FILE *src_file = fopen(path, "r");
+  int64 bytes_read;
+  char read_buffer[4096];
+  writer w;
+  if (!writer_init(&w, test_context, 4096, 4)) {
+    return EMPTY_BUFFER;
+  }
+  while ((bytes_read = fread(read_buffer, 1, sizeof(read_buffer), src_file)) > 0) {
+    for (int64 i = 0; i < bytes_read; i++) {
+      writer_write_byte(&w, read_buffer[i]);
+    }
+  }
+  buffer result = writer_consume_all_buffers(&w).buffer;
+  writer_deinit(&w, test_context);
+  return result;
+}
+
+buffer test_get_n_bytes_around_index(buffer src, int64 index, int64 range) {
+  int64 min = index - range;
+  if (min < 0) {
+    min = 0;
+  }
+  int64 max = index + range;
+  if (max > src.length) {
+    max = src.length;
+  }
+
+  return buffer_make(src.data + min, max - min, max - min);
+}
+
+bool test_compare_buffers(const char *name, buffer expected, buffer got) {
+  FILE *out_file = fopen("/tmp/out.json", "w");
+  TEST_ASSERT((int64)fwrite(got.data, 1, got.length, out_file) == got.length);
+  fclose(out_file);
+
+  int64 min_length = expected.length < got.length ? expected.length : got.length;
+  for (int64 i = 0; i < min_length; i++) {
+    if (expected.data[i] != got.data[i]) {
+      printf("%s: at %zu, expected %c (%i), but got %c (%i)\n", name, i, expected.data[i], expected.data[i], got.data[i], got.data[i]);
+      buffer exp_slice = test_get_n_bytes_around_index(expected, i, 50);
+      buffer got_slice = test_get_n_bytes_around_index(got, i, 50);
+      printf("expected:   %.*s\n", (int)exp_slice.length, exp_slice.data);
+      printf("got:        %.*s\n", (int)got_slice.length, got_slice.data);
+      return false;
+    }
+  }
+
+  // checking length before content because I want to see the discrepancies
+  if (expected.length != got.length) {
+    printf("%s: expected to be %zi bytes long, but got %zi bytes\n", name, expected.length, got.length);
+    return false;
+  }
+
+  return true;
+}
+
+bool test_compare_buffer_to_file(buffer b, const char *path) {
+  buffer expected = test_read_file_to_buffer(path);
+  bool result = test_compare_buffers(path, expected, b);
+  buffer_free(expected, test_context);
+  return result;
 }

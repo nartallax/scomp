@@ -3,7 +3,7 @@
 #include "uint_freq_tables.c"
 
 INLINE uint64 _uint_reader_append_part(uint64 result, symbol part, int64 read_symbol_count) {
-  return result | (part << (read_symbol_count * _ACOD_UINT_BIT_GROUP_SIZE));
+  return result | ((uint64)part << (read_symbol_count * _ACOD_UINT_BIT_GROUP_SIZE));
 }
 
 /** Make reader read next symbol from the decoder and update its state.
