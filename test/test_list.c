@@ -118,6 +118,7 @@ test normal_tests[] = {
     MAKE_TEST(test_string_compression_allocation_failures),
     MAKE_TEST(test_json_compression_simple),
     MAKE_TEST(test_json_compression_allocation_failures),
+    MAKE_TEST(test_json_compression_broken_compressed_data),
     // tests go here
 };
 

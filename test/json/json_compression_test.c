@@ -195,6 +195,49 @@ const char *test_json_compression_simple() {
   return NULL;
 }
 
+const char *test_json_compression_broken_compressed_data() {
+  buffer broken_data;
+  test_jcomp *jcomp;
+  test_jdecomp *jdecomp;
+
+  // bad token outside of string
+  jcomp = test_jcomp_alloc();
+  jdecomp = test_jdecomp_alloc();
+  acod_encoder_write(&jcomp->encoder, &jcomp->comp.base.tables[JSON_STATE_START], JSON_TOKEN_ARRAY_CLOSE);
+  acod_encoder_deinit(&jcomp->encoder);
+  broken_data = writer_consume_all_buffers(&jcomp->writer).buffer;
+  TEST_ASSERT(reader_push_buffer(&jdecomp->reader, broken_data));
+  TEST_ASSERT(!context_is_errored(test_context));
+  TEST_ASSERT(!json_decompressor_process_next_token(&jdecomp->decomp));
+  TEST_ASSERT(context_is_errored(test_context));
+  test_jcomp_free(jcomp);
+  test_jdecomp_free(jdecomp);
+
+  // bad token mid-string
+  setup_test_context_default();
+  jcomp = test_jcomp_alloc();
+  jdecomp = test_jdecomp_alloc();
+  TEST_ASSERT(reader_push_buffer(&jcomp->reader, malloc_string_buffer("\"123")));
+  while (reader_get_bytes_available(&jcomp->reader) > 0) {
+    TEST_ASSERT(json_compressor_process_next_token(&jcomp->comp));
+  }
+  strcomp_flush(&jcomp->strcomp);
+  acod_encoder_write(&jcomp->encoder, &jcomp->comp.base.tables[JSON_STATE_START], JSON_TOKEN_ARRAY_CLOSE);
+  acod_encoder_deinit(&jcomp->encoder);
+  broken_data = writer_consume_all_buffers(&jcomp->writer).buffer;
+  TEST_ASSERT(reader_push_buffer(&jdecomp->reader, broken_data));
+  for (int i = 0; i < 4; i++) {
+    TEST_ASSERT(json_decompressor_process_next_token(&jdecomp->decomp));
+  }
+  TEST_ASSERT(!context_is_errored(test_context));
+  TEST_ASSERT(!json_decompressor_process_next_token(&jdecomp->decomp));
+  TEST_ASSERT(context_is_errored(test_context));
+  test_jcomp_free(jcomp);
+  test_jdecomp_free(jdecomp);
+
+  return NULL;
+}
+
 const char *test_json_compression_allocation_failures() {
   // TODO: this much cumulative allocations is nuts. most of it comes from frequency tables
   // we can do two things - stop allocating compaction table for each ftable individually and use one communal compaction table from context,
