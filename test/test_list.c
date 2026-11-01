@@ -126,6 +126,6 @@ test normal_tests[] = {
 };
 
 test perf_tests[] = {
-    // MAKE_TEST(test_string_compressor_perf),
+    MAKE_TEST(test_string_compressor_perf),
     MAKE_TEST(test_json_compression_perf),
 };
