@@ -1,0 +1,59 @@
+#pragma once
+#include "../commons.c"
+
+/*
+have a token ring buffer that stores tokens before they are written out.
+only start writing once buffer is full (like with strcomp).
+as new tokens are encountered, maintain shapes repo - push open/close tokens, and object_key parts, and object_key starts.
+add meta-info to object_open tokens (modify token structure) that holds some sort of reference to the shape of this object in the repo.
+
+keep in mind that shapes can be incomplete, or invalidated, even when it's time to write the object; in this case, just write the tokens.
+we detect invalidated shapes by assigning ids to them. every new object_open token gets new ID;
+if the ID on the object_open is lower ID on the shape it references - shape has been invalidated;
+if it's higher - shape has been merged (it's fine);
+if it's equal - it's the first object to have this shape, and therefore should be written as just object, and not as a reference to a shape.
+
+this will also require maintaining a stack of opening tokens, to take from when a closing token is encountered.
+
+repo: have a data structure that stores N values and allows to arbitrarily add/remove them, and access them by index (or do it with pointers?)
+when starting a shape - put one in the repo; when ending a shape - "promote" it to completed.
+completing a shape means putting it into a hash chain. if there is exactly matching shape - don't put new one in; instead, replace the shape completed object references with the old one.
+
+when you need to put a new shape into the repo, but it's full:
+find least recently used completed shape, and remove it. don't remove incomplete shapes.
+this requires maintaining LRU queue, somehow.
+
+shape references are written as offsets in the shapes repo.
+
+
+repo interface:
+object_shape* open_object() // returns shape reference to store; both reference and ID of that shape must be saved at that moment
+void close_object()
+void push_object_key_char(unicode_char_token)
+void object_key_start()
+object_shape get_shape_by_offset(offset) // for decoding
+
+repo data:
+pool<object_shape> shapes_storage // size must be at least twice the size of jsm stack
+fixed_stack<object_shape*> shapes_stack // for updating top-most shape when there are updates
+
+comp data:
+queue<token> tokens_to_be_written
+
+to implement:
+pool
+redo fixed stack to accept not only bytes, but arbitrary values
+
+*/
+
+typedef struct {
+  uint64 keyset_hash;
+  // did we see the closing token for this object?
+  bool is_completed;
+  // TODO: keys field?
+} json_object_shape;
+
+typedef struct {
+  // TODO: stack with top N objects/arrays
+  // TODO: hash chain with known shapes
+} json_shapes_repository;

@@ -12,6 +12,7 @@ typedef struct {
   // this table is used when writing all groups of bits of offset or length but last
   // it's always stays at 1; when we are using this table, probability of each symbol is equal,
   // so there's no reason to increment it.
+  // TODO: share this table between all the uint readers/writers instead of creating it from scratch each time
   ftable uint_parts_table;
   // last_part_table tables are used when writing last group of bits.
   // this table is incremented after use;

@@ -48,7 +48,6 @@ void _json_compressor_write_string_token(json_compressor *comp, json_token *toke
   switch (token->kind) {
   case JSON_TOKEN_UNICODE_CHARACTER: {
     uint64 value = token->unicode_character.value;
-    // TODO: test for correct byte order
     for (int32 i = 0; i < token->unicode_character.length; i++) {
       strcomp_write(comp->strcomp, value & 0xff);
       value = value >> CHAR_BIT;

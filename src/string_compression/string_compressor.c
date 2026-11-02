@@ -35,6 +35,11 @@ NODISCARD bool strcomp_init(string_compressor *compressor, context *context, aco
     return false;
   }
 
+  // TODO: I'm tired of all those conditions in init
+  // let's have a region of memory for such allocations
+  // that is guaranteed to fit everything we want to "statically" allocate
+  // (it can be huge for now and we'll shrink it later, before release)
+  // this way the only allocations that can fail are write allocations, which are handled separately
   if (!bsm_init(&compressor->bsm, context)) {
     strcomp_deinit(compressor, context);
     return false;

@@ -4,6 +4,21 @@
 #include "../data_structures/reader.c"
 #include "../data_structures/writer.c"
 
+/*
+TODO to make ANS work
+1. we need to accumulate updates to ftables, and only apply them after the block is done
+this calls for variable block length - while tables are heating up, blocks should be small,
+and later, when they have "learned" probabilities good enough, we can make blocks huge
+2. we need to write bits in reverse, and then add a block header to pass on state and length
+(and possibly amount of ignored bits if their count didnt exactly align with the byte)
+
+3. optional, but nice-to-have - we need to build a tANS transition tables at the start of the block, this may give us actual speed up
+this requires redoing renormalization logic on our ftables, to cap at exactly the limit instead of arbitrary total below the limit
+and also this would only cause a speedup after blocks are big enough
+perhaps we should only build tables for ftables that hit the total limit?
+perhaps total limit should depend on table size?
+*/
+
 // see also: https://github.com/JentGent/tANS/blob/main/ans.ipynb
 
 // TODO: tune
