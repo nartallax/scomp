@@ -16,30 +16,21 @@ typedef struct {
   acod_decoder *decoder;
 } string_decompressor;
 
-void strdecomp_deinit(string_decompressor *decomp, context *context) {
-  ring_buffer_deinit(&decomp->lookback_buffer, context);
-  _strcomp_deinit_base(&decomp->base, context);
+void strdecomp_deinit(string_decompressor *decomp) {
+  ring_buffer_deinit(&decomp->lookback_buffer);
+  _strcomp_deinit_base(&decomp->base);
 
   *decomp = (string_decompressor){0};
 }
 
-NODISCARD bool strdecomp_init(string_decompressor *decomp, context *context, writer *writer, acod_decoder *decoder) {
+void strdecomp_init(string_decompressor *decomp, context *context, writer *writer, acod_decoder *decoder) {
   *decomp = (string_decompressor){0};
 
   decomp->writer = writer;
   decomp->decoder = decoder;
 
-  if (!_strcomp_init_base(&decomp->base, context)) {
-    strdecomp_deinit(decomp, context);
-    return false;
-  }
-
-  if (!ring_buffer_init(&decomp->lookback_buffer, context, _BSM_LENGTH_SHIFT)) {
-    strdecomp_deinit(decomp, context);
-    return false;
-  }
-
-  return true;
+  _strcomp_init_base(&decomp->base, context);
+  ring_buffer_init(&decomp->lookback_buffer, context, _BSM_LENGTH_SHIFT);
 }
 
 void _strdecomp_materialize_backreference(string_decompressor *decomp, int64 offset, int64 length) {

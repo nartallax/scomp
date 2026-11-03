@@ -24,6 +24,13 @@ typedef struct {
   int64 tail;
 } queue;
 
+/** If the items in the queue are heap-allocated, delete them manually first */
+void queue_deinit(queue *q, context *context) {
+  context_free(context, q->values);
+
+  *q = (queue){0};
+}
+
 NODISCARD bool queue_init(queue *q, context *context, int64 value_size, int64 starting_length_shift) {
   *q = (queue){0};
 
@@ -34,20 +41,17 @@ NODISCARD bool queue_init(queue *q, context *context, int64 value_size, int64 st
   q->context = context;
   q->value_size = value_size;
   q->values = context_allocate(context, q->length, value_size);
+  if (!q->values) {
+    queue_deinit(q, context);
+    return false;
+  }
 
-  return q->values != NULL;
+  return true;
 }
 
 void queue_reset(queue *q) {
   q->head = 0;
   q->tail = 0;
-}
-
-/** If the items in the queue are heap-allocated, delete them manually first */
-void queue_deinit(queue *q, context *context) {
-  context_free(context, q->values);
-
-  *q = (queue){0};
 }
 
 /** Returns amount of items in queue. */

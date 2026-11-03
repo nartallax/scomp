@@ -13,30 +13,21 @@ typedef struct {
   json_tokenizer tokenizer;
 } json_compressor;
 
-void json_compressor_deinit(json_compressor *comp, context *context) {
-  json_tokenizer_deinit(&comp->tokenizer, context);
-  _json_compression_base_deinit(&comp->base, context);
+void json_compressor_deinit(json_compressor *comp) {
+  json_tokenizer_deinit(&comp->tokenizer);
+  _json_compression_base_deinit(&comp->base);
 
   *comp = (json_compressor){0};
 }
 
-NODISCARD bool json_compressor_init(json_compressor *comp, context *context, reader *reader, acod_encoder *encoder, string_compressor *strcomp) {
+void json_compressor_init(json_compressor *comp, context *context, reader *reader, acod_encoder *encoder, string_compressor *strcomp) {
   *comp = (json_compressor){0};
 
   comp->strcomp = strcomp;
   comp->encoder = encoder;
 
-  if (!_json_compression_base_init(&comp->base, context)) {
-    json_compressor_deinit(comp, context);
-    return false;
-  }
-
-  if (!json_tokenizer_init(&comp->tokenizer, context, reader)) {
-    json_compressor_deinit(comp, context);
-    return false;
-  }
-
-  return true;
+  _json_compression_base_init(&comp->base, context);
+  json_tokenizer_init(&comp->tokenizer, context, reader);
 }
 
 void _json_compressor_reset(json_compressor *comp) {

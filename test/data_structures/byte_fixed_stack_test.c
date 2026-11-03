@@ -4,7 +4,7 @@
 
 const char *test_hbfstack_simple() {
   byte_fixed_stack s;
-  TEST_ASSERT(bfstack_init(&s, test_context, 4));
+  bfstack_init(&s, test_context, 4);
   TEST_ASSERT(bfstack_get_capacity(&s) == 4);
   TEST_ASSERT(bfstack_get_count(&s) == 0);
 
@@ -29,18 +29,6 @@ const char *test_hbfstack_simple() {
   TEST_ASSERT(bfstack_peek(&s) == 4);
   TEST_ASSERT(bfstack_pop(&s) == 4);
 
-  bfstack_deinit(&s, test_context);
-  return NULL;
-}
-
-const char *test_hbfstack_allocation_failures() {
-  byte_fixed_stack s;
-  setup_test_context(0);
-  TEST_ASSERT(!bfstack_init(&s, test_context, 8));
-
-  setup_test_context(1);
-  TEST_ASSERT(bfstack_init(&s, test_context, 8));
-
-  bfstack_deinit(&s, test_context);
+  bfstack_deinit(&s);
   return NULL;
 }

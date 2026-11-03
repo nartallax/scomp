@@ -95,7 +95,7 @@ const char *test_json_tokenizer_string() {
   reader r;
   TEST_ASSERT(reader_init(&r, test_context));
   TEST_ASSERT(queue_init(&q, test_context, sizeof(json_token), 4));
-  TEST_ASSERT(json_tokenizer_init(&t, test_context, &r));
+  json_tokenizer_init(&t, test_context, &r);
 
   TEST_ASSERT(test_json_tokenizer_push_string(&t, &q, "\"abcde\""));
   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_STRING_DELIMITER);
@@ -221,7 +221,7 @@ const char *test_json_tokenizer_string() {
   TEST_ASSERT(test_json_consume(&q) == NULL);
   TEST_ASSERT(test_json_tokenizer_reinit_nonempty(&t));
 
-  json_tokenizer_deinit(&t, test_context);
+  json_tokenizer_deinit(&t);
   queue_deinit(&q, test_context);
   reader_deinit(&r, test_context);
   return NULL;
@@ -234,7 +234,7 @@ const char *test_json_tokenizer_numbers() {
   reader r;
   TEST_ASSERT(reader_init(&r, test_context));
   TEST_ASSERT(queue_init(&q, test_context, sizeof(json_token), 4));
-  TEST_ASSERT(json_tokenizer_init(&t, test_context, &r));
+  json_tokenizer_init(&t, test_context, &r);
 
   TEST_ASSERT(test_json_tokenizer_push_string(&t, &q, "12345"));
   k = test_json_consume(&q);
@@ -379,7 +379,7 @@ const char *test_json_tokenizer_numbers() {
     TEST_ASSERT(test_json_tokenizer_reinit(&t));
   }
 
-  json_tokenizer_deinit(&t, test_context);
+  json_tokenizer_deinit(&t);
   queue_deinit(&q, test_context);
   reader_deinit(&r, test_context);
   return NULL;
@@ -414,14 +414,14 @@ const char *test_json_tokenizer_constants() {
   reader r;
   TEST_ASSERT(reader_init(&r, test_context));
   TEST_ASSERT(queue_init(&q, test_context, sizeof(json_token), 4));
-  TEST_ASSERT(json_tokenizer_init(&t, test_context, &r));
+  json_tokenizer_init(&t, test_context, &r);
 
   TEST_ASSERT(!test_json_tokenizer_constant(&t, _JTOK_TRUE_BYTES, sizeof(_JTOK_TRUE_BYTES), JSON_TOKEN_TRUE, false));
   TEST_ASSERT(!test_json_tokenizer_constant(&t, _JTOK_FALSE_BYTES, sizeof(_JTOK_FALSE_BYTES), JSON_TOKEN_FALSE, false));
   TEST_ASSERT(!test_json_tokenizer_constant(&t, _JTOK_NULL_BYTES, sizeof(_JTOK_NULL_BYTES), JSON_TOKEN_NULL, false));
   TEST_ASSERT(!test_json_tokenizer_constant(&t, UTF8_BOM, sizeof(UTF8_BOM), JSON_TOKEN_BOM, true));
 
-  json_tokenizer_deinit(&t, test_context);
+  json_tokenizer_deinit(&t);
   queue_deinit(&q, test_context);
   reader_deinit(&r, test_context);
   return NULL;
@@ -433,13 +433,13 @@ const char *test_json_tokenizer_loooong_number() {
   reader r;
   TEST_ASSERT(reader_init(&r, test_context));
   TEST_ASSERT(queue_init(&q, test_context, sizeof(json_token), 4));
-  TEST_ASSERT(json_tokenizer_init(&t, test_context, &r));
+  json_tokenizer_init(&t, test_context, &r);
 
   TEST_ASSERT(!test_json_tokenizer_push_string(&t, &q, "-0.0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001"));
   TEST_ASSERT(test_json_tokenizer_reinit_nonempty(&t));
   TEST_ASSERT(!test_json_tokenizer_push_string(&t, &q, "-0e0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001"));
 
-  json_tokenizer_deinit(&t, test_context);
+  json_tokenizer_deinit(&t);
   queue_deinit(&q, test_context);
   reader_deinit(&r, test_context);
   return NULL;
@@ -452,7 +452,7 @@ const char *test_json_tokenizer_array() {
   TEST_ASSERT(reader_init(&r, test_context));
   TEST_ASSERT(queue_init(&q, test_context, sizeof(json_token), 4));
   json_token *k;
-  TEST_ASSERT(json_tokenizer_init(&t, test_context, &r));
+  json_tokenizer_init(&t, test_context, &r);
 
   TEST_ASSERT(test_json_tokenizer_push_string(&t, &q, "[1 , 2,3,4]"));
   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_ARRAY_OPEN);
@@ -517,7 +517,7 @@ const char *test_json_tokenizer_array() {
   TEST_ASSERT(test_json_consume(&q) == NULL);
   TEST_ASSERT(test_json_tokenizer_reinit_nonempty(&t));
 
-  json_tokenizer_deinit(&t, test_context);
+  json_tokenizer_deinit(&t);
   queue_deinit(&q, test_context);
   reader_deinit(&r, test_context);
   return NULL;
@@ -529,7 +529,7 @@ const char *test_json_tokenizer_object() {
   reader r;
   TEST_ASSERT(reader_init(&r, test_context));
   TEST_ASSERT(queue_init(&q, test_context, sizeof(json_token), 4));
-  TEST_ASSERT(json_tokenizer_init(&t, test_context, &r));
+  json_tokenizer_init(&t, test_context, &r);
 
   TEST_ASSERT(test_json_tokenizer_push_string(&t, &q, "{}"));
   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_OBJECT_OPEN);
@@ -577,7 +577,7 @@ const char *test_json_tokenizer_object() {
   TEST_ASSERT(test_json_consume(&q) == NULL);
   TEST_ASSERT(test_json_tokenizer_reinit_nonempty(&t));
 
-  json_tokenizer_deinit(&t, test_context);
+  json_tokenizer_deinit(&t);
   queue_deinit(&q, test_context);
   reader_deinit(&r, test_context);
   return NULL;
@@ -590,7 +590,7 @@ const char *test_json_tokenizer_whitespaces() {
   TEST_ASSERT(reader_init(&r, test_context));
   TEST_ASSERT(queue_init(&q, test_context, sizeof(json_token), 4));
   json_token *k;
-  TEST_ASSERT(json_tokenizer_init(&t, test_context, &r));
+  json_tokenizer_init(&t, test_context, &r);
 
   TEST_ASSERT(test_json_tokenizer_push_string(&t, &q, "[1, \n\r\t2]"));
   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_ARRAY_OPEN);
@@ -613,7 +613,7 @@ const char *test_json_tokenizer_whitespaces() {
   TEST_ASSERT(test_json_consume(&q) == NULL);
   TEST_ASSERT(test_json_tokenizer_reinit_nonempty(&t));
 
-  json_tokenizer_deinit(&t, test_context);
+  json_tokenizer_deinit(&t);
   queue_deinit(&q, test_context);
   reader_deinit(&r, test_context);
   return NULL;
@@ -625,7 +625,7 @@ const char *test_json_tokenizer_bom() {
   reader r;
   TEST_ASSERT(reader_init(&r, test_context));
   TEST_ASSERT(queue_init(&q, test_context, sizeof(json_token), 4));
-  TEST_ASSERT(json_tokenizer_init(&t, test_context, &r));
+  json_tokenizer_init(&t, test_context, &r);
   TEST_ASSERT(json_tokenizer_get_current_state(&t) == JSON_STATE_START);
 
   buffer bom_buffer = buffer_make(malloc(sizeof(UTF8_BOM)), sizeof(UTF8_BOM), sizeof(UTF8_BOM));
@@ -637,7 +637,7 @@ const char *test_json_tokenizer_bom() {
   TEST_ASSERT(json_tokenizer_parse_next(&t).kind == JSON_TOKEN_OBJECT_CLOSE);
   TEST_ASSERT(test_json_tokenizer_reinit(&t));
 
-  json_tokenizer_deinit(&t, test_context);
+  json_tokenizer_deinit(&t);
   queue_deinit(&q, test_context);
   reader_deinit(&r, test_context);
   return NULL;
@@ -649,7 +649,7 @@ const char *test_json_tokenizer_nesting() {
   reader r;
   TEST_ASSERT(reader_init(&r, test_context));
   TEST_ASSERT(queue_init(&q, test_context, sizeof(json_token), 4));
-  TEST_ASSERT(json_tokenizer_init(&t, test_context, &r));
+  json_tokenizer_init(&t, test_context, &r);
   // this also tests for whitespaces everywhere
   TEST_ASSERT(test_json_tokenizer_push_string(&t, &q, "[ { \"a\" : { \"b\" : [ [ { \"c\" : null } ] ] } } ]"));
   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_ARRAY_OPEN);
@@ -697,7 +697,7 @@ const char *test_json_tokenizer_nesting() {
   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_ARRAY_CLOSE);
   TEST_ASSERT(test_json_tokenizer_reinit(&t));
 
-  json_tokenizer_deinit(&t, test_context);
+  json_tokenizer_deinit(&t);
   queue_deinit(&q, test_context);
   reader_deinit(&r, test_context);
   return NULL;
@@ -709,7 +709,7 @@ const char *test_json_tokenizer_emptiness() {
   reader r;
   TEST_ASSERT(reader_init(&r, test_context));
   TEST_ASSERT(queue_init(&q, test_context, sizeof(json_token), 4));
-  TEST_ASSERT(json_tokenizer_init(&t, test_context, &r));
+  json_tokenizer_init(&t, test_context, &r);
   TEST_ASSERT(!json_tokenizer_is_done(&t));
   TEST_ASSERT(test_json_tokenizer_push_string(&t, &q, "["));
   TEST_ASSERT(!json_tokenizer_is_done(&t));
@@ -720,7 +720,7 @@ const char *test_json_tokenizer_emptiness() {
   TEST_ASSERT(!test_json_tokenizer_push_string(&t, &q, "123"));
   TEST_ASSERT(json_tokenizer_is_done(&t));
 
-  json_tokenizer_deinit(&t, test_context);
+  json_tokenizer_deinit(&t);
   queue_deinit(&q, test_context);
   reader_deinit(&r, test_context);
   return NULL;
@@ -736,32 +736,32 @@ const char *test_json_tokenizer_stack_limitations() {
   setup_test_context_default();
   TEST_ASSERT(reader_init(&r, test_context));
   TEST_ASSERT(queue_init(&q, test_context, sizeof(json_token), 4));
-  TEST_ASSERT(json_tokenizer_init(&t, test_context, &r));
+  json_tokenizer_init(&t, test_context, &r);
   long_string_with_repeats = string_repeat("[", JSON_MAX_STATE_STACK_LENGTH);
   TEST_ASSERT(!test_json_tokenizer_push_string(&t, &q, long_string_with_repeats));
   free(long_string_with_repeats);
-  json_tokenizer_deinit(&t, test_context);
+  json_tokenizer_deinit(&t);
   reader_deinit(&r, test_context);
   queue_deinit(&q, test_context);
 
   setup_test_context_default();
   TEST_ASSERT(reader_init(&r, test_context));
   TEST_ASSERT(queue_init(&q, test_context, sizeof(json_token), 4));
-  TEST_ASSERT(json_tokenizer_init(&t, test_context, &r));
+  json_tokenizer_init(&t, test_context, &r);
   long_string_with_repeats = string_repeat("[", JSON_MAX_STATE_STACK_LENGTH - 1);
   TEST_ASSERT(test_json_tokenizer_push_string(&t, &q, long_string_with_repeats));
   free(long_string_with_repeats);
   queue_reset(&q);
   TEST_ASSERT(!test_json_tokenizer_push_string(&t, &q, "\""));
   TEST_ASSERT(test_json_consume(&q) == NULL);
-  json_tokenizer_deinit(&t, test_context);
+  json_tokenizer_deinit(&t);
   reader_deinit(&r, test_context);
   queue_deinit(&q, test_context);
 
   setup_test_context_default();
   TEST_ASSERT(reader_init(&r, test_context));
   TEST_ASSERT(queue_init(&q, test_context, sizeof(json_token), 4));
-  TEST_ASSERT(json_tokenizer_init(&t, test_context, &r));
+  json_tokenizer_init(&t, test_context, &r);
   long_string_with_repeats = string_repeat("{\"a\":", JSON_MAX_STATE_STACK_LENGTH - 2);
   TEST_ASSERT(test_json_tokenizer_push_string(&t, &q, long_string_with_repeats));
   free(long_string_with_repeats);
@@ -769,7 +769,7 @@ const char *test_json_tokenizer_stack_limitations() {
   TEST_ASSERT(!test_json_tokenizer_push_string(&t, &q, "{\"a\":"));
   TEST_ASSERT(test_json_consume(&q)->kind == JSON_TOKEN_OBJECT_OPEN);
   TEST_ASSERT(test_json_consume(&q) == NULL);
-  json_tokenizer_deinit(&t, test_context);
+  json_tokenizer_deinit(&t);
   reader_deinit(&r, test_context);
   queue_deinit(&q, test_context);
 
@@ -785,10 +785,7 @@ bool test_json_tokenizer_will_parse(const char *format, const char *base, int ti
   }
 
   json_tokenizer t;
-  if (!json_tokenizer_init(&t, test_context, &r)) {
-    printf("Failed to init\n");
-    return false;
-  }
+  json_tokenizer_init(&t, test_context, &r);
 
   if (!reader_push_buffer(&r, malloc_string_buffer(src))) {
     printf("Failed to push to reader\n");
@@ -807,7 +804,7 @@ bool test_json_tokenizer_will_parse(const char *format, const char *base, int ti
     return false;
   }
 
-  json_tokenizer_deinit(&t, test_context);
+  json_tokenizer_deinit(&t);
   reader_deinit(&r, test_context);
   free(src);
   return true;
@@ -840,10 +837,11 @@ bool test_json_tokenizer_breakage(const char *src) {
   writer tmp_writer;
   json_tokenizer t;
   reader r;
-  if (!reader_init(&r, test_context) || !json_tokenizer_init(&t, test_context, &r) || !writer_init(&w, test_context, 256, 4) || !writer_init(&tmp_writer, test_context, 256, 4)) {
+  if (!reader_init(&r, test_context) || !writer_init(&w, test_context, 256, 4) || !writer_init(&tmp_writer, test_context, 256, 4)) {
     printf("Failed to init\n");
     return false;
   }
+  json_tokenizer_init(&t, test_context, &r);
 
   if (!reader_push_buffer(&r, malloc_string_buffer(src))) {
     printf("Failed to push to reader\n");
@@ -892,7 +890,7 @@ bool test_json_tokenizer_breakage(const char *src) {
 
   free(reprint.data);
 
-  json_tokenizer_deinit(&t, test_context);
+  json_tokenizer_deinit(&t);
   writer_deinit(&w, test_context);
   writer_deinit(&tmp_writer, test_context);
   reader_deinit(&r, test_context);
@@ -940,10 +938,11 @@ bool test_json_tokenizer_stack_push_fail(const char *src, int pushes_before_fail
   writer tmp_writer;
   json_tokenizer t;
   reader r;
-  if (!reader_init(&r, test_context) || !json_tokenizer_init(&t, test_context, &r) || !writer_init(&w, test_context, 256, 4) || !writer_init(&tmp_writer, test_context, 256, 4)) {
+  if (!reader_init(&r, test_context) || !writer_init(&w, test_context, 256, 4) || !writer_init(&tmp_writer, test_context, 256, 4)) {
     printf("Failed to init\n");
     return false;
   }
+  json_tokenizer_init(&t, test_context, &r);
 
   // bit weird to do it like that, but it's the easiest way to get tokenizer to that state
   t.jsm.state_stack.byte_length = t.jsm.state_stack.index + pushes_before_failure;
@@ -993,7 +992,7 @@ bool test_json_tokenizer_stack_push_fail(const char *src, int pushes_before_fail
 
   free(reprint.data);
 
-  json_tokenizer_deinit(&t, test_context);
+  json_tokenizer_deinit(&t);
   writer_deinit(&w, test_context);
   writer_deinit(&tmp_writer, test_context);
   reader_deinit(&r, test_context);
@@ -1006,17 +1005,5 @@ const char *test_json_tokenizer_stack_push_fails() {
   TEST_ASSERT(test_json_tokenizer_stack_push_fail("[{}]", 0));
   TEST_ASSERT(test_json_tokenizer_stack_push_fail("[[]]", 0));
   TEST_ASSERT(test_json_tokenizer_stack_push_fail("{\"key\": 1, \"key2\": 2}", 0));
-  return NULL;
-}
-
-const char *test_json_tokenizer_allocation_failures() {
-  json_tokenizer t;
-  setup_test_context(0);
-  TEST_ASSERT(!json_tokenizer_init(&t, test_context, NULL));
-
-  setup_test_context(1);
-  TEST_ASSERT(json_tokenizer_init(&t, test_context, NULL));
-
-  json_tokenizer_deinit(&t, test_context);
   return NULL;
 }

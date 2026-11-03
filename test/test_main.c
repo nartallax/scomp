@@ -12,8 +12,9 @@ int run_test_suite(const test *tests, memsize tester_count) {
       printf("Test \"%s\" failed: %s\n", current_test.name, test_result);
       failed_tests++;
     }
-    free_test_context();
+    reset_test_context();
   }
+  free_test_context();
 
   if (failed_tests > 0) {
     printf("Failed tests: %zu/%zu\n", failed_tests, tester_count);

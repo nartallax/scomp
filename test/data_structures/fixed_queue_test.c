@@ -4,7 +4,7 @@
 
 const char *test_fixed_queue_simple() {
   fixed_queue q;
-  TEST_ASSERT(fqueue_init(&q, test_context, sizeof(int), 2));
+  fqueue_init(&q, test_context, sizeof(int), 2);
 
   TEST_ASSERT(fqueue_get_capacity(&q) == 3);
   TEST_ASSERT(fqueue_get_count(&q) == 0);
@@ -46,13 +46,13 @@ const char *test_fixed_queue_simple() {
   TEST_ASSERT(fqueue_get_count(&q) == 0);
   TEST_ASSERT(*slot == 9);
 
-  fqueue_deinit(&q, test_context);
+  fqueue_deinit(&q);
   return NULL;
 }
 
 const char *test_fixed_queue_wrapping() {
   fixed_queue q;
-  TEST_ASSERT(fqueue_init(&q, test_context, sizeof(int), 2));
+  fqueue_init(&q, test_context, sizeof(int), 2);
 
   *(int *)fqueue_push(&q) = 5;
   *(int *)fqueue_push(&q) = 6;
@@ -80,18 +80,6 @@ const char *test_fixed_queue_wrapping() {
   fqueue_reset(&q);
   TEST_ASSERT(fqueue_get_count(&q) == 0);
 
-  fqueue_deinit(&q, test_context);
-  return NULL;
-}
-
-const char *test_fixed_queue_allocation_failures() {
-  fixed_queue q;
-  setup_test_context(0);
-  TEST_ASSERT(!fqueue_init(&q, test_context, sizeof(int), 2));
-
-  setup_test_context(1);
-  TEST_ASSERT(fqueue_init(&q, test_context, sizeof(int), 2));
-
-  fqueue_deinit(&q, test_context);
+  fqueue_deinit(&q);
   return NULL;
 }

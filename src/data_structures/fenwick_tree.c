@@ -13,24 +13,16 @@ typedef struct {
   symbol_frequency *data;
 } ftree;
 
-void ftree_deinit(ftree *tree, context *context) {
-  context_free(context, tree->data);
-
+void ftree_deinit(ftree *tree) {
   *tree = (ftree){0};
 }
 
-NODISCARD bool ftree_init(ftree *tree, context *context, int64 size) {
+void ftree_init(ftree *tree, context *context, int64 size) {
   *tree = (ftree){0};
 
   // +1 because fenwick trees' indices are inherently 1-based
   tree->size = size + 1;
-  tree->data = context_allocate_zero_init(context, tree->size, sizeof(symbol_frequency));
-  if (!tree->data) {
-    ftree_deinit(tree, context);
-    return false;
-  }
-
-  return true;
+  tree->data = context_arena_allocate_zero_init(context, tree->size, sizeof(symbol_frequency));
 }
 
 // TODO: passing tree by value everywhere goes against other places in this repo

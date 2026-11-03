@@ -2,6 +2,7 @@
 #include "../commons.c"
 #include "../context.c"
 
+// TODO: unused? all of our stacks are static
 /** Stack data structure.
 Just like queue, may contain arbitrary sized values, and because of that operates with pointers. */
 typedef struct {
@@ -14,6 +15,13 @@ typedef struct {
   int64 count;
 } stack;
 
+/** If values are heap-allocated, callers must take care of them, as they will not be deleted in this function */
+void stack_deinit(stack *s, context *context) {
+  context_free(context, s->values);
+
+  *s = (stack){0};
+}
+
 NODISCARD bool stack_init(stack *s, context *context, int64 value_size) {
   *s = (stack){0};
 
@@ -23,14 +31,12 @@ NODISCARD bool stack_init(stack *s, context *context, int64 value_size) {
   s->count = 0;
   s->values = context_allocate(context, s->length, value_size);
 
-  return s->values != NULL;
-}
+  if (!s->values) {
+    stack_deinit(s, context);
+    return false;
+  }
 
-/** If values are heap-allocated, callers must take care of them, as they will not be deleted in this function */
-void stack_deinit(stack *s, context *context) {
-  context_free(context, s->values);
-
-  *s = (stack){0};
+  return true;
 }
 
 NODISCARD bool _stack_maybe_grow(stack *stack) {

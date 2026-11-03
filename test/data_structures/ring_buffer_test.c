@@ -4,7 +4,7 @@
 
 const char *test_ring_buffer_simple() {
   ring_buffer rb;
-  TEST_ASSERT(ring_buffer_init(&rb, test_context, 2));
+  ring_buffer_init(&rb, test_context, 2);
   TEST_ASSERT(ring_buffer_get_length(&rb) == 4);
   ring_buffer_push(&rb, 5);
   ring_buffer_push(&rb, 6);
@@ -28,13 +28,6 @@ const char *test_ring_buffer_simple() {
   TEST_ASSERT(ring_buffer_get(&rb, 9) == 10);
   TEST_ASSERT(ring_buffer_get(&rb, 14) == 7);
   TEST_ASSERT(ring_buffer_get(&rb, 19) == 8);
-  ring_buffer_deinit(&rb, test_context);
-  return NULL;
-}
-
-const char *test_ring_buffer_allocation_fail() {
-  setup_test_context(0);
-  ring_buffer rb;
-  TEST_ASSERT(!ring_buffer_init(&rb, test_context, 2));
+  ring_buffer_deinit(&rb);
   return NULL;
 }

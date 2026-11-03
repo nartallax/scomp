@@ -17,9 +17,9 @@ typedef struct {
   json_state_machine jsm;
 } json_decompressor;
 
-void json_decompressor_deinit(json_decompressor *decomp, context *context) {
-  _json_compression_base_deinit(&decomp->base, context);
-  jsm_deinit(&decomp->jsm, context);
+void json_decompressor_deinit(json_decompressor *decomp) {
+  _json_compression_base_deinit(&decomp->base);
+  jsm_deinit(&decomp->jsm);
 
   *decomp = (json_decompressor){0};
 }
@@ -29,7 +29,7 @@ void json_decompressor_reset(json_decompressor *decomp) {
   jsm_reset(&decomp->jsm);
 }
 
-NODISCARD bool json_decompressor_init(json_decompressor *decomp, context *context, acod_decoder *decoder, string_decompressor *strdecomp, writer *writer) {
+void json_decompressor_init(json_decompressor *decomp, context *context, acod_decoder *decoder, string_decompressor *strdecomp, writer *writer) {
   *decomp = (json_decompressor){0};
 
   decomp->strdecomp = strdecomp;
@@ -37,19 +37,9 @@ NODISCARD bool json_decompressor_init(json_decompressor *decomp, context *contex
   decomp->context = context;
   decomp->writer = writer;
 
-  if (!_json_compression_base_init(&decomp->base, context)) {
-    json_decompressor_deinit(decomp, context);
-    return false;
-  }
-
-  if (!jsm_init(&decomp->jsm, context)) {
-    json_decompressor_deinit(decomp, context);
-    return false;
-  }
-
+  _json_compression_base_init(&decomp->base, context);
+  jsm_init(&decomp->jsm, context);
   json_decompressor_reset(decomp);
-
-  return true;
 }
 
 NODISCARD INLINE bool _json_decompressor_update_jsm(json_decompressor *decomp, json_token_kind kind) {

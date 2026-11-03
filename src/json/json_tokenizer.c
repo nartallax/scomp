@@ -12,8 +12,8 @@ typedef struct {
   reader *reader;
 } json_tokenizer;
 
-void json_tokenizer_deinit(json_tokenizer *t, context *context) {
-  jsm_deinit(&t->jsm, context);
+void json_tokenizer_deinit(json_tokenizer *t) {
+  jsm_deinit(&t->jsm);
 
   *t = (json_tokenizer){0};
 }
@@ -24,19 +24,13 @@ void json_tokenizer_reset(json_tokenizer *t) {
   jsm_reset(&t->jsm);
 }
 
-NODISCARD bool json_tokenizer_init(json_tokenizer *t, context *context, reader *reader) {
+void json_tokenizer_init(json_tokenizer *t, context *context, reader *reader) {
   *t = (json_tokenizer){0};
 
   t->reader = reader;
 
-  if (!jsm_init(&t->jsm, context)) {
-    json_tokenizer_deinit(t, context);
-    return false;
-  }
-
+  jsm_init(&t->jsm, context);
   json_tokenizer_reset(t);
-
-  return true;
 }
 
 constexpr uint64 TENTH_OF_MAX_UINT64 = UINT64_MAX / 10;

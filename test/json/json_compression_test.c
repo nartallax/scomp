@@ -18,8 +18,8 @@ void test_jcomp_free(test_jcomp *jcomp) {
   if (jcomp == NULL) {
     return;
   }
-  json_compressor_deinit(&jcomp->comp, test_context);
-  strcomp_deinit(&jcomp->strcomp, test_context);
+  json_compressor_deinit(&jcomp->comp);
+  strcomp_deinit(&jcomp->strcomp);
   writer_deinit(&jcomp->writer, test_context);
   reader_deinit(&jcomp->reader, test_context);
   free(jcomp);
@@ -32,15 +32,8 @@ test_jcomp *test_jcomp_alloc() {
     return NULL;
   }
   acod_encoder_init(&jcomp->encoder, &jcomp->writer);
-  if (!strcomp_init(&jcomp->strcomp, test_context, &jcomp->encoder)) {
-    test_jcomp_free(jcomp);
-    return NULL;
-  }
-
-  if (!json_compressor_init(&jcomp->comp, test_context, &jcomp->reader, &jcomp->encoder, &jcomp->strcomp)) {
-    test_jcomp_free(jcomp);
-    return NULL;
-  }
+  strcomp_init(&jcomp->strcomp, test_context, &jcomp->encoder);
+  json_compressor_init(&jcomp->comp, test_context, &jcomp->reader, &jcomp->encoder, &jcomp->strcomp);
 
   return jcomp;
 }
@@ -87,8 +80,9 @@ void test_jdecomp_free(test_jdecomp *jdecomp) {
   if (jdecomp == NULL) {
     return;
   }
-  json_decompressor_deinit(&jdecomp->decomp, test_context);
-  strdecomp_deinit(&jdecomp->strdecomp, test_context);
+  json_decompressor_deinit(&jdecomp->decomp);
+  strdecomp_deinit(&jdecomp->strdecomp);
+  acod_decoder_deinit(&jdecomp->decoder);
   writer_deinit(&jdecomp->writer, test_context);
   reader_deinit(&jdecomp->reader, test_context);
   free(jdecomp);
@@ -105,11 +99,8 @@ test_jdecomp *test_jdecomp_alloc() {
     return NULL;
   }
   acod_decoder_init(&jdecomp->decoder, &jdecomp->reader);
-  if (!strdecomp_init(&jdecomp->strdecomp, test_context, &jdecomp->writer, &jdecomp->decoder) ||
-      !json_decompressor_init(&jdecomp->decomp, test_context, &jdecomp->decoder, &jdecomp->strdecomp, &jdecomp->writer)) {
-    test_jdecomp_free(jdecomp);
-    return NULL;
-  }
+  strdecomp_init(&jdecomp->strdecomp, test_context, &jdecomp->writer, &jdecomp->decoder);
+  json_decompressor_init(&jdecomp->decomp, test_context, &jdecomp->decoder, &jdecomp->strdecomp, &jdecomp->writer);
 
   return jdecomp;
 }
@@ -236,37 +227,6 @@ const char *test_json_compression_broken_compressed_data() {
   TEST_ASSERT(context_is_errored(test_context));
   test_jcomp_free(jcomp);
   test_jdecomp_free(jdecomp);
-
-  return NULL;
-}
-
-const char *test_json_compression_allocation_failures() {
-  // TODO: this much cumulative allocations is nuts. most of it comes from frequency tables
-  // we can do two things - stop allocating compaction table for each ftable individually and use one communal compaction table from context,
-  // and have a one big array for ftable space instead of allocating some each time a ftable is created
-  int i = 0;
-  for (; i < 87; i++) {
-    setup_test_context(i);
-    TEST_ASSERT(test_jcomp_apply_compression("[123]").length == 0);
-  }
-  setup_test_context(i);
-  buffer result;
-  result = test_jcomp_apply_compression("[123]");
-  TEST_ASSERT(result.length > 0);
-  buffer_free(result, test_context);
-
-  for (i = 0; i < 84; i++) {
-    setup_test_context_default();
-    buffer compressed = test_jcomp_apply_compression("[123]");
-    setup_test_context(i);
-    TEST_ASSERT(test_jcomp_apply_decompression(compressed).length == 0);
-  }
-  setup_test_context_default();
-  buffer compressed = test_jcomp_apply_compression("[123]");
-  setup_test_context(i);
-  result = test_jcomp_apply_decompression(compressed);
-  TEST_ASSERT(result.length > 0);
-  buffer_free(result, test_context);
 
   return NULL;
 }

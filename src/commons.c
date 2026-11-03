@@ -23,6 +23,7 @@ i.e. entropy compression algo accepts a symbol and emits bits. */
 typedef int16 symbol;
 /** A relative frequency of a symbol.
 Usually equal to number of appearances of the symbol in the stream, but can be adjusted in some cases. */
+// TODO: are 64 bytes way too many? for 256 symbol table, compression is about the same for just 16 bytes
 typedef uint64 symbol_frequency;
 
 typedef void *(*malloc_fn)(memsize);

@@ -40,37 +40,20 @@ typedef struct {
 
 constexpr bsm_match BSM_MATCH_EMPTY = {0};
 
-void bsm_deinit(byte_stream_matcher *bsm, context *context) {
-  context_free(context, bsm->hash_head);
-  context_free(context, bsm->hash_prev);
-  ring_buffer_deinit(&bsm->content, context);
+void bsm_deinit(byte_stream_matcher *bsm) {
+  ring_buffer_deinit(&bsm->content);
 
   *bsm = (byte_stream_matcher){0};
 }
 
-NODISCARD bool bsm_init(byte_stream_matcher *bsm, context *context) {
+void bsm_init(byte_stream_matcher *bsm, context *context) {
   *bsm = (byte_stream_matcher){0};
 
   bsm->rolling_hash = 0;
 
-  bsm->hash_head = context_allocate_zero_init(context, _BSM_LENGTH, sizeof(uint16));
-  if (!bsm->hash_head) {
-    bsm_deinit(bsm, context);
-    return false;
-  }
-
-  bsm->hash_prev = context_allocate_zero_init(context, _BSM_LENGTH, sizeof(uint16));
-  if (!bsm->hash_prev) {
-    bsm_deinit(bsm, context);
-    return false;
-  }
-
-  if (!ring_buffer_init(&bsm->content, context, _BSM_LENGTH_SHIFT)) {
-    bsm_deinit(bsm, context);
-    return false;
-  }
-
-  return true;
+  bsm->hash_head = context_arena_allocate_zero_init(context, _BSM_LENGTH, sizeof(uint16));
+  bsm->hash_prev = context_arena_allocate_zero_init(context, _BSM_LENGTH, sizeof(uint16));
+  ring_buffer_init(&bsm->content, context, _BSM_LENGTH_SHIFT);
 }
 
 INLINE uint16 _bsm_update_rolling_hash(byte_stream_matcher *bsm, byte new_byte) {

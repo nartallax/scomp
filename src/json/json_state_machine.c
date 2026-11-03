@@ -8,8 +8,8 @@ typedef struct {
   byte_fixed_stack state_stack;
 } json_state_machine;
 
-void jsm_deinit(json_state_machine *jsm, context *context) {
-  bfstack_deinit(&jsm->state_stack, context);
+void jsm_deinit(json_state_machine *jsm) {
+  bfstack_deinit(&jsm->state_stack);
 
   *jsm = (json_state_machine){0};
 }
@@ -20,17 +20,11 @@ void jsm_reset(json_state_machine *jsm) {
   bfstack_push(&jsm->state_stack, JSON_STATE_START);
 }
 
-NODISCARD bool jsm_init(json_state_machine *jsm, context *context) {
+void jsm_init(json_state_machine *jsm, context *context) {
   *jsm = (json_state_machine){0};
 
-  if (!bfstack_init(&jsm->state_stack, context, JSON_MAX_STATE_STACK_LENGTH)) {
-    jsm_deinit(jsm, context);
-    return false;
-  }
-
+  bfstack_init(&jsm->state_stack, context, JSON_MAX_STATE_STACK_LENGTH);
   jsm_reset(jsm);
-
-  return true;
 }
 
 INLINE json_state jsm_get_current_state(json_state_machine *jsm) {

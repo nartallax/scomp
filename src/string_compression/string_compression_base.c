@@ -21,31 +21,18 @@ typedef struct {
   uint_freq_tables length_tables;
 } string_compression_base;
 
-void _strcomp_deinit_base(string_compression_base *base, context *context) {
-  ftable_deinit(&base->main_symbol_table, context);
-  uint_freq_tables_deinit(&base->offset_tables, context);
-  uint_freq_tables_deinit(&base->length_tables, context);
+void _strcomp_deinit_base(string_compression_base *base) {
+  ftable_deinit(&base->main_symbol_table);
+  uint_freq_tables_deinit(&base->offset_tables);
+  uint_freq_tables_deinit(&base->length_tables);
 
   *base = (string_compression_base){0};
 }
 
-NODISCARD bool _strcomp_init_base(string_compression_base *base, context *context) {
+void _strcomp_init_base(string_compression_base *base, context *context) {
   *base = (string_compression_base){0};
 
-  if (!ftable_init(&base->main_symbol_table, context, _STRCOMP_BACKREFERENCE_SYMBOL + 1, FTABLE_INIT_ONE | FTABLE_INCLUDE_EOF)) {
-    _strcomp_deinit_base(base, context);
-    return false;
-  }
-
-  if (!uint_freq_tables_init(&base->offset_tables, context, _BSM_LENGTH)) {
-    _strcomp_deinit_base(base, context);
-    return false;
-  }
-
-  if (!uint_freq_tables_init(&base->length_tables, context, _BSM_MATCH_LENGTH_LIMIT)) {
-    _strcomp_deinit_base(base, context);
-    return false;
-  }
-
-  return true;
+  ftable_init(&base->main_symbol_table, context, _STRCOMP_BACKREFERENCE_SYMBOL + 1, FTABLE_INIT_ONE | FTABLE_INCLUDE_EOF);
+  uint_freq_tables_init(&base->offset_tables, context, _BSM_LENGTH);
+  uint_freq_tables_init(&base->length_tables, context, _BSM_MATCH_LENGTH_LIMIT);
 }

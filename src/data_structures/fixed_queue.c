@@ -15,9 +15,7 @@ typedef struct {
   int64 tail;
 } fixed_queue;
 
-void fqueue_deinit(fixed_queue *q, context *context) {
-  context_free(context, q->values);
-
+void fqueue_deinit(fixed_queue *q) {
   *q = (fixed_queue){0};
 }
 
@@ -26,16 +24,15 @@ void fqueue_reset(fixed_queue *q) {
   q->tail = 0;
 }
 
-NODISCARD bool fqueue_init(fixed_queue *q, context *context, int64 value_size, int64 length_shift) {
+void fqueue_init(fixed_queue *q, context *context, int64 value_size, int64 length_shift) {
   *q = (fixed_queue){0};
 
   int64 length = 1 << length_shift;
   q->length_mask = length - 1;
   q->head = 0;
   q->tail = 0;
-  q->values = context_allocate(context, length, value_size);
   q->value_size = value_size;
-  return q->values != NULL;
+  q->values = context_arena_allocate(context, length, value_size);
 }
 
 INLINE void *fqueue_push(fixed_queue *q) {

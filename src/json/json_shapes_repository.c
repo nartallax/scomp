@@ -18,6 +18,7 @@ this will also require maintaining a stack of opening tokens, to take from when 
 repo: have a data structure that stores N values and allows to arbitrarily add/remove them, and access them by index (or do it with pointers?)
 when starting a shape - put one in the repo; when ending a shape - "promote" it to completed.
 completing a shape means putting it into a hash chain. if there is exactly matching shape - don't put new one in; instead, replace the shape completed object references with the old one.
+on replace - make sure to update completed object so it points to the right shape. TODO: how?
 
 when you need to put a new shape into the repo, but it's full:
 find least recently used completed shape, and remove it. don't remove incomplete shapes.

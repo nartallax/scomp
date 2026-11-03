@@ -20,37 +20,21 @@ typedef struct {
 
 /** Don't forget to flush the compressor before calling this */
 // TODO: unite flush and deinit, like with acod
-void strcomp_deinit(string_compressor *compressor, context *context) {
-  bsm_deinit(&compressor->bsm, context);
-  ring_buffer_deinit(&compressor->input_buffer, context);
-  _strcomp_deinit_base(&compressor->base, context);
+void strcomp_deinit(string_compressor *compressor) {
+  bsm_deinit(&compressor->bsm);
+  ring_buffer_deinit(&compressor->input_buffer);
+  _strcomp_deinit_base(&compressor->base);
 
   *compressor = (string_compressor){0};
 }
 
-NODISCARD bool strcomp_init(string_compressor *compressor, context *context, acod_encoder *encoder) {
+void strcomp_init(string_compressor *compressor, context *context, acod_encoder *encoder) {
   *compressor = (string_compressor){0};
   compressor->encoder = encoder;
-  if (!_strcomp_init_base(&compressor->base, context)) {
-    return false;
-  }
 
-  // TODO: I'm tired of all those conditions in init
-  // let's have a region of memory for such allocations
-  // that is guaranteed to fit everything we want to "statically" allocate
-  // (it can be huge for now and we'll shrink it later, before release)
-  // this way the only allocations that can fail are write allocations, which are handled separately
-  if (!bsm_init(&compressor->bsm, context)) {
-    strcomp_deinit(compressor, context);
-    return false;
-  }
-
-  if (!ring_buffer_init(&compressor->input_buffer, context, _BSM_MATCH_LENGTH_SHIFT)) {
-    strcomp_deinit(compressor, context);
-    return false;
-  }
-
-  return true;
+  _strcomp_init_base(&compressor->base, context);
+  bsm_init(&compressor->bsm, context);
+  ring_buffer_init(&compressor->input_buffer, context, _BSM_MATCH_LENGTH_SHIFT);
 }
 
 INLINE void _strcomp_write_backreference(string_compressor *compressor, int64 offset, int64 length) {

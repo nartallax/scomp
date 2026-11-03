@@ -11,23 +11,20 @@ typedef struct {
   int64 index;
 } byte_fixed_stack;
 
-NODISCARD bool bfstack_init(byte_fixed_stack *stack, context *context, int64 item_capacity) {
+void bfstack_deinit(byte_fixed_stack *stack) {
+  *stack = (byte_fixed_stack){0};
+}
+
+void bfstack_init(byte_fixed_stack *stack, context *context, int64 item_capacity) {
   *stack = (byte_fixed_stack){0};
 
   stack->byte_length = item_capacity;
   stack->index = 0;
-  stack->values = context_allocate(context, stack->byte_length, sizeof(byte));
-  return stack->values != NULL;
+  stack->values = context_arena_allocate(context, stack->byte_length, sizeof(byte));
 }
 
 void bfstack_reset(byte_fixed_stack *stack) {
   stack->index = 0;
-}
-
-void bfstack_deinit(byte_fixed_stack *stack, context *context) {
-  context_free(context, stack->values);
-
-  *stack = (byte_fixed_stack){0};
 }
 
 INLINE void bfstack_push(byte_fixed_stack *stack, byte value) {

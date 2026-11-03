@@ -20,9 +20,9 @@ const char *test_string_compression_on_a_file(const char *path) {
   acod_decoder decoder;
   acod_decoder_init(&decoder, &decomp_reader);
   string_compressor comp;
-  TEST_ASSERT(strcomp_init(&comp, test_context, &encoder));
+  strcomp_init(&comp, test_context, &encoder);
   string_decompressor decomp;
-  TEST_ASSERT(strdecomp_init(&decomp, test_context, &decomp_writer, &decoder));
+  strdecomp_init(&decomp, test_context, &decomp_writer, &decoder);
 
   FILE *src_file = fopen(path, "r");
   TEST_ASSERT(src_file);
@@ -57,8 +57,9 @@ const char *test_string_compression_on_a_file(const char *path) {
   fclose(src_file);
 
   strcomp_flush(&comp);
-  strcomp_deinit(&comp, test_context);
+  strcomp_deinit(&comp);
   acod_encoder_deinit(&encoder);
+  acod_decoder_deinit(&decoder);
   buffer_or_error final_buffer = writer_consume_all_buffers(&comp_writer);
   total_bytes_compressed += final_buffer.buffer.length;
   TEST_ASSERT(!final_buffer.is_error);
@@ -74,7 +75,7 @@ const char *test_string_compression_on_a_file(const char *path) {
     // decomp everything until EOF
   }
   TIME_STRUCT decomp_end_time = get_current_time();
-  strdecomp_deinit(&decomp, test_context);
+  strdecomp_deinit(&decomp);
 
   buffer_or_error decomp_result = writer_consume_all_buffers(&decomp_writer);
   TEST_ASSERT(!decomp_result.is_error);

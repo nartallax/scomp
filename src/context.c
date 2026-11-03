@@ -78,6 +78,14 @@ INLINE void *context_arena_allocate(context *context, memsize element_count, mem
   return arena_allocate(&context->common_arena, element_count, single_element_size);
 }
 
+INLINE void *context_arena_allocate_zero_init(context *context, memsize element_count, memsize single_element_size) {
+  byte *result = arena_allocate(&context->common_arena, element_count, single_element_size);
+  for (memsize i = 0; i < element_count * single_element_size; i++) {
+    result[i] = 0;
+  }
+  return result;
+}
+
 void _context_set_error_on_malloc(context *context, memsize byte_size) {
   context_set_error(context, "Failed to allocate memory: malloc(%zu)", byte_size);
 }
@@ -115,6 +123,13 @@ void context_deinit(context *c) {
   *c = (context){0};
 }
 
+void context_reset(context *c) {
+  arena_reset(&c->common_arena);
+  c->error.is_present = false;
+  c->error.message_length = 0;
+  c->error.message[0] = '\0';
+}
+
 // TODO: potentially this library can live without linking to anything at all in runtime
 // I need to test it with ldd, and if it does link to something - figure out what and why, and if I could help it
 NODISCARD bool context_init(context *c, malloc_fn custom_malloc, calloc_fn custom_calloc, realloc_fn custom_realloc, free_fn custom_free) {
@@ -123,15 +138,14 @@ NODISCARD bool context_init(context *c, malloc_fn custom_malloc, calloc_fn custo
   c->calloc = custom_calloc;
   c->realloc = custom_realloc;
   c->free = custom_free;
-  c->error.is_present = false;
-  c->error.message_length = 0;
-  c->error.message[0] = '\0';
 
   if (!arena_init(&c->common_arena, custom_malloc, CONTEXT_ARENA_SIZE)) {
     _context_set_error_on_malloc(c, CONTEXT_ARENA_SIZE);
     context_deinit(c);
     return false;
   }
+
+  context_reset(c);
 
   return true;
 }

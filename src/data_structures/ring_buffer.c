@@ -2,7 +2,6 @@
 #include "../commons.c"
 #include "../context.c"
 #include <stdbool.h>
-#include <string.h>
 
 typedef struct {
   byte *content;
@@ -14,20 +13,17 @@ INLINE int64 ring_buffer_get_length(ring_buffer *rb) {
   return rb->length_mask + 1;
 }
 
-NODISCARD bool ring_buffer_init(ring_buffer *rb, context *context, int64 length_shift) {
+void ring_buffer_deinit(ring_buffer *rb) {
+  *rb = (ring_buffer){0};
+}
+
+void ring_buffer_init(ring_buffer *rb, context *context, int64 length_shift) {
   *rb = (ring_buffer){0};
 
   int64 length = 1 << length_shift;
   rb->length_mask = length - 1;
   rb->content_position = 0;
-  rb->content = context_allocate_zero_init(context, length, sizeof(byte));
-  return rb->content != NULL;
-}
-
-void ring_buffer_deinit(ring_buffer *rb, context *context) {
-  context_free(context, rb->content);
-
-  *rb = (ring_buffer){0};
+  rb->content = context_arena_allocate_zero_init(context, length, sizeof(byte));
 }
 
 /** Get index of next free byte in the buffer */

@@ -14,16 +14,20 @@ void arena_deinit(arena *a, free_fn _free) {
   *a = (arena){0};
 }
 
+void arena_reset(arena *arena) {
+  arena->offset = 0;
+}
+
 NODISCARD bool arena_init(arena *a, malloc_fn _malloc, memsize length) {
   *a = (arena){0};
 
-  a->offset = 0;
   a->length = length;
   a->data = _malloc(a->length * sizeof(byte));
   if (a->data == NULL) {
     *a = (arena){0};
     return false;
   }
+  arena_reset(a);
 
   return true;
 }

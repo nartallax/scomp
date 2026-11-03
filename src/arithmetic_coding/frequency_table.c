@@ -84,29 +84,19 @@ INLINE void ftable_increment(ftable *table, symbol symbol) {
   ftree_add(&table->frequencies, symbol, 1);
 }
 
-void ftable_deinit(ftable *table, context *context) {
-  ftree_deinit(&table->frequencies, context);
-  context_free(context, table->compaction_buffer);
+void ftable_deinit(ftable *table) {
+  ftree_deinit(&table->frequencies);
 
   *table = (ftable){0};
 }
 
-NODISCARD bool ftable_init(ftable *table, context *context, symbol length, ftable_flags init_flags) {
+void ftable_init(ftable *table, context *context, symbol length, ftable_flags init_flags) {
   *table = (ftable){0};
 
   symbol eof_padding = _ftable_get_eof_length_padding(init_flags);
-
-  if (!ftree_init(&table->frequencies, context, length + eof_padding)) {
-    ftable_deinit(table, context);
-    return false;
-  }
-
-  table->compaction_buffer = context_allocate(context, ftree_length(&table->frequencies), sizeof(symbol_frequency));
-  if (!table->compaction_buffer) {
-    ftable_deinit(table, context);
-    return false;
-  }
-
+  ftree_init(&table->frequencies, context, length + eof_padding);
+  // TODO: allocate this buffer once, share between tables
+  table->compaction_buffer = context_arena_allocate(context, ftree_length(&table->frequencies), sizeof(symbol_frequency));
   table->total = 0;
   table->is_eof_included = eof_padding > 0;
 
@@ -119,8 +109,6 @@ NODISCARD bool ftable_init(ftable *table, context *context, symbol length, ftabl
       ftable_increment(table, i);
     }
   }
-
-  return true;
 }
 
 /** Returns the number of symbols in this frequency table. Includes EOF marker, if present. */

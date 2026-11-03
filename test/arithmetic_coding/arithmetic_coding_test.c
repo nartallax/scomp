@@ -25,9 +25,7 @@ buffer test_acod_encode_bytes(int64 length, byte *data) {
   acod_encoder *encoder = malloc(sizeof(acod_encoder));
   acod_encoder_init(encoder, w);
   ftable encoding_frequencies;
-  if (!ftable_init(&encoding_frequencies, test_context, 256, FTABLE_INCLUDE_EOF | FTABLE_INIT_ONE)) {
-    return EMPTY_BUFFER;
-  }
+  ftable_init(&encoding_frequencies, test_context, 256, FTABLE_INCLUDE_EOF | FTABLE_INIT_ONE);
 
   for (int64 i = 0; i < length; i++) {
     symbol symbol = data[i];
@@ -40,7 +38,7 @@ buffer test_acod_encode_bytes(int64 length, byte *data) {
   buffer_or_error result = writer_consume_all_buffers(w);
   writer_deinit(w, test_context);
   free(w);
-  ftable_deinit(&encoding_frequencies, test_context);
+  ftable_deinit(&encoding_frequencies);
   free(encoder);
 
   return result.buffer;
@@ -54,9 +52,7 @@ buffer test_acod_decode_bytes(buffer encoded_bytes) {
   }
 
   ftable decoding_frequencies;
-  if (!ftable_init(&decoding_frequencies, test_context, 256, FTABLE_INCLUDE_EOF | FTABLE_INIT_ONE)) {
-    return EMPTY_BUFFER;
-  }
+  ftable_init(&decoding_frequencies, test_context, 256, FTABLE_INCLUDE_EOF | FTABLE_INIT_ONE);
   acod_decoder *decoder = malloc(sizeof(acod_decoder));
   acod_decoder_init(decoder, &r);
 
@@ -73,7 +69,8 @@ buffer test_acod_decode_bytes(buffer encoded_bytes) {
 
   buffer result = writer_consume_all_buffers(&w).buffer;
 
-  ftable_deinit(&decoding_frequencies, test_context);
+  ftable_deinit(&decoding_frequencies);
+  acod_decoder_deinit(decoder);
   free(decoder);
   reader_deinit(&r, test_context);
   writer_deinit(&w, test_context);
@@ -88,6 +85,8 @@ const char *_test_acod(int64 length, byte *data) {
   for (int64 i = 0; i < length; i++) {
     TEST_ASSERT(decoded_bytes.data[i] == data[i]);
   }
+
+  buffer_free(decoded_bytes, test_context);
 
   return NULL;
 }
@@ -214,7 +213,7 @@ const char *test_acod_decoder_sets_underflow_error() {
   acod_decoder decoder;
   reader r;
   ftable table;
-  TEST_ASSERT(ftable_init(&table, test_context, 256, FTABLE_INIT_ONE | FTABLE_EXCLUDE_EOF));
+  ftable_init(&table, test_context, 256, FTABLE_INIT_ONE | FTABLE_EXCLUDE_EOF);
   TEST_ASSERT(reader_init(&r, test_context));
   acod_decoder_init(&decoder, &r);
 
@@ -225,7 +224,8 @@ const char *test_acod_decoder_sets_underflow_error() {
     acod_decoder_read(&decoder, &table);
   }
   TEST_ASSERT(context_is_errored(test_context));
-  ftable_deinit(&table, test_context);
+  acod_decoder_deinit(&decoder);
+  ftable_deinit(&table);
   reader_deinit(&r, test_context);
   return NULL;
 }

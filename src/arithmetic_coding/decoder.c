@@ -17,6 +17,10 @@ typedef struct {
   int32 trailing_zeroes_emitted;
 } acod_decoder;
 
+void acod_decoder_deinit(acod_decoder *decoder) {
+  *decoder = (acod_decoder){0};
+}
+
 void acod_decoder_init(acod_decoder *decoder, reader *reader) {
   *decoder = (acod_decoder){0};
 

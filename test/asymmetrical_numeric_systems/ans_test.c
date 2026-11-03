@@ -41,8 +41,8 @@ const char *test_ans_simple() {
   ftable dec_table;
   TEST_ASSERT(writer_init(&w, test_context, 1024, 4));
   TEST_ASSERT(reader_init(&r, test_context));
-  TEST_ASSERT(ftable_init(&enc_table, test_context, 256, FTABLE_INIT_ONE | FTABLE_EXCLUDE_EOF));
-  TEST_ASSERT(ftable_init(&dec_table, test_context, 256, FTABLE_INIT_ONE | FTABLE_EXCLUDE_EOF));
+  ftable_init(&enc_table, test_context, 256, FTABLE_INIT_ONE | FTABLE_EXCLUDE_EOF);
+  ftable_init(&dec_table, test_context, 256, FTABLE_INIT_ONE | FTABLE_EXCLUDE_EOF);
   ans_encoder_init(&encoder, &w);
   ans_decoder_init(&decoder, &r);
 
@@ -54,6 +54,7 @@ const char *test_ans_simple() {
   }
 
   decoder.state = ans_encoder_write_block(&encoder, symbols, msg_len, &enc_table, false);
+  free(symbols);
   // buffer encoded = writer_consume_all_buffers(&w).buffer;
   buffer encoded = test_ans_bit_reverse(&w);
   TEST_ASSERT(reader_push_buffer(&r, encoded));
@@ -70,7 +71,7 @@ const char *test_ans_simple() {
 
   writer_deinit(&w, test_context);
   reader_deinit(&r, test_context);
-  ftable_deinit(&enc_table, test_context);
-  ftable_deinit(&dec_table, test_context);
+  ftable_deinit(&enc_table);
+  ftable_deinit(&dec_table);
   return NULL;
 }

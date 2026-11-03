@@ -21,33 +21,21 @@ typedef struct {
   ftable last_part_table;
 } uint_freq_tables;
 
-void uint_freq_tables_deinit(uint_freq_tables *tables, context *context) {
-  ftable_deinit(&tables->uint_parts_table, context);
-  ftable_deinit(&tables->last_part_table, context);
-  ftable_deinit(&tables->length_table, context);
+void uint_freq_tables_deinit(uint_freq_tables *tables) {
+  ftable_deinit(&tables->uint_parts_table);
+  ftable_deinit(&tables->last_part_table);
+  ftable_deinit(&tables->length_table);
 
   *tables = (uint_freq_tables){0};
 }
 
-NODISCARD bool uint_freq_tables_init(uint_freq_tables *tables, context *context, uint64 max_value) {
+void uint_freq_tables_init(uint_freq_tables *tables, context *context, uint64 max_value) {
   *tables = (uint_freq_tables){0};
 
-  if (!ftable_init(&tables->uint_parts_table, context, 1 << _ACOD_UINT_BIT_GROUP_SIZE, FTABLE_INIT_ONE | FTABLE_EXCLUDE_EOF)) {
-    uint_freq_tables_deinit(tables, context);
-    return false;
-  }
-
-  if (!ftable_init(&tables->last_part_table, context, 1 << _ACOD_UINT_BIT_GROUP_SIZE, FTABLE_INIT_ONE | FTABLE_EXCLUDE_EOF)) {
-    uint_freq_tables_deinit(tables, context);
-    return false;
-  }
+  ftable_init(&tables->uint_parts_table, context, 1 << _ACOD_UINT_BIT_GROUP_SIZE, FTABLE_INIT_ONE | FTABLE_EXCLUDE_EOF);
+  ftable_init(&tables->last_part_table, context, 1 << _ACOD_UINT_BIT_GROUP_SIZE, FTABLE_INIT_ONE | FTABLE_EXCLUDE_EOF);
 
   int32 max_value_bits = most_significant_bit_index(max_value);
   int32 symbol_count = (max_value_bits + (_ACOD_UINT_BIT_GROUP_SIZE - 1)) / _ACOD_UINT_BIT_GROUP_SIZE;
-  if (!ftable_init(&tables->length_table, context, symbol_count + 1, FTABLE_INIT_ONE | FTABLE_EXCLUDE_EOF)) {
-    uint_freq_tables_deinit(tables, context);
-    return false;
-  }
-
-  return true;
+  ftable_init(&tables->length_table, context, symbol_count + 1, FTABLE_INIT_ONE | FTABLE_EXCLUDE_EOF);
 }

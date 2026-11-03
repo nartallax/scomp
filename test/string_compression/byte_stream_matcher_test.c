@@ -6,8 +6,8 @@ const char *test_bsm_basic() {
   byte_stream_matcher bsm;
   bsm_match match;
   ring_buffer src;
-  TEST_ASSERT(bsm_init(&bsm, test_context));
-  TEST_ASSERT(ring_buffer_init(&src, test_context, 16));
+  bsm_init(&bsm, test_context);
+  ring_buffer_init(&src, test_context, 16);
 
   for (byte b = 0; b < 20; b++) {
     bsm_push(&bsm, 255 - b);
@@ -38,8 +38,8 @@ const char *test_bsm_basic() {
   match = bsm_find_match(&bsm, &src, 6);
   TEST_ASSERT(match.length == 6 && match.offset == 15);
 
-  bsm_deinit(&bsm, test_context);
-  ring_buffer_deinit(&src, test_context);
+  bsm_deinit(&bsm);
+  ring_buffer_deinit(&src);
   return NULL;
 }
 
@@ -47,8 +47,8 @@ const char *test_bsm_wraps() {
   byte_stream_matcher bsm;
   bsm_match match;
   ring_buffer src;
-  TEST_ASSERT(bsm_init(&bsm, test_context));
-  TEST_ASSERT(ring_buffer_init(&src, test_context, 3));
+  bsm_init(&bsm, test_context);
+  ring_buffer_init(&src, test_context, 3);
 
   // test for matcher array wrapping
   for (int64 i = 0; i < _BSM_LENGTH + 5; i++) {
@@ -77,8 +77,8 @@ const char *test_bsm_wraps() {
   match = bsm_find_match(&bsm, &src, 6);
   TEST_ASSERT(match.length == 7 && match.offset == 7);
 
-  ring_buffer_deinit(&src, test_context);
-  TEST_ASSERT(ring_buffer_init(&src, test_context, 16));
+  ring_buffer_deinit(&src);
+  ring_buffer_init(&src, test_context, 16);
 
   for (int64 i = 0; i < _BSM_MATCH_LENGTH_LIMIT + 5; i++) {
     ring_buffer_push(&src, (byte)(i & 0xff));
@@ -86,21 +86,7 @@ const char *test_bsm_wraps() {
   match = bsm_find_match(&bsm, &src, 0);
   TEST_ASSERT(match.length == _BSM_GOOD_ENOUGH_MATCH_LENGTH + 5 && match.offset == _BSM_GOOD_ENOUGH_MATCH_LENGTH + 5);
 
-  bsm_deinit(&bsm, test_context);
-  ring_buffer_deinit(&src, test_context);
-  return NULL;
-}
-
-const char *test_bsm_allocation_failures() {
-  byte_stream_matcher bsm;
-  setup_test_context(0);
-  TEST_ASSERT(!bsm_init(&bsm, test_context));
-  setup_test_context(1);
-  TEST_ASSERT(!bsm_init(&bsm, test_context));
-  setup_test_context(2);
-  TEST_ASSERT(!bsm_init(&bsm, test_context));
-  setup_test_context(3);
-  TEST_ASSERT(bsm_init(&bsm, test_context));
-  bsm_deinit(&bsm, test_context);
+  bsm_deinit(&bsm);
+  ring_buffer_deinit(&src);
   return NULL;
 }

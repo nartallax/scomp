@@ -54,9 +54,10 @@ buffer test_feed_file_into_tokenizer_detokenizer(const char *path, const char *f
   }
   reader r;
   json_tokenizer t;
-  if (!reader_init(&r, test_context) || !json_tokenizer_init(&t, test_context, &r)) {
+  if (!reader_init(&r, test_context)) {
     return EMPTY_BUFFER;
   }
+  json_tokenizer_init(&t, test_context, &r);
 
   FILE *src_file = fopen(path, "r");
   if (src_file == NULL) {
@@ -117,7 +118,7 @@ buffer test_feed_file_into_tokenizer_detokenizer(const char *path, const char *f
 
   writer_deinit(w, test_context);
   free(w);
-  json_tokenizer_deinit(&t, test_context);
+  json_tokenizer_deinit(&t);
   reader_deinit(&r, test_context);
 
   return result_buffer;

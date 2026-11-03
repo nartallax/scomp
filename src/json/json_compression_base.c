@@ -27,20 +27,20 @@ typedef struct {
   uint_freq_tables number_flag_tables;
 } json_compression_base;
 
-void _json_compression_base_deinit(json_compression_base *base, context *context) {
+void _json_compression_base_deinit(json_compression_base *base) {
   for (int32 i = 0; i < JSON_STATE_MAX + 1; i++) {
-    ftable_deinit(&base->tables[i], context);
+    ftable_deinit(&base->tables[i]);
   }
 
-  ftable_deinit(&base->whitespaces, context);
-  ftable_deinit(&base->escape_sequences, context);
+  ftable_deinit(&base->whitespaces);
+  ftable_deinit(&base->escape_sequences);
 
-  uint_freq_tables_deinit(&base->number_int_tables, context);
-  uint_freq_tables_deinit(&base->number_frac_tables, context);
-  uint_freq_tables_deinit(&base->number_frac_zero_tables, context);
-  uint_freq_tables_deinit(&base->number_expo_tables, context);
-  uint_freq_tables_deinit(&base->number_expo_zero_tables, context);
-  uint_freq_tables_deinit(&base->number_flag_tables, context);
+  uint_freq_tables_deinit(&base->number_int_tables);
+  uint_freq_tables_deinit(&base->number_frac_tables);
+  uint_freq_tables_deinit(&base->number_frac_zero_tables);
+  uint_freq_tables_deinit(&base->number_expo_tables);
+  uint_freq_tables_deinit(&base->number_expo_zero_tables);
+  uint_freq_tables_deinit(&base->number_flag_tables);
 
   *base = (json_compression_base){0};
 }
@@ -49,7 +49,7 @@ void _json_compression_base_reset(json_compression_base *base) {
   base->current_state = JSON_STATE_START;
 }
 
-NODISCARD bool _json_compression_base_init(json_compression_base *base, context *context) {
+void _json_compression_base_init(json_compression_base *base, context *context) {
   *base = (json_compression_base){0};
 
   _json_compression_base_reset(base);
@@ -58,55 +58,20 @@ NODISCARD bool _json_compression_base_init(json_compression_base *base, context 
     // in theory we could make tables smaller than that
     // as in, there's no way that value starts with comma token for example, so we don't need to include comma for value table
     // but this would require additional step of mapping token ids to symbols in the table, which complicates things
-    if (!ftable_init(&base->tables[i], context, JSON_TOKEN_MAX + 1, FTABLE_INIT_ONE | FTABLE_INCLUDE_EOF)) {
-      _json_compression_base_deinit(base, context);
-      return false;
-    }
+    ftable_init(&base->tables[i], context, JSON_TOKEN_MAX + 1, FTABLE_INIT_ONE | FTABLE_INCLUDE_EOF);
   }
 
   // TODO: test off-by-one here?
-  if (!ftable_init(&base->whitespaces, context, sizeof(_JTOK_WHITESPACE_CHARS), FTABLE_INIT_ONE | FTABLE_EXCLUDE_EOF)) {
-    _json_compression_base_deinit(base, context);
-    return false;
-  }
-
+  ftable_init(&base->whitespaces, context, sizeof(_JTOK_WHITESPACE_CHARS), FTABLE_INIT_ONE | FTABLE_EXCLUDE_EOF);
   // TODO: test off-by-one here?
-  if (!ftable_init(&base->escape_sequences, context, sizeof(_JTOK_ESCAPE_SEQ_CHARS), FTABLE_INIT_ONE | FTABLE_EXCLUDE_EOF)) {
-    _json_compression_base_deinit(base, context);
-    return false;
-  }
+  ftable_init(&base->escape_sequences, context, sizeof(_JTOK_ESCAPE_SEQ_CHARS), FTABLE_INIT_ONE | FTABLE_EXCLUDE_EOF);
 
-  if (!uint_freq_tables_init(&base->number_int_tables, context, UINT64_MAX)) {
-    _json_compression_base_deinit(base, context);
-    return false;
-  }
-
-  if (!uint_freq_tables_init(&base->number_frac_tables, context, UINT16_MAX)) {
-    _json_compression_base_deinit(base, context);
-    return false;
-  }
-
-  if (!uint_freq_tables_init(&base->number_frac_zero_tables, context, JSON_MAX_NUMBER_LEADING_ZEROES)) {
-    _json_compression_base_deinit(base, context);
-    return false;
-  }
-
-  if (!uint_freq_tables_init(&base->number_expo_tables, context, UINT16_MAX)) {
-    _json_compression_base_deinit(base, context);
-    return false;
-  }
-
-  if (!uint_freq_tables_init(&base->number_expo_zero_tables, context, JSON_MAX_NUMBER_LEADING_ZEROES)) {
-    _json_compression_base_deinit(base, context);
-    return false;
-  }
-
-  if (!uint_freq_tables_init(&base->number_flag_tables, context, JSON_NUMBER_FLAGS_MAX)) {
-    _json_compression_base_deinit(base, context);
-    return false;
-  }
-
-  return true;
+  uint_freq_tables_init(&base->number_int_tables, context, UINT64_MAX);
+  uint_freq_tables_init(&base->number_frac_tables, context, UINT16_MAX);
+  uint_freq_tables_init(&base->number_frac_zero_tables, context, JSON_MAX_NUMBER_LEADING_ZEROES);
+  uint_freq_tables_init(&base->number_expo_tables, context, UINT16_MAX);
+  uint_freq_tables_init(&base->number_expo_zero_tables, context, JSON_MAX_NUMBER_LEADING_ZEROES);
+  uint_freq_tables_init(&base->number_flag_tables, context, JSON_NUMBER_FLAGS_MAX);
 }
 
 INLINE ftable *_json_compression_base_get_current_ftable(json_compression_base *base) {

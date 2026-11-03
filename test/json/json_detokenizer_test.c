@@ -8,14 +8,15 @@
 json_token test_string_to_single_json_token(const char *str) {
   json_tokenizer t;
   reader r;
-  if (!reader_init(&r, test_context) || !json_tokenizer_init(&t, test_context, &r)) {
+  if (!reader_init(&r, test_context)) {
     return INVALID_JSON_TOKEN;
   }
+  json_tokenizer_init(&t, test_context, &r);
   if (!reader_push_buffer(&r, malloc_string_buffer(str))) {
     return INVALID_JSON_TOKEN;
   }
   json_token result = json_tokenizer_parse_next(&t);
-  json_tokenizer_deinit(&t, test_context);
+  json_tokenizer_deinit(&t);
   reader_deinit(&r, test_context);
   return result;
 }
