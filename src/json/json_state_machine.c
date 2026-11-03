@@ -1,47 +1,58 @@
 #pragma once
 #include "../context.c"
-#include "../data_structures/byte_fixed_stack.c"
+#include "../data_structures/fixed_stack.c"
 #include "json_base.c"
 
 /** This is a finite state machine (with a stack) that describes JSON parsing states */
 typedef struct {
-  byte_fixed_stack state_stack;
+  fixed_stack state_stack;
 } json_state_machine;
 
 void jsm_deinit(json_state_machine *jsm) {
-  bfstack_deinit(&jsm->state_stack);
+  fstack_deinit(&jsm->state_stack);
 
   *jsm = (json_state_machine){0};
 }
 
 void jsm_reset(json_state_machine *jsm) {
-  bfstack_reset(&jsm->state_stack);
-  bfstack_push(&jsm->state_stack, JSON_STATE_ROOT);
-  bfstack_push(&jsm->state_stack, JSON_STATE_START);
+  fstack_reset(&jsm->state_stack);
+  json_state *state_slot;
+
+  state_slot = fstack_push(&jsm->state_stack);
+  *state_slot = JSON_STATE_ROOT;
+
+  state_slot = fstack_push(&jsm->state_stack);
+  *state_slot = JSON_STATE_START;
 }
 
 void jsm_init(json_state_machine *jsm, context *context) {
   *jsm = (json_state_machine){0};
 
-  bfstack_init(&jsm->state_stack, context, JSON_MAX_STATE_STACK_LENGTH);
+  fstack_init(&jsm->state_stack, context, sizeof(json_state), JSON_MAX_STATE_STACK_LENGTH);
   jsm_reset(jsm);
 }
 
 INLINE json_state jsm_get_current_state(json_state_machine *jsm) {
-  return bfstack_peek(&jsm->state_stack);
+  return *((json_state *)fstack_peek(&jsm->state_stack));
+}
+
+INLINE void _jsm_replace_top_state(json_state_machine *jsm, json_state state) {
+  json_state *slot = fstack_peek(&jsm->state_stack);
+  *slot = state;
 }
 
 NODISCARD INLINE bool _jsm_push_state(json_state_machine *jsm, json_state state) {
-  if (bfstack_get_count(&jsm->state_stack) == bfstack_get_capacity(&jsm->state_stack)) {
+  if (fstack_get_count(&jsm->state_stack) == fstack_get_capacity(&jsm->state_stack)) {
     return false;
   }
-  bfstack_push(&jsm->state_stack, state);
+  json_state *slot = fstack_push(&jsm->state_stack);
+  *slot = state;
   return true;
 }
 
 NODISCARD INLINE bool _jsm_push_value_state(json_state_machine *jsm, json_state state) {
-  if (bfstack_peek(&jsm->state_stack) == JSON_STATE_VALUE) {
-    bfstack_pop(&jsm->state_stack);
+  if (*((json_state *)fstack_peek(&jsm->state_stack)) == JSON_STATE_VALUE) {
+    fstack_pop(&jsm->state_stack);
   }
   return _jsm_push_state(jsm, state);
 }
@@ -49,14 +60,14 @@ NODISCARD INLINE bool _jsm_push_value_state(json_state_machine *jsm, json_state 
 INLINE void _jsm_try_update_stack_top_after_reading_value(json_state_machine *jsm) {
   json_state base_state = jsm_get_current_state(jsm);
   if (base_state == JSON_STATE_ARRAY_START) {
-    bfstack_replace(&jsm->state_stack, JSON_STATE_ARRAY_CONTINUE);
+    _jsm_replace_top_state(jsm, JSON_STATE_ARRAY_CONTINUE);
   } else if (base_state == JSON_STATE_OBJECT_START) {
-    bfstack_replace(&jsm->state_stack, JSON_STATE_OBJECT_CONTINUE);
+    _jsm_replace_top_state(jsm, JSON_STATE_OBJECT_CONTINUE);
   }
 }
 
 INLINE void _jsm_pop_state_after_reading_value(json_state_machine *jsm) {
-  bfstack_pop(&jsm->state_stack);
+  fstack_pop(&jsm->state_stack);
   _jsm_try_update_stack_top_after_reading_value(jsm);
 }
 
@@ -74,8 +85,8 @@ NODISCARD bool _jsm_try_start_value(json_state_machine *jsm, json_token_kind tok
   case JSON_TOKEN_TRUE:
   case JSON_TOKEN_FALSE:
   case JSON_TOKEN_NULL:
-    if (bfstack_peek(&jsm->state_stack) == JSON_STATE_VALUE) {
-      bfstack_pop(&jsm->state_stack);
+    if (jsm_get_current_state(jsm) == JSON_STATE_VALUE) {
+      fstack_pop(&jsm->state_stack);
     }
     _jsm_try_update_stack_top_after_reading_value(jsm);
     return true;
@@ -89,11 +100,11 @@ NODISCARD bool jsm_process_token(json_state_machine *jsm, json_token_kind token_
   switch (state) {
   case JSON_STATE_START:
     if (token_kind == JSON_TOKEN_BOM) {
-      bfstack_replace(&jsm->state_stack, JSON_STATE_VALUE);
+      _jsm_replace_top_state(jsm, JSON_STATE_VALUE);
       return true;
     }
     // probably a value
-    bfstack_replace(&jsm->state_stack, JSON_STATE_VALUE);
+    _jsm_replace_top_state(jsm, JSON_STATE_VALUE);
     return jsm_process_token(jsm, token_kind);
   case JSON_STATE_VALUE:
     return _jsm_try_start_value(jsm, token_kind);
@@ -101,7 +112,7 @@ NODISCARD bool jsm_process_token(json_state_machine *jsm, json_token_kind token_
   case JSON_STATE_OBJECT_KEY:
     if (token_kind == JSON_TOKEN_STRING_DELIMITER) {
       if (state == JSON_STATE_OBJECT_KEY) {
-        bfstack_replace(&jsm->state_stack, JSON_STATE_OBJECT_KV_SEPARATOR);
+        _jsm_replace_top_state(jsm, JSON_STATE_OBJECT_KV_SEPARATOR);
       } else {
         _jsm_pop_state_after_reading_value(jsm);
       }
@@ -147,14 +158,14 @@ NODISCARD bool jsm_process_token(json_state_machine *jsm, json_token_kind token_
     }
   case JSON_STATE_OBJECT_KEY_START:
     if (token_kind == JSON_TOKEN_STRING_DELIMITER) {
-      bfstack_replace(&jsm->state_stack, JSON_STATE_OBJECT_KEY);
+      _jsm_replace_top_state(jsm, JSON_STATE_OBJECT_KEY);
       return true;
     } else {
       return token_kind == JSON_TOKEN_WHITESPACE;
     }
   case JSON_STATE_OBJECT_KV_SEPARATOR:
     if (token_kind == JSON_TOKEN_KV_SEPARATOR) {
-      bfstack_replace(&jsm->state_stack, JSON_STATE_VALUE);
+      _jsm_replace_top_state(jsm, JSON_STATE_VALUE);
       return true;
     } else {
       return token_kind == JSON_TOKEN_WHITESPACE;

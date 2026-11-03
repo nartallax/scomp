@@ -47,6 +47,7 @@ to implement:
 pool
 redo fixed stack to accept not only bytes, but arbitrary values
 LRU queue or smth
+refactor out hash chain
 
 */
 

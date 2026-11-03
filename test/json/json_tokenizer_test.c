@@ -945,7 +945,7 @@ bool test_json_tokenizer_stack_push_fail(const char *src, int pushes_before_fail
   json_tokenizer_init(&t, test_context, &r);
 
   // bit weird to do it like that, but it's the easiest way to get tokenizer to that state
-  t.jsm.state_stack.byte_length = t.jsm.state_stack.index + pushes_before_failure;
+  t.jsm.state_stack.item_capacity = t.jsm.state_stack.index + pushes_before_failure;
   if (!reader_push_buffer(&r, malloc_string_buffer(src))) {
     printf("Failed to push to reader\n");
     return false;
