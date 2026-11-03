@@ -3,27 +3,11 @@
 #include "../context.c"
 #include <assert.h>
 
-constexpr int64 ARENA_DEFAULT_LENGTH = 1024;
-
-// TODO: do we still need it?
 typedef struct {
-  context *context;
   byte *data;
-  int64 offset;
-  int64 length;
-  int allocations_count;
+  memsize offset;
+  memsize length;
 } arena;
-
-NODISCARD bool arena_init(arena *a, context *context) {
-  *a = (arena){0};
-
-  a->offset = 0;
-  a->length = ARENA_DEFAULT_LENGTH;
-  a->context = context;
-  a->allocations_count = 0;
-  a->data = context_allocate(context, a->length, sizeof(byte));
-  return a->data != NULL;
-}
 
 void arena_deinit(arena *a, context *context) {
   context_free(context, a->data);
@@ -31,42 +15,26 @@ void arena_deinit(arena *a, context *context) {
   *a = (arena){0};
 }
 
-/** Allocates some memory in the arena.
-Returns offset. Offset can be turned into pointer with `arena_offset_to_pointer()`.
-Offsets are valid until arena resets.
+NODISCARD bool arena_init(arena *a, context *context, memsize length) {
+  *a = (arena){0};
 
-Returns 0 on allocation errors. */
-int64 arena_allocate(arena *arena, int64 byte_size) {
-  while (arena->offset + byte_size >= arena->length) {
-    int64 new_length = arena->length * 2;
-    byte *new_data = context_reallocate(arena->context, arena->data, new_length, sizeof(byte));
-    if (!new_data) {
-      return 0;
-    }
-    arena->data = new_data;
-    arena->length = new_length;
+  a->offset = 0;
+  a->length = length;
+  a->data = context_allocate(context, a->length, sizeof(byte));
+  if (a->data == NULL) {
+    arena_deinit(a, context);
+    return false;
   }
 
-  int64 result = arena->offset;
-  arena->offset += byte_size;
-  arena->allocations_count++;
-  return result + 1;
+  return true;
 }
 
-/** Converts offset (see `arena_allocate()`) into pointer of usable memory.
-Don't store the pointer between `arena_allocate()` calls, as it may be invalidated on arena growth. */
-INLINE void *arena_offset_to_pointer(arena *arena, int64 offset) {
-  assert(offset > 0 && "Zero offset is invalid");
-  return arena->data + (offset - 1);
-}
+void *arena_allocate(arena *arena, int64 element_count, memsize byte_size) {
+  void *result = arena->data + arena->offset;
 
-/** Notify arena that some offset is no longer required.
-Arena resets once all the allocations are gone.
-By the nature of an arena, it doesn't need to know which allocation is being free'd, as long as amount of free-s matches amount of allocations. */
-void arena_free(arena *arena) {
-  arena->allocations_count--;
-  assert(arena->allocations_count >= 0);
-  if (arena->allocations_count == 0) {
-    arena->offset = 0;
-  }
+  memsize allocation_size = element_count * byte_size;
+  assert(arena->offset + allocation_size < arena->length && "Arena overflow. Create bigger arena.");
+  arena->offset += allocation_size;
+
+  return result;
 }

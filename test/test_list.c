@@ -75,7 +75,6 @@ test normal_tests[] = {
     MAKE_TEST(test_fixed_queue_wrapping),
     MAKE_TEST(test_fixed_queue_allocation_failures),
     MAKE_TEST(test_arena_simple),
-    MAKE_TEST(test_arena_one_big_allocation),
     MAKE_TEST(test_arena_allocation_failures),
     MAKE_TEST(test_ring_buffer_simple),
     MAKE_TEST(test_ring_buffer_allocation_fail),
