@@ -8,8 +8,12 @@ as new tokens are encountered, maintain shapes repo - push open/close tokens, an
 add meta-info to object_open tokens (modify token structure) that holds some sort of reference to the shape of this object in the repo.
 
 keep in mind that shapes can be incomplete, or invalidated, even when it's time to write the object; in this case, just write the tokens.
-opening token holds reference to the shape it started. shape holds reference to that reference. this way it can be updated/invalidated from both sides.
+opening token holds reference to the shape it started, and its ID. shape holds reference to that reference. this way it can be updated/invalidated from both sides.
+ID of the shape is only incremented every time an object is discovered. if it ever overflows - the cache resets, and the stack of the object starters resets too.
+shapes can be invalidated for two reasons - because of the length overflow during building, and because of it being pushed out of cache after it's completed.
 when repo invalidates the shape (because of its length) - repo sets reference to null, so the source object knows it's invalidated.
+when repo invalidates the shape (because of the cache) - there are multiple references possible, or zero. we do nothing; if there are references - they will have different ID.
+therefore, if an object is being written out, and starting token has shape ID < shape ID stored in the shape it references - then the shape was removed because of cache, and must not be used.
 when object invalidates the shape (because we started writing it before it's competed) - object sets reference on the shape to null.
 when repo competes the shape and merges it - repo updates the reference to reference the existing shape.
 if shape is completed, but the merge didn't happen because no matching shape was found - repo must set reference to null;
@@ -42,6 +46,29 @@ fixed_stack<object_shape*> shapes_stack // for updating top-most shape when ther
 
 comp data:
 queue<token> tokens_to_be_written
+
+cache controller:
+cache_entry[offset_range] entries; // entries hold their state (fresh/mature), usage count, and list_ref from lru_cache
+linked_list fresh_entries; // when it starts to overflow - remove oldest one
+lru_cache old_entries // lru cache that holds mature values; value is promoted to mature once its been bumped at least once. promoting value can kick out some other one
+offset push_value() // returns a slot for a new value. founds a fresh entry in fresh_entries, sets it up and returns the offset
+bool is_overflowing() // returns true if we need to remove some values
+offset remove_value(); // removes the value that most deserve to be removed, and returns its offset. either removes value from fresh_entries, or old_entries, depending on what's overflowing
+void bump_value(offset value); // updates position in cache. if the entry is fresh - it is promoted and removed from fresh_entries; if it's mature - it's bumped
+
+lru cache:
+linked_list values
+list_ref push_value(offset)
+void bump_value(list_ref)
+
+linked list:
+stack free_slots; // list of "holes" in entries
+list_entry[] entries; // entry has reference to prev, back and some value
+list_ref append(value) // creates a new value at the end of the list. returns a reference to that value.
+void remove(list_ref) // removes the value from the list
+
+
+
 
 to implement:
 pool
