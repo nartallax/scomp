@@ -6,7 +6,7 @@
 struct _fixed_array_list_entry {
   struct _fixed_array_list_entry *prev;
   struct _fixed_array_list_entry *next;
-  int64 value;
+  void *value;
 };
 
 typedef struct _fixed_array_list_entry fal_entry;
@@ -20,16 +20,22 @@ typedef struct {
   fal_entry *tail;
 } fixed_array_list;
 
-void fal_init(fixed_array_list *fal, context *context, int64 length) {
-  *fal = (fixed_array_list){0};
-
+void fal_reset(fixed_array_list *fal) {
   fal->head = NULL;
-  fal->entries = context_arena_allocate(context, length, sizeof(fal_entry));
-  fstack_init(&fal->free_slots, context, sizeof(fal_entry *), length);
-  for (int64 i = length - 1; i >= 0; i--) {
+  fal->tail = NULL;
+  fstack_reset(&fal->free_slots);
+  for (int64 i = fstack_get_capacity(&fal->free_slots) - 1; i >= 0; i--) {
     fal_entry **slot = fstack_push(&fal->free_slots);
     *slot = &fal->entries[i];
   }
+}
+
+void fal_init(fixed_array_list *fal, context *context, int64 length) {
+  *fal = (fixed_array_list){0};
+
+  fal->entries = context_arena_allocate(context, length, sizeof(fal_entry));
+  fstack_init(&fal->free_slots, context, sizeof(fal_entry *), length);
+  fal_reset(fal);
 }
 
 void fal_deinit(fixed_array_list *fal) {
@@ -46,7 +52,7 @@ INLINE bool fal_is_empty(fixed_array_list *fal) {
   return fstack_get_count(&fal->free_slots) == fstack_get_capacity(&fal->free_slots);
 }
 
-INLINE fal_entry *fal_push_head(fixed_array_list *fal, int64 value) {
+INLINE fal_entry *fal_push_head(fixed_array_list *fal, void *value) {
   assert(fal_has_free_space(fal) && "Must have free space on push");
   fal_entry **slot = fstack_pop(&fal->free_slots);
   fal_entry *new_entry = *slot;
@@ -84,9 +90,13 @@ INLINE void fal_remove_entry(fixed_array_list *fal, fal_entry *entry) {
   }
 }
 
-INLINE fal_entry *fal_pop_tail(fixed_array_list *fal) {
+INLINE void *fal_pop_tail(fixed_array_list *fal) {
   assert(!fal_is_empty(fal) && "Cannot remove entry from an empty list");
   fal_entry *tail = fal->tail;
   fal_remove_entry(fal, tail);
-  return tail;
+  return tail->value;
+}
+
+INLINE bool fal_is_own_entry(fixed_array_list *fal, fal_entry *entry) {
+  return entry >= fal->entries && entry < &fal->entries[fstack_get_capacity(&fal->free_slots)];
 }
