@@ -39,7 +39,7 @@ INLINE bool fpool_has_space(fixed_pool *pool) {
   return fstack_get_count(&pool->free_slots) > 0;
 }
 
-void *fpool_acquire(fixed_pool *pool) {
+INLINE void *fpool_acquire(fixed_pool *pool) {
   assert(fpool_has_space(pool) && "Must have space to acquire anything from the pool");
   return *(void **)fstack_pop(&pool->free_slots);
 }
@@ -50,8 +50,12 @@ void fpool_release(fixed_pool *pool, void *value) {
   *slot = value;
 }
 
-int64 fpool_get_offset(fixed_pool *pool, void *value) {
+INLINE int64 fpool_get_offset(fixed_pool *pool, void *value) {
   int64 offset = (((byte *)value) - pool->data) / pool->item_size;
   assert(offset >= 0 && offset < fstack_get_capacity(&pool->free_slots) && "Offset is expected to stay inside the pool, otherwise it's some pointer that doesn't belong in the pool");
   return offset;
+}
+
+INLINE void *fpool_offset_to_value(fixed_pool *pool, int64 offset) {
+  return &pool->data[offset * pool->item_size];
 }
