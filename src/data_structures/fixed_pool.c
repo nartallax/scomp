@@ -28,9 +28,9 @@ void fpool_init(fixed_pool *pool, context *context, int64 item_size, int64 item_
   pool->item_size = item_size;
   fstack_init(&pool->free_slots, context, sizeof(void *), item_count);
 
-  for (int64 i = 0; i < item_count; i++) {
+  for (int64 i = item_count - 1; i >= 0; i--) {
     void **slot = fstack_push(&pool->free_slots);
-    *slot = &pool->data[i * item_size];
+    *slot = pool->data + (i * item_size);
   }
 }
 
@@ -40,7 +40,7 @@ INLINE bool fpool_has_space(fixed_pool *pool) {
 
 void *fpool_acquire(fixed_pool *pool) {
   assert(fpool_has_space(pool) && "Must have space to acquire anything from the pool");
-  return fstack_pop(&pool->free_slots);
+  return *(void **)fstack_pop(&pool->free_slots);
 }
 
 void fpool_release(fixed_pool *pool, void *value) {
@@ -50,7 +50,7 @@ void fpool_release(fixed_pool *pool, void *value) {
 }
 
 int64 fpool_get_offset(fixed_pool *pool, void *value) {
-  int64 offset = ((byte *)value - pool->data) / pool->item_size;
+  int64 offset = (((byte *)value) - pool->data) / pool->item_size;
   assert(offset >= 0 && offset < fstack_get_capacity(&pool->free_slots) && "Offset is expected to stay inside the pool, otherwise it's some pointer that doesn't belong in the pool");
   return offset;
 }

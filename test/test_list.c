@@ -7,6 +7,7 @@
 #include "data_structures/arena_test.c"
 #include "data_structures/byte_fixed_stack_test.c"
 #include "data_structures/fenwick_tree_test.c"
+#include "data_structures/fixed_pool_test.c"
 #include "data_structures/fixed_queue_test.c"
 #include "data_structures/queue_test.c"
 #include "data_structures/reader_test.c"
@@ -115,6 +116,7 @@ test normal_tests[] = {
     MAKE_TEST(test_json_compression_simple),
     MAKE_TEST(test_json_compression_broken_compressed_data),
     MAKE_TEST(test_uint_writer_simple),
+    MAKE_TEST(test_fixed_pool_simple),
     // MAKE_TEST(test_ans_simple),
     // tests go here
 };

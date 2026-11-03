@@ -12,7 +12,7 @@ opening token holds reference to the shape it started, and its ID. shape holds r
 ID of the shape is only incremented every time an object is discovered. if it ever overflows - the cache resets, and the stack of the object starters resets too.
 shapes can be invalidated for two reasons - because of the length overflow during building, and because of it being pushed out of cache after it's completed.
 when repo invalidates the shape (because of its length) - repo sets reference to null, so the source object knows it's invalidated.
-when repo invalidates the shape (because of the cache) - there are multiple references possible, or zero. we do nothing; if there are references - they will have different ID.
+when repo invalidates the shape (because of the cache) - we clear the shape from the pool, and set its id to MAX_ID. if it's ever reused - its id will be larger than ids the opening tokens.
 therefore, if an object is being written out, and starting token has shape ID < shape ID stored in the shape it references - then the shape was removed because of cache, and must not be used.
 when object invalidates the shape (because we started writing it before it's competed) - object sets reference on the shape to null.
 when repo competes the shape and merges it - repo updates the reference to reference the existing shape.
