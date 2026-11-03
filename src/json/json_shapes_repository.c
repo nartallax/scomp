@@ -48,16 +48,16 @@ comp data:
 queue<token> tokens_to_be_written
 
 cache controller:
-cache_entry[offset_range] entries; // entries hold their state (fresh/mature), usage count, and list_ref from lru_cache
-linked_list fresh_entries; // when it starts to overflow - remove oldest one
-lru_cache old_entries // lru cache that holds mature values; value is promoted to mature once its been bumped at least once. promoting value can kick out some other one
-offset push_value() // returns a slot for a new value. founds a fresh entry in fresh_entries, sets it up and returns the offset
-bool is_overflowing() // returns true if we need to remove some values
-offset remove_value(); // removes the value that most deserve to be removed, and returns its offset. either removes value from fresh_entries, or old_entries, depending on what's overflowing
+// cache entry: bool is_mature; list_ref to fresh_entries or mature_entries
+cache_entry[range(max_offset)] all_entries;
+fstack<offset> unoccupied_entries;
+linked_list<offset> fresh_entries; // when it starts to overflow - remove oldest one
+lru_cache mature_entries // lru cache that holds mature values; value is promoted to mature once its been bumped at least once. promoting value can kick out some other one
+offset push_value() // returns a slot for a new value. founds a fresh entry in fresh_entries, sets it up and returns the offset. may return offset of existing value - then overwrite is expected
 void bump_value(offset value); // updates position in cache. if the entry is fresh - it is promoted and removed from fresh_entries; if it's mature - it's bumped
 
 lru cache:
-linked_list values
+linked_list<offset> values
 list_ref push_value(offset)
 void bump_value(list_ref)
 

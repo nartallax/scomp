@@ -3,6 +3,7 @@
 #include "../context.c"
 #include "fixed_stack.c"
 
+// TODO: unused?
 /** A region of memory, of fixed size, that holds some amount of values of the same type.
 This data structure allows to add or remove elements in O(1) */
 typedef struct {
