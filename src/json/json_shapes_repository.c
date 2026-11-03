@@ -18,7 +18,7 @@ this will also require maintaining a stack of opening tokens, to take from when 
 repo: have a data structure that stores N values and allows to arbitrarily add/remove them, and access them by index (or do it with pointers?)
 when starting a shape - put one in the repo; when ending a shape - "promote" it to completed.
 completing a shape means putting it into a hash chain. if there is exactly matching shape - don't put new one in; instead, replace the shape completed object references with the old one.
-on replace - make sure to update completed object so it points to the right shape. TODO: how?
+on replace - make sure to update completed object's opening token so it points to the right shape.
 
 when you need to put a new shape into the repo, but it's full:
 find least recently used completed shape, and remove it. don't remove incomplete shapes.
@@ -44,15 +44,20 @@ queue<token> tokens_to_be_written
 to implement:
 pool
 redo fixed stack to accept not only bytes, but arbitrary values
+LRU queue or smth
 
 */
 
-typedef struct {
+struct _json_object_shape {
   uint64 keyset_hash;
-  // did we see the closing token for this object?
-  bool is_completed;
+  /** Reference to this shape from the opening token for the object that is the source of this shape.
+  It is here for two reasons:
+    1. to be able to update the reference if after completion of shape, if the shape is merged with other shape
+    2. it's null when the shape is completed, so it's also used for shape completeness check */
+  struct _json_object_shape **source_object_shape_reference;
   // TODO: keys field?
-} json_object_shape;
+};
+typedef struct _json_object_shape json_object_shape;
 
 typedef struct {
   // TODO: stack with top N objects/arrays
