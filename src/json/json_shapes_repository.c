@@ -8,10 +8,12 @@ as new tokens are encountered, maintain shapes repo - push open/close tokens, an
 add meta-info to object_open tokens (modify token structure) that holds some sort of reference to the shape of this object in the repo.
 
 keep in mind that shapes can be incomplete, or invalidated, even when it's time to write the object; in this case, just write the tokens.
-we detect invalidated shapes by assigning ids to them. every new object_open token gets new ID;
-if the ID on the object_open is lower ID on the shape it references - shape has been invalidated;
-if it's higher - shape has been merged (it's fine);
-if it's equal - it's the first object to have this shape, and therefore should be written as just object, and not as a reference to a shape.
+opening token holds reference to the shape it started. shape holds reference to that reference. this way it can be updated/invalidated from both sides.
+when repo invalidates the shape (because of its length) - repo sets reference to null, so the source object knows it's invalidated.
+when object invalidates the shape (because we started writing it before it's competed) - object sets reference on the shape to null.
+when repo competes the shape and merges it - repo updates the reference to reference the existing shape.
+if shape is completed, but the merge didn't happen because no matching shape was found - repo must set reference to null;
+this prevents referencing the shape, as it's the first of its kind and we must write it out instead of referencing.
 
 this will also require maintaining a stack of opening tokens, to take from when a closing token is encountered.
 
@@ -53,11 +55,16 @@ struct _json_object_shape {
   /** Reference to this shape from the opening token for the object that is the source of this shape.
   It is here for two reasons:
     1. to be able to update the reference if after completion of shape, if the shape is merged with other shape
-    2. it's null when the shape is completed, so it's also used for shape completeness check */
+    2. it's null when the shape is completed, so it's also used for shape completeness check when object referencing this shape is being written
+  It would also be null if the object start was written before the shape is complete. */
   struct _json_object_shape **source_object_shape_reference;
   // TODO: keys field?
 };
 typedef struct _json_object_shape json_object_shape;
+
+// TODO: recognize mono-type arrays? arrays that have all the same value types (and maybe nulls)
+// TODO: recognize array-tuples?
+// TODO: recognize map-types? objects with arbitrary keys that have all the same value types (and maybe nulls)
 
 typedef struct {
   // TODO: stack with top N objects/arrays

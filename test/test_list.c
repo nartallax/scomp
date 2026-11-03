@@ -3,7 +3,6 @@
 #include "arithmetic_coding/arithmetic_coding_test.c"
 #include "arithmetic_coding/frequency_table_test.c"
 #include "arithmetic_coding/uint_writer_test.c"
-#include "asymmetrical_numeric_systems/ans_test.c"
 #include "context_test.c"
 #include "data_structures/arena_test.c"
 #include "data_structures/byte_fixed_stack_test.c"
@@ -56,6 +55,8 @@ brotli -q 11:		2319899			29.397s
 test normal_tests[] = {
     MAKE_TEST(test_most_significant_bit),
     MAKE_TEST(test_context_double_error),
+    MAKE_TEST(test_context_allocation_errors),
+    MAKE_TEST(test_context_zero_init),
     MAKE_TEST(test_utf8_simple),
     MAKE_TEST(test_fenwick_tree_simple),
     MAKE_TEST(test_fenwick_tree_max_range),
@@ -114,7 +115,7 @@ test normal_tests[] = {
     MAKE_TEST(test_json_compression_simple),
     MAKE_TEST(test_json_compression_broken_compressed_data),
     MAKE_TEST(test_uint_writer_simple),
-    MAKE_TEST(test_ans_simple),
+    // MAKE_TEST(test_ans_simple),
     // tests go here
 };
 

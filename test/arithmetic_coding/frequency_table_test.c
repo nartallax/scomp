@@ -6,12 +6,14 @@
 const char *test_ftable_simple() {
   ftable table;
   ftable_init(&table, test_context, 5, FTABLE_INIT_ZERO | FTABLE_EXCLUDE_EOF);
+  TEST_ASSERT(ftable_get_total(&table) == 0);
   TEST_ASSERT(ftable_get_frequency(&table, 4) == 0);
   TEST_ASSERT(ftable_get_symbol_count(&table) == 5);
 
   ftable_increment(&table, 3);
   ftable_increment(&table, 2);
   ftable_increment(&table, 2);
+  TEST_ASSERT(ftable_get_total(&table) == 3);
   TEST_ASSERT(ftable_get_frequency(&table, 3) == 1);
   TEST_ASSERT(ftable_get_frequency(&table, 2) == 2);
   TEST_ASSERT(ftable_get_low(&table, 2) == 0);
@@ -44,6 +46,7 @@ const char *test_ftable_with_eof() {
 const char *test_ftable_init_one() {
   ftable table;
   ftable_init(&table, test_context, 5, FTABLE_INIT_ONE | FTABLE_EXCLUDE_EOF);
+  TEST_ASSERT(ftable_get_total(&table) == 5);
   TEST_ASSERT(ftable_get_frequency(&table, 3) == 1);
   TEST_ASSERT(ftable_get_low(&table, 3) == 3);
   TEST_ASSERT(ftable_get_high(&table, 3) == 4);
@@ -52,6 +55,7 @@ const char *test_ftable_init_one() {
   ftable_increment(&table, 2);
   ftable_increment(&table, 2);
   ftable_increment(&table, 3);
+  TEST_ASSERT(ftable_get_total(&table) == 9);
   TEST_ASSERT(ftable_get_low(&table, 3) == 6);
   TEST_ASSERT(ftable_get_high(&table, 3) == 8);
   ftable_deinit(&table);

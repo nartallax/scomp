@@ -109,6 +109,7 @@ INLINE void *context_reallocate(context *context, void *base, memsize new_elemen
   return result;
 }
 
+// TODO: are we using it? remove if not
 INLINE void *context_allocate_zero_init(context *context, memsize element_count, memsize single_element_size) {
   void *result = context->calloc(element_count, single_element_size);
   if (result == NULL) {
@@ -125,9 +126,7 @@ void context_deinit(context *c) {
 
 void context_reset(context *c) {
   arena_reset(&c->common_arena);
-  c->error.is_present = false;
-  c->error.message_length = 0;
-  c->error.message[0] = '\0';
+  context_clear_error(c);
 }
 
 // TODO: potentially this library can live without linking to anything at all in runtime
@@ -140,7 +139,6 @@ NODISCARD bool context_init(context *c, malloc_fn custom_malloc, calloc_fn custo
   c->free = custom_free;
 
   if (!arena_init(&c->common_arena, custom_malloc, CONTEXT_ARENA_SIZE)) {
-    _context_set_error_on_malloc(c, CONTEXT_ARENA_SIZE);
     context_deinit(c);
     return false;
   }
