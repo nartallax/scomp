@@ -81,7 +81,11 @@ void update_test_context_for_alloc_failure(int allocations_before_failure_count)
 void setup_test_context(int allocations_before_failure_count) {
   free_test_context();
   test_context = malloc(sizeof(context));
-  context_init(test_context, malloc, calloc, realloc, free);
+  bool context_init_success = context_init(test_context, malloc, calloc, realloc, free);
+  if (!context_init_success) {
+    printf("Failed to init test context. This is not supposed to ever happen.\n");
+    abort();
+  }
   update_test_context_for_alloc_failure(allocations_before_failure_count);
 }
 

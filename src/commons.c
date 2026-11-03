@@ -24,3 +24,8 @@ typedef int16 symbol;
 /** A relative frequency of a symbol.
 Usually equal to number of appearances of the symbol in the stream, but can be adjusted in some cases. */
 typedef uint64 symbol_frequency;
+
+typedef void *(*malloc_fn)(memsize);
+typedef void *(*calloc_fn)(memsize, memsize);
+typedef void *(*realloc_fn)(void *, memsize);
+typedef void (*free_fn)(void *);

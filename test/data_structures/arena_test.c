@@ -4,7 +4,7 @@
 
 const char *test_arena_simple() {
   arena a;
-  TEST_ASSERT(arena_init(&a, test_context, 1024));
+  TEST_ASSERT(arena_init(&a, test_context->malloc, 1024));
 
   byte *first = arena_allocate(&a, 5, sizeof(byte));
   byte *second = arena_allocate(&a, 5, sizeof(byte));
@@ -31,21 +31,17 @@ const char *test_arena_simple() {
     TEST_ASSERT(third[i] == 3);
   }
 
-  arena_deinit(&a, test_context);
+  arena_deinit(&a, test_context->free);
   return NULL;
 }
 
 const char *test_arena_allocation_failures() {
   arena a;
   setup_test_context(0);
-  TEST_ASSERT(!arena_init(&a, test_context, 1024));
-  TEST_ASSERT(context_is_errored(test_context));
-
+  TEST_ASSERT(!arena_init(&a, test_context->malloc, 1024));
   setup_test_context(1);
-  TEST_ASSERT(arena_init(&a, test_context, 1024));
-  TEST_ASSERT(!context_is_errored(test_context));
-
-  arena_deinit(&a, test_context);
+  TEST_ASSERT(arena_init(&a, test_context->malloc, 1024));
+  arena_deinit(&a, test_context->free);
 
   return NULL;
 }

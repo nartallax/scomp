@@ -1,6 +1,5 @@
 #pragma once
 #include "../commons.c"
-#include "../context.c"
 #include <assert.h>
 
 typedef struct {
@@ -9,20 +8,20 @@ typedef struct {
   memsize length;
 } arena;
 
-void arena_deinit(arena *a, context *context) {
-  context_free(context, a->data);
+void arena_deinit(arena *a, free_fn _free) {
+  _free(a->data);
 
   *a = (arena){0};
 }
 
-NODISCARD bool arena_init(arena *a, context *context, memsize length) {
+NODISCARD bool arena_init(arena *a, malloc_fn _malloc, memsize length) {
   *a = (arena){0};
 
   a->offset = 0;
   a->length = length;
-  a->data = context_allocate(context, a->length, sizeof(byte));
+  a->data = _malloc(a->length * sizeof(byte));
   if (a->data == NULL) {
-    arena_deinit(a, context);
+    *a = (arena){0};
     return false;
   }
 

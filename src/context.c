@@ -1,15 +1,15 @@
 #pragma once
 #include "commons.c"
+#include "data_structures/arena.c"
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-typedef void *(*malloc_fn)(memsize);
-typedef void *(*calloc_fn)(memsize, memsize);
-typedef void *(*realloc_fn)(void *, memsize);
-typedef void (*free_fn)(void *);
+/** Size of arena context allocates for most of its needs */
+// TODO: tune, this is way too much
+constexpr memsize CONTEXT_ARENA_SIZE = 32 * 1024 * 1024;
 
 // TODO: error codes
 typedef struct {
@@ -27,20 +27,8 @@ typedef struct {
   realloc_fn realloc;
   free_fn free;
   error error;
+  arena common_arena;
 } context;
-
-// TODO: potentially this library can live without linking to anything at all in runtime
-// I need to test it with ldd, and if it does link to something - figure out what and why, and if I could help it
-void context_init(context *c, malloc_fn custom_malloc, calloc_fn custom_calloc, realloc_fn custom_realloc, free_fn custom_free) {
-  *c = (context){0};
-  c->malloc = custom_malloc;
-  c->calloc = custom_calloc;
-  c->realloc = custom_realloc;
-  c->free = custom_free;
-  c->error.is_present = false;
-  c->error.message_length = 0;
-  c->error.message[0] = '\0';
-}
 
 INLINE void context_free(context *context, void *pointer) {
   context->free(pointer);
@@ -82,12 +70,24 @@ void context_set_allocators(context *context, malloc_fn mlc, calloc_fn clc, real
   context->free = fre;
 }
 
+/** Allocate some memory in common arena.
+Common arena exists to store all the values the library may want to allocate on init, before any writes or reads.
+This works like this because amount of memory for those values is known at compile time; it makes sense to allocate them all at once.
+Dynamic values that can grow potentially infinitely (for example, IO buffers and related structures) are allocated on heap via malloc, as usual. */
+INLINE void *context_arena_allocate(context *context, memsize element_count, memsize single_element_size) {
+  return arena_allocate(&context->common_arena, element_count, single_element_size);
+}
+
+void _context_set_error_on_malloc(context *context, memsize byte_size) {
+  context_set_error(context, "Failed to allocate memory: malloc(%zu)", byte_size);
+}
+
 // TODO: never allocate if error is present
 INLINE void *context_allocate(context *context, memsize element_count, memsize single_element_size) {
   memsize byte_size = element_count * single_element_size;
   void *result = context->malloc(byte_size);
   if (result == NULL) {
-    context_set_error(context, "Failed to allocate memory: malloc(%zu)", byte_size);
+    _context_set_error_on_malloc(context, byte_size);
   }
   return result;
 }
@@ -107,4 +107,31 @@ INLINE void *context_allocate_zero_init(context *context, memsize element_count,
     context_set_error(context, "Failed to allocate memory: calloc(%zu, %zu)", element_count, single_element_size);
   }
   return result;
+}
+
+void context_deinit(context *c) {
+  arena_deinit(&c->common_arena, c->free);
+
+  *c = (context){0};
+}
+
+// TODO: potentially this library can live without linking to anything at all in runtime
+// I need to test it with ldd, and if it does link to something - figure out what and why, and if I could help it
+NODISCARD bool context_init(context *c, malloc_fn custom_malloc, calloc_fn custom_calloc, realloc_fn custom_realloc, free_fn custom_free) {
+  *c = (context){0};
+  c->malloc = custom_malloc;
+  c->calloc = custom_calloc;
+  c->realloc = custom_realloc;
+  c->free = custom_free;
+  c->error.is_present = false;
+  c->error.message_length = 0;
+  c->error.message[0] = '\0';
+
+  if (!arena_init(&c->common_arena, custom_malloc, CONTEXT_ARENA_SIZE)) {
+    _context_set_error_on_malloc(c, CONTEXT_ARENA_SIZE);
+    context_deinit(c);
+    return false;
+  }
+
+  return true;
 }
