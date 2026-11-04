@@ -7,8 +7,10 @@
 #include <limits.h>
 #include <stdint.h>
 
-constexpr int64 _BSM_LENGTH_SHIFT = HASH_CHAIN_SHIFT;
-constexpr int64 _BSM_LENGTH = HASH_CHAIN_LENGTH;
+// TODO: consider enlargening search window to unreasonable values, and not equate it to the hash bit width
+// 16 bits of length = 64kb of addressable lookback in string compression
+constexpr int64 _BSM_LENGTH_SHIFT = 16;
+constexpr int64 _BSM_LENGTH = 1 << _BSM_LENGTH_SHIFT;
 constexpr int64 _BSM_LENGTH_MASK = _BSM_LENGTH - 1;
 
 // tuneable value
@@ -49,7 +51,7 @@ void bsm_init(byte_stream_matcher *bsm, context *context) {
 
   bsm->rolling_hash = 0;
 
-  hash_chain_init(&bsm->chain, context);
+  hash_chain_init(&bsm->chain, context, _BSM_LENGTH);
   ring_buffer_init(&bsm->content, context, _BSM_LENGTH_SHIFT);
 }
 

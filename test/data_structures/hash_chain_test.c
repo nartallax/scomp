@@ -4,7 +4,7 @@
 
 const char *test_hash_chain_simple() {
   hash_chain chain;
-  hash_chain_init(&chain, test_context);
+  hash_chain_init(&chain, test_context, 1024);
 
   hash_chain_push(&chain, 123, 123);
   hash_chain_push(&chain, 123, 321);
