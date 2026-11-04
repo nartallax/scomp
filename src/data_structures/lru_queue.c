@@ -9,6 +9,8 @@ typedef struct {
 } lru_queue;
 
 void lru_queue_deinit(lru_queue *q) {
+  fal_deinit(&q->queue);
+
   *q = (lru_queue){0};
 }
 
@@ -23,17 +25,23 @@ void lru_queue_init(lru_queue *q, context *c, int64 size) {
   lru_queue_reset(q);
 }
 
+/** If true - then the queue is full, and you should remove some elements from it. */
+INLINE bool lru_queue_is_overflowing(lru_queue *q) {
+  return !fal_has_free_space(&q->queue);
+}
+
+/** Remove the least worthy element from the queue. */
+NODISCARD INLINE void *lru_queue_pop(lru_queue *q) {
+  assert(!fal_is_empty(&q->queue));
+  return fal_pop_tail(&q->queue);
+}
+
 /** Put a new value in the queue.
 Returns an entry. This entry can be used to bump the value later.
-This entry also indicates if new value needs to be allocated (result.value == null),
-or if existing one was kicked out of the cache and the memory is expected to be reused (result.value != null, pointer to that kicked out entry) */
+Expects that you have properly drained queue overflow before doing this. */
 NODISCARD INLINE fal_entry *lru_queue_push(lru_queue *q) {
-  if (fal_has_free_space(&q->queue)) {
-    return fal_push_head(&q->queue, NULL);
-  }
-
-  void *old_value = fal_pop_tail(&q->queue);
-  return fal_push_head(&q->queue, old_value);
+  assert(!lru_queue_is_overflowing(q));
+  return fal_push_head(&q->queue, NULL);
 }
 
 /** Bumps value back to top. Entry pointer will change and is expected to be saved. */
