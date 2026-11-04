@@ -11,6 +11,7 @@ constexpr int64 HASH_CHAIN_HASH_ARRAY_LENGTH = 1 << HASH_CHAIN_BIT_WIDTH;
 typedef struct {
   int64 length;
   // hash -> position in
+  // TODO: reduce both heads and prevs to uint16, we probably don't need that many bits here
   int64 *heads;
   // position -> previous position with the same hash
   int64 *prevs;

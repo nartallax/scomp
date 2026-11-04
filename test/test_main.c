@@ -36,6 +36,7 @@ int main(int argc, const char **argv) {
 }
 
 // TODO: prompt about bugs
+// TODO: prompt about test blind spots
 // TODO: prompt about concurrency issues
 // TODO: prompt about malicious payloads
 // TODO: prompt about increasing performance

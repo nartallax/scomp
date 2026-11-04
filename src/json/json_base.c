@@ -71,6 +71,12 @@ typedef struct {
   byte length;
 } json_unicode_token;
 
+/** Some simple tokens may have reference to a shape attached to them */
+typedef struct {
+  void *shape;
+  uint64 shape_id;
+} json_token_shape_reference;
+
 /** Various booleans about JSON numbers packed into a bitmap */
 typedef byte json_number_flags;
 constexpr json_number_flags JSON_NUMBER_INTEGER_PART_IS_ZERO = 1 << 0; // 0, -0
@@ -104,6 +110,7 @@ typedef struct {
     json_character_token character;
     json_unicode_token unicode_character;
     json_number_token number;
+    json_token_shape_reference shape_reference;
   };
   json_token_kind kind;
 } json_token;

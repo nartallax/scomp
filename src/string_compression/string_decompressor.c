@@ -33,6 +33,8 @@ void strdecomp_init(string_decompressor *decomp, context *context, writer *write
   ring_buffer_init(&decomp->lookback_buffer, context, _BSM_LENGTH_SHIFT);
 }
 
+// TODO: think about malicious payload here. what if someone gives a backreference that overflows/underflows the buffer?
+// the same everywhere else, really. I need to think about this.
 void _strdecomp_materialize_backreference(string_decompressor *decomp, int64 offset, int64 length) {
   int64 start_index = (int64)ring_buffer_get_index(&decomp->lookback_buffer) - (offset + length);
   if (start_index < 0) {
