@@ -45,7 +45,7 @@ run_perf_test:
 	@$(CC) -DNDEBUG -O3 -o ./build/test test/test_main.c
 	@#make build_test_for_debug
 	@./build/test p
-	@#ulimit -n 65536 && valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --error-exitcode=1 ./build/test
+	@#ulimit -n 65536 && valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --error-exitcode=1 ./build/test p
 
 .PHONY: profile_perf_test
 profile_perf_test:

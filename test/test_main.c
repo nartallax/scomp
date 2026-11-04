@@ -34,3 +34,9 @@ int main(int argc, const char **argv) {
     return run_test_suite(normal_tests, sizeof normal_tests / sizeof normal_tests[0]);
   }
 }
+
+// TODO: prompt about bugs
+// TODO: prompt about concurrency issues
+// TODO: prompt about malicious payloads
+// TODO: prompt about increasing performance
+// TODO: prompt about increasing compression ratio
