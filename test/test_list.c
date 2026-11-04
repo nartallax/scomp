@@ -10,6 +10,7 @@
 #include "data_structures/fixed_array_list_test.c"
 #include "data_structures/fixed_pool_test.c"
 #include "data_structures/fixed_queue_test.c"
+#include "data_structures/hash_chain_test.c"
 #include "data_structures/lm_queue_test.c"
 #include "data_structures/lru_queue_test.c"
 #include "data_structures/queue_test.c"
@@ -123,6 +124,7 @@ test normal_tests[] = {
     MAKE_TEST(test_fal_simple),
     MAKE_TEST(test_lru_queue_simple),
     MAKE_TEST(test_lm_queue_simple),
+    MAKE_TEST(test_hash_chain_simple),
     // MAKE_TEST(test_ans_simple),
     // tests go here
 };

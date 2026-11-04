@@ -1,13 +1,14 @@
 #pragma once
 #include "../commons.c"
 #include "../context.c"
+#include "../data_structures/hash_chain.c"
 #include "../data_structures/ring_buffer.c"
 #include <assert.h>
 #include <limits.h>
 #include <stdint.h>
 
-constexpr int64 _BSM_LENGTH_SHIFT = 16; // 16 bits of length = 64kb of lookback. not easily tuneable
-constexpr int64 _BSM_LENGTH = 1 << _BSM_LENGTH_SHIFT;
+constexpr int64 _BSM_LENGTH_SHIFT = HASH_CHAIN_SHIFT;
+constexpr int64 _BSM_LENGTH = HASH_CHAIN_LENGTH;
 constexpr int64 _BSM_LENGTH_MASK = _BSM_LENGTH - 1;
 
 // tuneable value
@@ -23,11 +24,7 @@ typedef struct {
   // .content is a ring buffer that receives new bytes
   ring_buffer content;
 
-  // hash chains array
-  // .hash_head is hash -> position in .content
-  // .hash_prev is position in content -> previous position in .content with the same hash
-  uint16 *hash_head;
-  uint16 *hash_prev;
+  hash_chain chain;
 
   uint16 rolling_hash;
 } byte_stream_matcher;
@@ -42,6 +39,7 @@ constexpr bsm_match BSM_MATCH_EMPTY = {0};
 
 void bsm_deinit(byte_stream_matcher *bsm) {
   ring_buffer_deinit(&bsm->content);
+  hash_chain_deinit(&bsm->chain);
 
   *bsm = (byte_stream_matcher){0};
 }
@@ -51,8 +49,7 @@ void bsm_init(byte_stream_matcher *bsm, context *context) {
 
   bsm->rolling_hash = 0;
 
-  bsm->hash_head = context_arena_allocate_zero_init(context, _BSM_LENGTH, sizeof(uint16));
-  bsm->hash_prev = context_arena_allocate_zero_init(context, _BSM_LENGTH, sizeof(uint16));
+  hash_chain_init(&bsm->chain, context);
   ring_buffer_init(&bsm->content, context, _BSM_LENGTH_SHIFT);
 }
 
@@ -71,7 +68,6 @@ INLINE uint16 _bsm_calc_hash_at(ring_buffer *rb, int64 position) {
 
 INLINE void _bsm_update_hash_chain(byte_stream_matcher *bsm, uint16 index, byte new_byte) {
   uint16 hash = _bsm_update_rolling_hash(bsm, new_byte);
-  uint16 prev_pos = bsm->hash_head[hash];
 
   // the hash we just calculated is effective for strings starting _BSM_HASH_LENGTH_BYTES bytes back in the stream
   // which means we need to shift the position back
@@ -79,10 +75,7 @@ INLINE void _bsm_update_hash_chain(byte_stream_matcher *bsm, uint16 index, byte 
   int64 target_index_intermediate = (int64)index - (int64)_BSM_HASH_LENGTH_BYTES + 1;
   uint16 target_index = (uint16)(target_index_intermediate < 0 ? target_index_intermediate + (int64)_BSM_LENGTH : target_index_intermediate);
 
-  // printf("recording hash %hu at index %hu\n", hash, target_index);
-
-  bsm->hash_head[hash] = target_index;
-  bsm->hash_prev[target_index] = prev_pos;
+  hash_chain_push(&bsm->chain, hash, target_index);
 }
 
 /** Add a byte to the matcher.
@@ -133,14 +126,14 @@ bsm_match bsm_find_match(byte_stream_matcher *bsm, ring_buffer *source, int64 so
   uint16 hash = _bsm_calc_hash_at(source, source_position);
   // printf("searching for hash %hu\n", hash);
   int64 buffer_end_position = ring_buffer_get_index(&bsm->content);
-  int64 position = bsm->hash_head[hash];
+  int64 position = hash_chain_get_first_position_by_hash(&bsm->chain, hash);
   bsm_match result = {0};
   // printf("starting match search\n");
   for (int64 i = 0; i < _BSM_MAX_HYPOTHESIS; i++) {
     // printf("searching for hash %hu at %zu (attempt %zu)\n", hash, position, i);
     int64 length = _bsm_check_match_starting_at(bsm, position, source, source_position);
     int64 match_position = position;
-    position = bsm->hash_prev[position];
+    position = hash_chain_get_previous_position_by_position(&bsm->chain, position);
 
     // it's tempting to test if `length < hash bytes length` here, and early-exit
     // but this means that sometimes, when hash collision occurs, a match is lost
