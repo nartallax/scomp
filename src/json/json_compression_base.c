@@ -6,12 +6,19 @@
 #include "json_base.c"
 #include <stdint.h>
 
+constexpr int64 JSON_COMPRESSION_SHAPE_REFERENCE_SYMBOL = JSON_STATE_MAX + 1;
+constexpr int64 JSON_COMPRESSION_CONTINUE_SHAPE_SYMBOL = JSON_STATE_MAX + 2;
+// +1 because we need length, not max value
+constexpr int64 JSON_COMPRESSION_TABLE_SIZE = JSON_COMPRESSION_CONTINUE_SHAPE_SYMBOL + 1;
+
+constexpr int64 _JCOMP_TOKEN_BUFFER_LENGTH_BIT_WIDTH = 16;
+
 typedef struct {
   // TODO: this is too generic.
   // states for some tables won't ever be used; see true/false/number etc
   // also we may want to group some tables, like object_start + object_cont, object_key + string
   // I don't have a solid idea how this can be easily improved, but this feels cringe
-  ftable tables[JSON_STATE_MAX + 1];
+  ftable tables[JSON_COMPRESSION_TABLE_SIZE];
   ftable whitespaces;
   ftable escape_sequences;
   json_state current_state;

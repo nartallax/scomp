@@ -1,5 +1,6 @@
 #pragma once
 #include "../commons.c"
+#include <limits.h>
 
 /** Max length of state stack. Limits nesting.
 Exists to prevent memory overflow in case when the input is infinite number of '[' */
@@ -120,3 +121,41 @@ INLINE bool json_is_string_state(json_state state) {
 }
 
 constexpr json_token INVALID_JSON_TOKEN = {.kind = JSON_TOKEN_INVALID};
+
+/** Max length of bytes that string token can be composed of.
+(it's actually 6, but just in case - 8) */
+constexpr int64 JSON_MAX_STRING_TOKEN_SOURCE_LENGTH = 8;
+// TODO: use it in detokenizer
+/** Converts token which is a part of a string into a sequence of source bytes.
+Bytes are written in output array. Array must be at least JSON_MAX_STRING_TOKEN_SOURCE_LENGTH bytes long.
+Returns amount of bytes written. */
+int64 json_decompose_string_token_to_bytes(json_token *token, byte *receiver) {
+  int64 i = 0;
+  switch (token->kind) {
+  case JSON_TOKEN_UNICODE_CHARACTER: {
+    uint64 value = token->unicode_character.value;
+    for (; i < token->unicode_character.length; i++) {
+      receiver[i] = value & 0xff;
+      value = value >> CHAR_BIT;
+    }
+  } break;
+
+  case JSON_TOKEN_ESCAPE_SEQUENCE: {
+    receiver[0] = '\\';
+    receiver[1] = token->character.character;
+    i = 2;
+  } break;
+
+  case JSON_TOKEN_ESCAPED_UNICODE_CHARCODE: {
+    receiver[0] = '\\';
+    receiver[1] = 'u';
+    uint64 value = token->unicode_character.value;
+    for (i = 2; i < token->unicode_character.length + 2; i++) {
+      receiver[i] = value & 0xff;
+      value = value >> CHAR_BIT;
+    }
+  } break;
+  }
+
+  return i;
+}

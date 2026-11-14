@@ -69,6 +69,8 @@ constexpr int64 JSON_SHAPES_FRESH_QUEUE_SIZE = 256;
 constexpr int64 JSON_SHAPES_MATURE_QUEUE_SIZE = 256;
 constexpr int64 JSON_SHAPES_TOTAL_POOL_SIZE = JSON_MAX_STATE_STACK_LENGTH + JSON_SHAPES_FRESH_QUEUE_SIZE + JSON_SHAPES_MATURE_QUEUE_SIZE;
 constexpr int64 _JSR_HYPOTHESIS_DEPTH = 10;
+constexpr int64 JSON_SHAPE_MAX_KEY_COUNT = 64;
+constexpr int64 JSON_SHAPE_UNKNOWN = 255;
 
 struct _json_object_shape {
   byte keys[JSON_SHAPE_SUM_KEY_LENGTH];
@@ -84,6 +86,7 @@ struct _json_object_shape {
   uint32 id;
   uint16 keys_hash;
   int16 keys_length;
+  byte keys_count;
   fal_entry *cache_entry;
 };
 typedef struct _json_object_shape json_object_shape;
@@ -98,6 +101,7 @@ typedef struct {
   lm_queue cache_controller;
   fixed_stack shapes_in_progress;
   uint64 id_counter;
+  byte *string_token_receiver;
 } json_shapes_repository;
 
 void jsr_deinit(json_shapes_repository *repo) {
@@ -113,6 +117,7 @@ void jsr_init(json_shapes_repository *repo, context *context) {
   *repo = (json_shapes_repository){0};
 
   repo->id_counter = 0;
+  repo->string_token_receiver = context_arena_allocate(context, JSON_MAX_STRING_TOKEN_SOURCE_LENGTH, sizeof(byte));
   fpool_init(&repo->shapes, context, sizeof(json_object_shape), JSON_SHAPES_TOTAL_POOL_SIZE);
   hash_chain_init(&repo->key_hashes, context, JSON_SHAPES_TOTAL_POOL_SIZE);
   lm_queue_init(&repo->cache_controller, context, JSON_SHAPES_FRESH_QUEUE_SIZE, JSON_SHAPES_MATURE_QUEUE_SIZE);
@@ -121,6 +126,8 @@ void jsr_init(json_shapes_repository *repo, context *context) {
 
 void _jsr_setup_shape(json_shapes_repository *repo, json_object_shape *shape, json_token *source_token) {
   shape->keys_hash = 0;
+  shape->keys_length = 0;
+  shape->keys_count = 0;
   shape->cache_entry = NULL;
 
   shape->id = repo->id_counter;
@@ -161,7 +168,7 @@ outer:
       continue;
     }
 
-    if (match_shape->keys_length != new_shape->keys_length || match_shape->keys_hash != new_shape->keys_hash) {
+    if (match_shape->keys_length != new_shape->keys_length || match_shape->keys_hash != new_shape->keys_hash || match_shape->keys_count != new_shape->keys_count) {
       continue;
     }
 
@@ -180,7 +187,7 @@ outer:
   return NULL;
 }
 
-void jsr_push_key_byte(json_shapes_repository *repo, byte b) {
+void _jsr_push_key_byte(json_shapes_repository *repo, byte b) {
   json_object_shape *shape = _jsr_get_current_shape(repo);
   if (shape == NULL) {
     return;
@@ -200,6 +207,9 @@ void jsr_push_key_byte(json_shapes_repository *repo, byte b) {
   shape->keys_hash = _jsr_update_hash(shape->keys_hash, b, shape->keys_length);
   shape->keys[shape->keys_length] = b;
   shape->keys_length++;
+  if (b == 1) {
+    shape->keys_count++;
+  }
 }
 
 void _jsr_drain_cache_overflow(json_shapes_repository *repo) {
@@ -244,10 +254,18 @@ void _jsr_complete_current_shape(json_shapes_repository *repo) {
 }
 
 void jsr_process_token(json_shapes_repository *repo, json_token *token, json_state state) {
-  if (state == JSON_STATE_OBJECT_KEY && token->kind == JSON_TOKEN_STRING_DELIMITER) {
-    // JSON disallows using bytes from 0 to 0x1f directly in the string
-    // so us using such byte as a key separator is completely fine
-    jsr_push_key_byte(repo, 1);
+  if (state == JSON_STATE_OBJECT_KEY) {
+    if (token->kind == JSON_TOKEN_STRING_DELIMITER) {
+      // JSON disallows using bytes from 0 to 0x1f directly in the string
+      // so us using such byte as a key separator is completely fine
+      _jsr_push_key_byte(repo, 1);
+
+    } else {
+      int64 length = json_decompose_string_token_to_bytes(token, repo->string_token_receiver);
+      for (int64 i = 0; i < length; i++) {
+        _jsr_push_key_byte(repo, repo->string_token_receiver[i]);
+      }
+    }
   } else if (token->kind == JSON_TOKEN_OBJECT_OPEN) {
     json_object_shape *shape = fpool_acquire(&repo->shapes);
     json_object_shape **slot = fstack_push(&repo->shapes_in_progress);
@@ -256,4 +274,8 @@ void jsr_process_token(json_shapes_repository *repo, json_token *token, json_sta
   } else if (token->kind == JSON_TOKEN_OBJECT_CLOSE) {
     _jsr_complete_current_shape(repo);
   }
+}
+
+INLINE int64 jsr_get_shape_offset(json_shapes_repository *repo, json_object_shape *shape) {
+  return fpool_get_offset(&repo->shapes, shape);
 }

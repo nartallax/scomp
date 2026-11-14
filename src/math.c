@@ -24,3 +24,19 @@ INLINE int32 most_significant_bit_index(uint64 x) {
 
 #endif
 #endif
+
+INLINE uint64 min_uint64(uint64 a, uint64 b) {
+  return a < b ? a : b;
+}
+
+INLINE uint64 *min_uint64_p(uint64 *a, uint64 *b) {
+  return *a < *b ? a : b;
+}
+
+INLINE uint64 max_uint64(uint64 a, uint64 b) {
+  return a > b ? a : b;
+}
+
+INLINE uint64 *max_uint64_p(uint64 *a, uint64 *b) {
+  return *a > *b ? a : b;
+}
