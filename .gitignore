@@ -4,3 +4,4 @@ c_version
 callgrind*
 vcov
 coverage
+test.c
