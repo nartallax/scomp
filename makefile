@@ -1,6 +1,6 @@
 .PHONY: test
 test:
-	@v -stats test src
+	@v -stats -W test src
 
 .PHONY: coverage
 coverage:
