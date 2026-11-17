@@ -1,6 +1,6 @@
 module stack
 
-import queue
+import src.queue
 
 pub struct Stack[T] {
 mut:

@@ -1,6 +1,6 @@
 module pool
 
-import queue
+import src.queue
 
 /** A helper structure that allocates memory for some amount of objects at the same time, and helps to reuse that memory. */
 pub struct Pool[T] {

@@ -37,7 +37,7 @@ fn test_ring_buffer_fill() {
 		src_array << i
 	}
 
-	mut consumed_bytes := rb.fill_with(src_array)
+	mut consumed_bytes := rb.fill_from(src_array)
 	assert consumed_bytes == 8
 	assert rb.get_position() == 0
 	assert rb.get_byte(0) == 10
@@ -46,14 +46,14 @@ fn test_ring_buffer_fill() {
 	rb.push_byte(1)
 	rb.push_byte(1)
 	assert rb.get_position() == 2
-	consumed_bytes = rb.fill_with(src_array[8..])
+	consumed_bytes = rb.fill_from(src_array[8..])
 	assert consumed_bytes == 8
 	assert rb.get_byte(2) == 18
 	assert rb.get_byte(7) == 23
 	assert rb.get_byte(0) == 24
 	assert rb.get_byte(1) == 25
 
-	consumed_bytes = rb.fill_with(src_array[85..])
+	consumed_bytes = rb.fill_from(src_array[85..])
 	assert consumed_bytes == 5
 	assert rb.get_byte(1) == 25
 	assert rb.get_byte(2) == 95

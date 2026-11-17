@@ -11,12 +11,12 @@ mut:
 	position_mask int
 }
 
-pub fn new(size_bits int) &RingBuffer {
-	size := 1 << size_bits
+pub fn new(capacity_bits int) &RingBuffer {
+	caps := 1 << capacity_bits
 	return &RingBuffer{
-		buffer:        []u8{len: size, cap: size}
+		buffer:        []u8{len: caps, cap: caps}
 		position:      0
-		position_mask: size - 1
+		position_mask: caps - 1
 	}
 }
 
@@ -29,6 +29,13 @@ pub fn (r &RingBuffer) get_position() int {
 	return r.position
 }
 
+/** Brings the position within interval of [0, capacity).
+Negative positions more than -capacity will produce wrong values */
+pub fn (r &RingBuffer) normalize_position(position int) int {
+	assert position >= -r.get_capacity(), 'Unexpectedly negative position'
+	return (position + r.get_capacity()) & r.position_mask
+}
+
 pub fn (mut r RingBuffer) push_byte(byte u8) {
 	r.buffer[r.position] = byte
 	r.position = (r.position + 1) & r.position_mask
@@ -37,13 +44,12 @@ pub fn (mut r RingBuffer) push_byte(byte u8) {
 /** Return a byte from the buffer by its index.
 Offset can wrap around and go into negatives, but no more than one buffer's capacity */
 pub fn (r &RingBuffer) get_byte(position int) u8 {
-	fixed_position := (position + r.get_capacity()) & r.position_mask
-	return r.buffer[fixed_position]
+	return r.buffer[r.normalize_position(position)]
 }
 
 /** Copy bytes from provided C array into internal buffer until full.
 Returns amount of bytes consumed. */
-pub fn (mut r RingBuffer) fill_with_raw(raw_array &u8, len int) int {
+pub fn (mut r RingBuffer) fill_from_raw(raw_array &u8, len int) int {
 	mut rem_src_len := len
 
 	first_copy_amount := math.min(rem_src_len, r.get_capacity() - r.position)
@@ -67,8 +73,8 @@ pub fn (mut r RingBuffer) fill_with_raw(raw_array &u8, len int) int {
 	return len - rem_src_len
 }
 
-pub fn (mut r RingBuffer) fill_with(array []u8) int {
+pub fn (mut r RingBuffer) fill_from(array []u8) int {
 	unsafe {
-		return r.fill_with_raw(array.data, array.len)
+		return r.fill_from_raw(array.data, array.len)
 	}
 }
