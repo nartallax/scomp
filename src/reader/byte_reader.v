@@ -10,11 +10,14 @@ mut:
 }
 
 pub fn new_byte_reader(capacity_bits int) &ByteReader {
-	rb := ring_buffer.new(capacity_bits)
-	return &ByteReader{
-		buffer:   rb
-		position: 0
-	}
+	result := &ByteReader{}
+	result.init(capacity_bits)
+	return result
+}
+
+fn (mut br ByteReader) init(capacity_bits int) {
+	br.buffer = ring_buffer.new(capacity_bits)
+	br.position = 0
 }
 
 pub fn (br &ByteReader) get_capacity() int {
@@ -30,16 +33,16 @@ pub fn (br &ByteReader) get_available_bytes() int {
 	return diff
 }
 
-pub fn (br &ByteReader) get_free_space() int {
+pub fn (br &ByteReader) get_free_byte_space() int {
 	return br.get_capacity() - br.get_available_bytes()
 }
 
 pub fn (mut br ByteReader) fill_from(src []u8) int {
-	return br.buffer.fill_from(src[..math.min(src.len, br.get_free_space())])
+	return br.buffer.fill_from(src[..math.min(src.len, br.get_free_byte_space())])
 }
 
 pub fn (mut br ByteReader) fill_from_raw(src &u8, length int) int {
-	return br.buffer.fill_from_raw(src, math.min(length, br.get_free_space()))
+	return br.buffer.fill_from_raw(src, math.min(length, br.get_free_byte_space()))
 }
 
 pub fn (mut br ByteReader) read() u8 {
